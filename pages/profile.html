@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Profilo - Viltrum Fitness</title>
+  
+  <!-- CRITICAL: Inline styles to prevent FOUC in PWA standalone mode -->
+  <style id="fouc-prevention">
+    /* Hide all form elements initially to prevent native styling flash */
+    select, input:not([type="checkbox"]):not([type="radio"]), button { 
+      -webkit-appearance: none !important; 
+      -moz-appearance: none !important;
+      appearance: none !important;
+    }
+    /* Ensure black background shows immediately */
+    html, body { background: #000000 !important; }
+  </style>
+  
+  <link rel="manifest" href="../manifest.json">
+  <link rel="stylesheet" href="../css/main.css">
+  <style>
+    .profile-container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: calc(env(safe-area-inset-top) + 2rem) 2rem env(safe-area-inset-bottom) 2rem;
+    }
+
+    .profile-header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .profile-avatar {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+      margin: 0 auto 1rem;
+    }
+
+    .profile-name {
+      font-family: 'Staatliches', sans-serif;
+      font-size: 2rem;
+      color: #fff;
+      margin-bottom: 0.5rem;
+    }
+
+    .profile-email {
+      color: #999;
+      font-size: 1rem;
+    }
+
+    .subscription-card {
+      background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(69, 160, 73, 0.1) 100%);
+      border-radius: 15px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border: 1px solid rgba(76, 175, 80, 0.3);
+    }
+
+    .subscription-card.expired {
+      background: linear-gradient(135deg, rgba(244, 67, 54, 0.1) 0%, rgba(211, 47, 47, 0.1) 100%);
+      border-color: rgba(244, 67, 54, 0.3);
+    }
+
+    .subscription-card.trial {
+      background: linear-gradient(135deg, rgba(33, 150, 243, 0.1) 0%, rgba(25, 118, 210, 0.1) 100%);
+      border-color: rgba(33, 150, 243, 0.3);
+    }
+
+    .subscription-status {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+      color: #4CAF50;
+    }
+
+    .subscription-card.expired .subscription-status {
+      color: #f44336;
+    }
+
+    .subscription-card.trial .subscription-status {
+      color: #2196F3;
+    }
+
+    .subscription-details {
+      color: #ccc;
+      font-size: 0.875rem;
+    }
+
+    .profile-section {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 15px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .profile-section h2 {
+      font-family: 'Staatliches', sans-serif;
+      font-size: 1.5rem;
+      color: #fff;
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+      display: block;
+      color: #999;
+      font-size: 0.875rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 0.75rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 1rem;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #4CAF50;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: none;
+      font-family: 'Staatliches', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-danger {
+      background: rgba(244, 67, 54, 0.2);
+      color: #f44336;
+      border: 1px solid rgba(244, 67, 54, 0.5);
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .back-button {
+      position: fixed;
+      top: calc(env(safe-area-inset-top) + 1rem);
+      left: 1rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: bold;
+      backdrop-filter: blur(10px);
+      z-index: 100;
+    }
+
+    .success-message, .error-message {
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    .success-message {
+      background: rgba(76, 175, 80, 0.2);
+      border: 1px solid rgba(76, 175, 80, 0.5);
+      color: #4CAF50;
+    }
+
+    .error-message {
+      background: rgba(244, 67, 54, 0.2);
+      border: 1px solid rgba(244, 67, 54, 0.5);
+      color: #f44336;
+    }
+
+    .success-message.show, .error-message.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <a href="../pages/dashboard-v7.html" class="back-button">← Dashboard</a>
+
+  <div class="profile-container">
+    <div class="profile-header">
+      <div class="profile-avatar">👤</div>
+      <h1 class="profile-name" id="profile-name">Caricamento...</h1>
+      <p class="profile-email" id="profile-email"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="f59694879c969498909b819ab59098949c99db969a98">[email&#160;protected]</a></p>
+    </div>
+
+    <div class="subscription-card" id="subscription-card">
+      <div class="subscription-status" id="subscription-status">Caricamento...</div>
+      <div class="subscription-details" id="subscription-details">Caricamento informazioni...</div>
+    </div>
+
+    <div class="profile-section">
+      <h2>Modifica Username</h2>
+      <div class="success-message" id="username-success"></div>
+      <div class="error-message" id="username-error"></div>
+      <form id="username-form">
+        <div class="form-group">
+          <label for="new-username">Nuovo Username</label>
+          <input type="text" id="new-username" placeholder="Es. GymMaster2025" required>
+        </div>
+        <div class="button-group">
+          <button type="submit" class="btn btn-primary">Aggiorna Username</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="profile-section">
+      <h2>Modifica Email</h2>
+      <div class="success-message" id="email-success"></div>
+      <div class="error-message" id="email-error"></div>
+      <form id="email-form">
+        <div class="form-group">
+          <label for="new-email">Nuova Email</label>
+          <input type="email" id="new-email" placeholder="nuova@email.com" required>
+        </div>
+        <div class="form-group">
+          <label for="current-password">Password Attuale (per conferma)</label>
+          <input type="password" id="current-password" placeholder="Password" required>
+        </div>
+        <div class="button-group">
+          <button type="submit" class="btn btn-primary">Aggiorna Email</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="profile-section">
+      <h2>Azioni Account</h2>
+      <div class="button-group">
+        <button class="btn btn-secondary" onclick="window.location.href='../pages/dashboard-v7.html'">
+          Torna alla Dashboard
+        </button>
+        <button class="btn btn-danger" onclick="confirmLogout()">
+          Esci
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module">
+    import { getUserProfile, updateUsername, updateEmail, getSubscriptionMessage, formatExpiryDate } from '../js/profile-manager.js';
+
+    // Load profile data
+    async function loadProfile() {
+      const profile = await getUserProfile();
+      
+      if (!profile) {
+        window.location.href = '../index.html';
+        return;
+      }
+
+      // Display profile info
+      document.getElementById('profile-name').textContent = profile.username || 'User';
+      document.getElementById('profile-email').textContent = profile.email || 'email@example.com';
+      document.getElementById('new-username').value = profile.username || '';
+
+      // Display subscription info
+      const subCard = document.getElementById('subscription-card');
+      const subStatus = document.getElementById('subscription-status');
+      const subDetails = document.getElementById('subscription-details');
+
+      if (profile.subscription) {
+        const message = getSubscriptionMessage(profile.subscription);
+        subStatus.textContent = message;
+
+        if (profile.subscription.expiryDate) {
+          subDetails.textContent = `Scadenza: ${formatExpiryDate(profile.subscription.expiryDate)}`;
+        } else {
+          subDetails.textContent = 'Nessuna data di scadenza';
+        }
+
+        // Add appropriate class
+        subCard.classList.remove('expired', 'trial');
+        if (profile.subscription.status === 'expired') {
+          subCard.classList.add('expired');
+        } else if (profile.subscription.status === 'trial') {
+          subCard.classList.add('trial');
+        }
+      }
+    }
+
+    // Handle username update
+    document.getElementById('username-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const newUsername = document.getElementById('new-username').value;
+      const successMsg = document.getElementById('username-success');
+      const errorMsg = document.getElementById('username-error');
+      
+      successMsg.classList.remove('show');
+      errorMsg.classList.remove('show');
+
+      const result = await updateUsername(newUsername);
+      
+      if (result.success) {
+        successMsg.textContent = '✅ Username aggiornato con successo!';
+        successMsg.classList.add('show');
+        document.getElementById('profile-name').textContent = newUsername;
+      } else {
+        errorMsg.textContent = '❌ ' + (result.error || 'Errore durante l\'aggiornamento');
+        errorMsg.classList.add('show');
+      }
+    });
+
+    // Handle email update
+    document.getElementById('email-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const newEmail = document.getElementById('new-email').value;
+      const password = document.getElementById('current-password').value;
+      const successMsg = document.getElementById('email-success');
+      const errorMsg = document.getElementById('email-error');
+      
+      successMsg.classList.remove('show');
+      errorMsg.classList.remove('show');
+
+      const result = await updateEmail(newEmail, password);
+      
+      if (result.success) {
+        successMsg.textContent = '✅ ' + (result.message || 'Email aggiornata!');
+        successMsg.classList.add('show');
+        document.getElementById('profile-email').textContent = newEmail;
+        document.getElementById('current-password').value = '';
+      } else {
+        errorMsg.textContent = '❌ ' + (result.error || 'Errore durante l\'aggiornamento');
+        errorMsg.classList.add('show');
+      }
+    });
+
+    // Confirm logout
+    window.confirmLogout = async function() {
+      if (confirm('Sei sicuro di voler uscire?')) {
+        try {
+          // Sign out from Supabase
+          const { createClient } = window.supabase;
+          const supabase = createClient(
+            'https://evggdwmsczdgqjfmclzx.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2Z2dkd21zY3pkZ3FqZm1jbHp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzEwMDI5MjgsImV4cCI6MjA0NjU3ODkyOH0.dGhBmrjl_kLbYMGRlQUZ3xIK-Y_TgWF8ujaxV9lHsYg'
+          );
+          
+          await supabase.auth.signOut();
+          console.log('[Logout] Signed out from Supabase');
+        } catch (error) {
+          console.error('[Logout] Error signing out from Supabase:', error);
+        }
+        
+        // Clear all localStorage
+        localStorage.removeItem('loggedUser');
+        localStorage.removeItem('userName');

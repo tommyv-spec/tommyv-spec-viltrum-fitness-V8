@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Piano - Viltrum Fitness</title>
+  
+  <style id="fouc-prevention">
+    select, input:not([type="checkbox"]):not([type="radio"]), button { 
+      -webkit-appearance: none !important; 
+      -moz-appearance: none !important;
+      appearance: none !important;
+    }
+    html, body { background: #000000 !important; }
+  </style>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Staatliches&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/main.css" />
+  <link rel="manifest" href="../manifest.json" />
+  <meta name="theme-color" content="#000000" />
+  
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100vh;
+      height: var(--dvh-px, 100vh);
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      font-family: 'Staatliches', sans-serif;
+      background: #000000;
+      color: #FFFFFF;
+      overflow: hidden;
+    }
+
+    .plan-container {
+      height: 100vh;
+      height: var(--dvh-px, 100vh);
+      display: flex;
+      flex-direction: column;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       HEADER - Usa il sistema unificato da main.css
+       ═══════════════════════════════════════════════════════════════════════════ */
+    /* Gli stili base vengono da main.css */
+    .plan-title {
+      font-size: 2.2vh;
+      letter-spacing: 2px;
+      text-align: center;
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 50vw;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       PROGRESS BAR SECTION
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .progress-section {
+      flex-shrink: 0;
+      padding: 2vh 4vw;
+      background: #111;
+      border-bottom: 1px solid #333;
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1vh;
+    }
+
+    .progress-text {
+      font-size: 1.6vh;
+      color: #AAA;
+    }
+
+    .progress-count {
+      font-size: 1.8vh;
+      color: #FFFFFF;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #333;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #FFFFFF;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       WORKOUT LIST (COLLAPSIBLE)
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .list-section {
+      flex-shrink: 0;
+      background: #0A0A0A;
+      border-bottom: 1px solid #333;
+      max-height: 35vh;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+
+    .list-section.collapsed {
+      max-height: 6vh;
+    }
+
+    .list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.5vh 4vw;
+      cursor: pointer;
+      background: #111;
+    }
+
+    .list-header:hover {
+      background: #1A1A1A;
+    }
+
+    .current-workout-label {
+      font-size: 1.6vh;
+      color: #AAA;
+    }
+
+    .current-workout-name {
+      font-size: 1.8vh;
+      color: #FFFFFF;
+      margin-left: 1vw;
+    }
+
+    .toggle-icon {
+      font-size: 2vh;
+      color: #FFFFFF;
+      transition: transform 0.3s ease;
+    }
+
+    .list-section.collapsed .toggle-icon {
+      transform: rotate(180deg);
+    }
+
+    .workout-list {
+      max-height: 28vh;
+      overflow-y: auto;
+      padding: 1vh 0;
+    }
+
+    .workout-item {
+      display: flex;
+      align-items: center;
+      padding: 1.5vh 4vw;
+      gap: 3vw;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .workout-item:hover {
+      background: #1A1A1A;
+    }
+
+    .workout-item.selected {
+      background: #222;
+      border-left: 3px solid #FFFFFF;
+    }
+
+    .workout-item.completed {
+      opacity: 0.5;
+    }
+
+    .workout-item.locked {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .workout-checkbox {
+      width: 24px;
+      height: 24px;
+      border: 2px solid #555;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+    }
+
+    .workout-item.completed .workout-checkbox {
+      background: #FFFFFF;
+      border-color: #FFFFFF;
+    }
+
+    .workout-checkbox::after {
+      content: '';
+      display: none;
+      width: 6px;
+      height: 12px;
+      border: solid #000000;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+      margin-bottom: 2px;
+    }
+
+    .workout-item.completed .workout-checkbox::after {
+      display: block;
+    }
+
+    .workout-index {
+      font-size: 1.6vh;
+      color: #666;
+      width: 30px;
+    }
+
+    .workout-name {
+      flex: 1;
+      font-size: 1.8vh;
+      color: #FFFFFF;
+    }
+
+    .workout-type {
+      font-size: 1.4vh;
+      color: #888;
+      padding: 0.5vh 2vw;
+      border: 1px solid #444;
+      border-radius: 4px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       PREVIEW SECTION
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .preview-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .preview-header {
+      padding: 2vh 4vw 1vh;
+      border-bottom: 1px solid #222;
+    }
+
+    .preview-title {
+      font-size: 2.5vh;
+      letter-spacing: 1px;
+      margin-bottom: 0.5vh;
+    }
+
+    .preview-type-badge {
+      display: inline-block;
+      font-size: 1.4vh;
+      color: #AAA;
+      padding: 0.5vh 2vw;
+      border: 1px solid #444;
+      border-radius: 4px;
+    }
+
+    .preview-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2vh 4vw;
+    }
+
+    /* Muscle workout preview */
+    .instructions-box {
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 2vh 3vw;
+      margin-bottom: 2vh;
+    }
+
+    .instructions-title {
+      font-size: 1.6vh;
+      color: #AAA;
+      margin-bottom: 1vh;
+    }
+
+    .instructions-text {
+      font-size: 1.5vh;
+      color: #CCC;
+      line-height: 1.6;
+      white-space: pre-line;
+    }
+
+    .exercises-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 2vw;
+    }
+
+    .exercise-card {
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 8px;
+      overflow: hidden;
+      text-align: center;
+    }
+
+    .exercise-card img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      background: #222;
+    }
+
+    .exercise-card-name {
+      padding: 1vh;
+      font-size: 1.3vh;
+      color: #CCC;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Run workout preview */
+    .run-lines {
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 2vh 3vw;
+    }
+
+    .run-line {
+      padding: 1vh 0;
+      border-bottom: 1px solid #222;
+      font-size: 1.6vh;
+      color: #CCC;
+    }
+
+    .run-line:last-child {
+      border-bottom: none;
+    }
+
+    .run-line-section {
+      font-size: 1.3vh;
+      color: #666;
+      margin-left: 2vw;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       START BUTTON
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .start-section {
+      flex-shrink: 0;
+      padding: 2vh 4vw;
+      background: #000000;
+      border-top: 1px solid #333;
+    }
+
+    .start-btn {
+      width: 100%;
+      padding: 2vh;
+      background: #FFFFFF;
+      color: #000000;
+      border: none;
+      border-radius: 8px;
+      font-family: 'Staatliches', sans-serif;
+      font-size: 2.2vh;
+      letter-spacing: 2px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .start-btn:hover {
+      background: #E0E0E0;
+      transform: scale(1.02);
+    }
+
+    .start-btn:disabled {
+      background: #333;
+      color: #666;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       LOADING STATE
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .loading-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2vh;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #333;
+      border-top-color: #FFFFFF;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 1.8vh;
+      color: #AAA;
+    }
+
+    /* Preload Progress Bar */
+    .preload-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: #111; border-top: 1px solid #333;
+      padding: 1.5vh 4vw; display: none; z-index: 100;
+    }
+    .preload-bar.active { display: block; }
+    .preload-bar-text { font-size: 1.4vh; color: #888; margin-bottom: 0.5vh; text-align: center; }
+    .preload-bar-track { height: 4px; background: #333; border-radius: 2px; overflow: hidden; }
+    .preload-bar-fill { height: 100%; background: #FFF; width: 0%; transition: width 0.3s ease; }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       RESPONSIVE
+       ═══════════════════════════════════════════════════════════════════════════ */
+    @media (max-width: 480px) {
+      .exercises-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="plan-container">
+    <!-- Header -->
+    <header>
+      <div class="header-left">
+        <button class="header-back-btn" onclick="goBack()">← INDIETRO</button>
+      </div>
+      <div class="header-center">
+        <h1 class="plan-title" id="plan-title">CARICAMENTO...</h1>
+      </div>
+      <div class="header-right"></div>
+    </header>
+
+    <!-- Loading State -->
+    <div class="loading-container" id="loading-container">
+      <div class="loading-spinner"></div>
+      <p class="loading-text">Caricamento piano...</p>
+    </div>
+
+    <!-- Main Content (hidden until loaded) -->
+    <div id="main-content" style="display: none; flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+      
+      <!-- Progress Bar -->
+      <div class="progress-section">
+        <div class="progress-header">
+          <span class="progress-text">PROGRESSO</span>
+          <span class="progress-count" id="progress-count">0/0</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Workout List (Collapsible) -->
+      <div class="list-section" id="list-section">
+        <div class="list-header" onclick="toggleList()">
+          <div>
+            <span class="current-workout-label">Prossimo:</span>
+            <span class="current-workout-name" id="current-workout-name">-</span>
+          </div>
+          <span class="toggle-icon" id="toggle-icon">▼</span>
+        </div>
+        <div class="workout-list" id="workout-list">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Preview Section -->
+      <div class="preview-section">
+        <div class="preview-header">
+          <h2 class="preview-title" id="preview-title">-</h2>
+          <span class="preview-type-badge" id="preview-type">-</span>
+        </div>
+        <div class="preview-content" id="preview-content">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Start Button -->
+      <div class="start-section">
+        <button class="start-btn" id="start-btn" onclick="startWorkout()">START</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../viewport.js"></script>
+  <script src="../js/offline-preloader.js"></script>
+  <script src="../js/global-preload-bar.js"></script>
+  
+  <!-- Global Preload Progress Bar (injected by js/global-preload-bar.js) -->
+  
+  <script type="module">
+    import DataPreloader from '../js/data-preloader.js';
+    import { GOOGLE_SCRIPT_URL } from '../js/config.js';
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // STATE
+    // ═══════════════════════════════════════════════════════════════════════════
+    let planData = null;
+    let planProgress = { lastWorkoutIndex: -1 };
+    let selectedWorkoutIndex = 0;
+    let isListCollapsed = false;
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // INITIALIZATION
+    // ═══════════════════════════════════════════════════════════════════════════
+    async function init() {
+      const planName = sessionStorage.getItem('selectedPlan');
+      
+      if (!planName) {
+        alert('Nessun piano selezionato');
+        window.location.href = 'dashboard-v7.html';
+        return;
+      }
+      
+      try {
+        const email = localStorage.getItem('loggedUser');
+        
+        // 🚀 V7: Usa DataPreloader - dati già pronti in memoria!
+        // Se non sono stati precaricati, li carica ora
+        await DataPreloader.loadAll(email);
+        
+        // Ottieni piano con tutti i dettagli workout (ISTANTANEO)
+        planData = DataPreloader.getPlanWithDetails(planName);
+        
+        if (!planData) {
+          throw new Error(`Plan "${planName}" not found`);
+        }
+        
+        // Carica progresso (già in memoria/localStorage)
+        planProgress = DataPreloader.getPlanProgress(planName);
+        
+        // Set selected to next workout
+        selectedWorkoutIndex = Math.min(planProgress.lastWorkoutIndex + 1, planData.workouts.length - 1);
+        if (selectedWorkoutIndex < 0) selectedWorkoutIndex = 0;
+        
+        // Render UI
+        renderUI();
+        
+        // Show main content
+        document.getElementById('loading-container').style.display = 'none';
+        document.getElementById('main-content').style.display = 'flex';
+        
+      } catch (error) {
+        console.error('Failed to load plan:', error);
+        alert('Errore nel caricamento del piano');
+        window.location.href = 'dashboard-v7.html';
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // RENDER
+    // ═══════════════════════════════════════════════════════════════════════════
+    function renderUI() {
+      // Title
+      document.getElementById('plan-title').textContent = planData.name.toUpperCase();
+      
+      // Progress
+      const completed = planProgress.lastWorkoutIndex + 1;
+      const total = planData.totalWorkouts;
+      const percentage = total > 0 ? (completed / total) * 100 : 0;
+      
+      document.getElementById('progress-count').textContent = `${completed}/${total}`;
+      document.getElementById('progress-fill').style.width = `${percentage}%`;
+      
+      // Current workout label
+      const nextWorkout = planData.workouts[selectedWorkoutIndex];
+      document.getElementById('current-workout-name').textContent = 
+        nextWorkout ? `${selectedWorkoutIndex + 1}. ${nextWorkout.name}` : 'Completato!';
+      
+      // Workout list
+      renderWorkoutList();
+      
+      // Preview
+      renderPreview();
+      
+      // Start button state
+      updateStartButton();
+    }
+    
+    function renderWorkoutList() {
+      const container = document.getElementById('workout-list');
+      container.innerHTML = '';
+      
+      planData.workouts.forEach((workout, index) => {
+        const isCompleted = index <= planProgress.lastWorkoutIndex;
+        const isSelected = index === selectedWorkoutIndex;
+        const isNext = index === planProgress.lastWorkoutIndex + 1;
+        const isLocked = index > planProgress.lastWorkoutIndex + 1;
+        
+        const item = document.createElement('div');
+        item.className = 'workout-item';
+        if (isCompleted) item.classList.add('completed');
+        if (isSelected) item.classList.add('selected');
+        if (isLocked) item.classList.add('locked');
+        
+        item.innerHTML = `
+          <div class="workout-checkbox"></div>
+          <span class="workout-index">${index + 1}.</span>
+          <span class="workout-name">${workout.name}</span>
+          <span class="workout-type">${workout.type === 'muscle' ? 'FORZA' : 'CORSA'}</span>
+        `;
+        
+        // Click to select (for preview)
+        item.addEventListener('click', () => {
+          if (!isLocked) {
+            selectedWorkoutIndex = index;
+            renderUI();
+          }
+        });
+        
+        // Click checkbox to toggle completion (manual)
+        const checkbox = item.querySelector('.workout-checkbox');
+        checkbox.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (isCompleted) {
+            // Unmark as completed
+            markWorkoutIncomplete(index);
+          } else if (index === planProgress.lastWorkoutIndex + 1) {
+            // Mark as completed
+            markWorkoutComplete(index);
+          }
+        });
+        
+        container.appendChild(item);
+      });
+    }
+    
+    function renderPreview() {
+      const workout = planData.workouts[selectedWorkoutIndex];
+      if (!workout) {
+        document.getElementById('preview-title').textContent = 'Piano completato!';
+        document.getElementById('preview-type').textContent = '';
+        document.getElementById('preview-content').innerHTML = '<p style="text-align:center;color:#AAA;padding:4vh 0;">Hai completato tutti i workout di questo piano.</p>';
+        return;
+      }
+      
+      document.getElementById('preview-title').textContent = workout.name;
+      document.getElementById('preview-type').textContent = workout.type === 'muscle' ? 'ALLENAMENTO FORZA' : 'ALLENAMENTO CORSA';
+      
+      const content = document.getElementById('preview-content');
+      
+      if (workout.type === 'muscle' && workout.details) {
+        // Muscle workout preview
+        let html = '';
+        
+        if (workout.details.instructions) {
+          html += `
+            <div class="instructions-box">
+              <h3 class="instructions-title">ISTRUZIONI</h3>
+              <p class="instructions-text">${workout.details.instructions}</p>
+            </div>
+          `;
+        }
+        
+        if (workout.details.exercises && workout.details.exercises.length > 0) {
+          html += '<div class="exercises-grid">';
+          workout.details.exercises.forEach(ex => {
+            html += `
+              <div class="exercise-card">
+                <img src="${ex.imageUrl || ''}" alt="${ex.name}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23222%22 width=%22100%22 height=%22100%22/></svg>'">
+                <p class="exercise-card-name">${ex.name}</p>
+              </div>
+            `;
+          });
+          html += '</div>';
+        }
+        
+        content.innerHTML = html;
+        
+      } else if (workout.type === 'run' && workout.details) {
+        // Run workout preview
+        let html = '<div class="run-lines">';
+        
+        if (workout.details.lines && workout.details.lines.length > 0) {
+          workout.details.lines.forEach(line => {
+            html += `
+              <div class="run-line">
+                ${line.text}
+                ${line.section ? `<span class="run-line-section">(${line.section})</span>` : ''}
+              </div>
+            `;
+          });
+        } else {
+          html += '<p style="color:#666;">Nessun dettaglio disponibile</p>';
+        }
+        
+        html += '</div>';
+        content.innerHTML = html;
+        
+      } else {
+        content.innerHTML = '<p style="text-align:center;color:#666;padding:4vh 0;">Dettagli non disponibili</p>';
+      }
+    }
+    
+    function updateStartButton() {
+      const btn = document.getElementById('start-btn');
+      const nextIndex = planProgress.lastWorkoutIndex + 1;
+      
+      if (selectedWorkoutIndex === nextIndex && nextIndex < planData.workouts.length) {
+        btn.disabled = false;
+        btn.textContent = 'START';
+      } else if (selectedWorkoutIndex <= planProgress.lastWorkoutIndex) {
+        btn.disabled = false;
+        btn.textContent = 'RIVEDI';
+      } else {
+        btn.disabled = true;
+        btn.textContent = 'BLOCCATO';
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ACTIONS
+    // ═══════════════════════════════════════════════════════════════════════════
+    window.toggleList = function() {
+      const section = document.getElementById('list-section');
+      isListCollapsed = !isListCollapsed;
+      section.classList.toggle('collapsed', isListCollapsed);
+    };
+    
+    window.goBack = function() {
+      window.location.href = 'dashboard-v7.html';
+    };
+    
+    window.startWorkout = function() {
+      const workout = planData.workouts[selectedWorkoutIndex];
+      if (!workout) return;
+      
+      // Store workout info for player
+      sessionStorage.setItem('currentWorkout', JSON.stringify({
+        planName: planData.name,
+        workoutIndex: selectedWorkoutIndex,
+        workoutName: workout.name,
+        workoutType: workout.type,
+        totalWorkouts: planData.totalWorkouts
+      }));
+      
+      // Navigate to appropriate player
+      if (workout.type === 'muscle') {
+        window.location.href = 'workout.html';
+      } else {
+        window.location.href = 'endurance.html';
+      }
+    };
+    
+    async function markWorkoutComplete(index) {
+      planProgress.lastWorkoutIndex = index;
+      
+      // 🚀 V7: Usa DataPreloader per salvare
+      await DataPreloader.savePlanProgress(planData.name, index, planData.totalWorkouts);
+      
+      // Move selection to next
+      selectedWorkoutIndex = Math.min(index + 1, planData.workouts.length - 1);
+      
+      renderUI();
+    }
+    
+    async function markWorkoutIncomplete(index) {
+      // Can only unmark if it's the last completed one
+      if (index !== planProgress.lastWorkoutIndex) return;
+      
+      planProgress.lastWorkoutIndex = index - 1;
+      
+      // 🚀 V7: Usa DataPreloader per salvare
+      await DataPreloader.savePlanProgress(planData.name, planProgress.lastWorkoutIndex, planData.totalWorkouts);
+      
+      renderUI();
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // INIT
+    // ═══════════════════════════════════════════════════════════════════════════
+    document.addEventListener('DOMContentLoaded', init);
+    
+    // V8: Preload progress is now handled by GlobalPreloadBar
+    // The global bar listens for 'preloadProgress' and 'preloadComplete' events automatically
+  </script>
+</body>
+</html>

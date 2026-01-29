@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Nutrition - Viltrum Fitness</title>
+  
+  <!-- CRITICAL: Inline styles to prevent FOUC in PWA standalone mode -->
+  <style id="fouc-prevention">
+    /* Hide all form elements initially to prevent native styling flash */
+    select, input:not([type="checkbox"]):not([type="radio"]), button { 
+      -webkit-appearance: none !important; 
+      -moz-appearance: none !important;
+      appearance: none !important;
+    }
+    /* Ensure black background shows immediately */
+    html, body { background: #000000 !important; }
+  </style>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Staatliches&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/main.css" />
+  
+  <link rel="manifest" href="../manifest.json" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="apple-mobile-web-app-title" content="Viltrum Fitness" />
+  <link rel="apple-touch-icon" href="../icons/icon-192x192.png" />
+  <link rel="stylesheet" href="../css/nutrition.css" />
+  
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100vh; font-family: 'Staatliches', sans-serif; background: #000; color: #FFF; overflow-x: hidden; }
+    /* Header usa stili globali da main.css */
+    main { min-height: calc(100vh - 80px); max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .page-header { text-align: center; margin-bottom: 30px; }
+    .page-header h1 { font-size: clamp(36px, 5vw, 54px); margin-bottom: 10px; letter-spacing: 2px; }
+    .page-header p { color: #B0B0B0; font-size: clamp(16px, 2.5vw, 20px); }
+    .expired-banner { background: linear-gradient(135deg, rgba(255,100,100,0.2), rgba(255,50,50,0.1)); border: 2px solid rgba(255,100,100,0.5); border-radius: 15px; padding: 20px; margin-bottom: 30px; text-align: center; }
+    .expired-banner h2 { color: #ff6b6b; font-size: 24px; margin-bottom: 10px; }
+    .no-plan { background: rgba(77,77,77,0.4); border: 1px solid #7D7D7D; border-radius: 20px; padding: 40px; text-align: center; margin: 50px 0; }
+    .no-plan h2 { font-size: 28px; margin-bottom: 15px; }
+    .no-plan p { color: #B0B0B0; font-size: 18px; line-height: 1.6; }
+    .meal-nav { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 30px; }
+    .meal-nav-btn { padding: 15px; background: rgba(77,77,77,0.4); border: 2px solid #7D7D7D; border-radius: 15px; color: #FFF; font-family: 'Staatliches', sans-serif; font-size: 18px; cursor: pointer; transition: all 0.3s; letter-spacing: 1px; }
+    .meal-nav-btn:hover { border-color: #FFF; background: rgba(77,77,77,0.6); }
+    .meal-nav-btn.active { background: #FFF; color: #000; }
+    .meal-container { background: rgba(77,77,77,0.4); border: 1px solid #7D7D7D; border-radius: 20px; padding: 30px; margin-bottom: 30px; display: none; }
+    .meal-container.active { display: block; }
+    .meal-container h2 { font-size: 32px; margin-bottom: 25px; text-align: center; letter-spacing: 2px; }
+    .nutrient-slot { margin-bottom: 30px; background: rgba(0,0,0,0.3); border: 1px solid #4D4D4D; border-radius: 15px; padding: 20px; }
+    .slot-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #4D4D4D; }
+    .slot-header h3 { font-size: 24px; letter-spacing: 1.5px; }
+    .slot-header .slot-subtitle { color: #B0B0B0; font-size: 14px; }
+    .options-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-top: 15px; }
+    .food-option { background: rgba(0,0,0,0.4); border: 2px solid #4D4D4D; border-radius: 12px; padding: 15px; cursor: pointer; transition: all 0.3s; }
+    .food-option:hover { border-color: #7D7D7D; transform: translateY(-2px); }
+    .food-option.selected { border-color: #FFF; background: rgba(255,255,255,0.1); }
+    .food-option .food-name { font-size: 16px; margin-bottom: 8px; line-height: 1.3; }
+    .food-option .food-quantity { color: #FFD700; font-size: 18px; font-weight: bold; margin-bottom: 5px; }
+    .food-option .visual-help { display: block; color: #B0B0B0; font-size: 13px; margin-top: 5px; }
+    .food-option .btn-convert { margin-top: 10px; padding: 6px 12px; background: rgba(255,255,255,0.1); border: 1px solid #7D7D7D; border-radius: 6px; color: #FFF; font-size: 12px; cursor: pointer; font-family: 'Staatliches', sans-serif; }
+    .food-option .btn-convert:hover { background: rgba(255,255,255,0.2); }
+    .meal-summary { background: rgba(0,0,0,0.5); border: 1px solid #4D4D4D; border-radius: 15px; padding: 25px; margin-top: 30px; }
+    .meal-summary h3 { font-size: 24px; margin-bottom: 20px; text-align: center; }
+    .summary-foods { margin-top: 20px; padding-top: 20px; border-top: 1px solid #4D4D4D; }
+    .summary-foods h4 { color: #B0B0B0; font-size: 16px; margin-bottom: 12px; }
+    .summary-foods ul { list-style: none; padding: 0; }
+    .summary-foods li { font-size: 15px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .summary-foods li:last-child { border-bottom: none; }
+    .btn { padding: 14px 28px; background: #FFF; color: #000; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; font-family: 'Staatliches', sans-serif; cursor: pointer; transition: all 0.3s; letter-spacing: 1px; }
+    .btn:hover { background: #B0B0B0; transform: translateY(-2px); }
+    .btn-save { width: 100%; margin-top: 20px; background: #FFD700; font-size: 18px; padding: 16px; }
+    .btn-save:hover { background: #FFC700; }
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9); overflow-y: auto; }
+    .modal-content { background: #1a1a1a; margin: 5% auto; padding: 30px; border: 1px solid #7D7D7D; border-radius: 20px; width: 90%; max-width: 600px; }
+    .modal-content h3 { font-size: 28px; margin-bottom: 20px; }
+    .modal-content p { color: #B0B0B0; font-size: 16px; line-height: 1.6; margin-bottom: 15px; }
+    .btn-close-modal { margin-top: 20px; width: 100%; }
+    .loading { text-align: center; padding: 50px; color: #B0B0B0; font-size: 18px; }
+    @media (max-width: 768px) { .options-grid { grid-template-columns: 1fr; } .meal-nav { grid-template-columns: repeat(2, 1fr); } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-left"></div>
+    <div class="header-center">
+      <img id="header-logo" data-src="https://lh3.googleusercontent.com/d/1va6OkGp9yAHDJBfeDM3npwqlJJoLUh5C" alt="Logo" style="opacity: 0;" />
+    </div>
+    <div class="header-right">
+      <a href="dashboard-v7.html" class="header-action-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span>Dashboard</span>
+      </a>
+    </div>
+  </header>
+  <main>
+    <div class="page-header">
+      <h1>NUTRITION</h1>
+      <p id="user-name-display">Il tuo piano alimentare</p>
+    </div>
+    <div id="app-container"><div class="loading">Caricamento piano alimentare...</div></div>
+  </main>
+  <div id="nutrition-modal" class="modal"><div class="modal-content"></div></div>
+  <script src="../viewport.js"></script>
+  <script type="module" src="../js/session-cache.js"></script>
+  <script src="../js/offline-preloader.js"></script>
+  <script src="../js/global-preload-bar.js"></script>
+  <script src="../js/nutrition-engine.js"></script>
+  <script src="../js/nutrition-app-v2.js"></script>
+  
+  <!-- V8: Load logo from cache, global preload bar handles progress -->
+  <script type="module">
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Load logo from cache
+      const headerLogo = document.getElementById('header-logo') || document.querySelector('header img');
+      if (headerLogo) {
+        const logoUrl = headerLogo.getAttribute('data-src') || headerLogo.src;
+        if (logoUrl && logoUrl !== window.location.href) {
+          let attempts = 0;
+          while (typeof OfflinePreloader === 'undefined' && attempts < 30) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+            attempts++;
+          }
+          
+          if (typeof OfflinePreloader !== 'undefined') {
+            try {
+              const cachedLogoUrl = await OfflinePreloader.getCachedImage(logoUrl);
+              if (cachedLogoUrl) {
+                headerLogo.src = cachedLogoUrl;
+              } else {
+                headerLogo.src = logoUrl;
+              }
+            } catch (error) {
+              headerLogo.src = logoUrl;
+            }
+          } else {
+            headerLogo.src = logoUrl;
+          }
+          headerLogo.style.opacity = '1';
+        }
+      }
+      
+      // V8: Preload continues automatically via GlobalPreloadBar
+      // No need to manually trigger - auth.js/dashboard already started it
+    });
+  </script>
+</body>
+</html>

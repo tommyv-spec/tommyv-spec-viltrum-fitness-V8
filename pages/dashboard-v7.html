@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Dashboard - Viltrum Fitness</title>
+  
+  <style>
+    select, input:not([type="checkbox"]):not([type="radio"]), button { 
+      -webkit-appearance: none; -moz-appearance: none; appearance: none;
+    }
+    html, body { background: #000; }
+  </style>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Staatliches&display=swap" rel="stylesheet" />
+  <link rel="manifest" href="../manifest.json" />
+  <meta name="theme-color" content="#000000" />
+  
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100vh; height: var(--dvh-px, 100vh);
+      width: 100%; font-family: 'Staatliches', sans-serif;
+      background: #000; color: #FFF; overflow: hidden;
+    }
+    .dashboard-container {
+      height: 100vh; height: var(--dvh-px, 100vh);
+      display: flex; flex-direction: column;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+
+    /* Header - FORZATO per evitare problemi con main.css */
+    header {
+      display: grid !important;
+      grid-template-columns: 1fr auto 1fr !important;
+      align-items: center !important;
+      height: 60px !important;
+      max-height: 60px !important;
+      min-height: 50px !important;
+      padding: 0 4vw !important;
+      background: #000 !important;
+      border-bottom: 1px solid #222 !important;
+      overflow: hidden !important;
+      flex-shrink: 0;
+    }
+    header img {
+      height: 40px !important;
+      max-height: 40px !important;
+      width: auto !important;
+      max-width: 150px !important;
+      object-fit: contain !important;
+    }
+    .header-left { grid-column: 1; justify-self: start; }
+    .header-center { grid-column: 2; justify-self: center; }
+    .header-right { grid-column: 3; justify-self: end; }
+    .header-action-btn {
+      padding: 8px 16px; background: #FFF; border: 2px solid #FFF; border-radius: 8px;
+      color: #000; font-family: 'Staatliches', sans-serif; font-size: 14px;
+      cursor: pointer; display: flex; align-items: center; gap: 6px; text-decoration: none;
+    }
+    .header-action-btn svg { width: 18px; height: 18px; }
+
+    /* Welcome */
+    .welcome-section { flex-shrink: 0; text-align: center; padding: 1.5vh 4vw; }
+    .welcome-section h1 { font-size: 2.2vh; letter-spacing: 2px; }
+
+    /* Stats */
+    .stats-section {
+      flex-shrink: 0; display: flex; justify-content: center; gap: 6vw;
+      padding: 1.5vh 4vw; border-bottom: 1px solid #222;
+    }
+    .stat-box { text-align: center; }
+    .stat-label { font-size: 1.3vh; color: #666; margin-bottom: 0.3vh; }
+    .stat-value { font-size: 2vh; color: #FFF; }
+    .stat-sub { font-size: 1.2vh; color: #888; }
+
+    /* Main Cards Container - scrollabile se necessario */
+    main { 
+      flex: 1; display: flex; flex-direction: column; 
+      padding: 2vh 4vw; gap: 1.5vh; 
+      overflow-y: auto; overflow-x: hidden;
+      min-height: 0; /* Importante per flex scroll */
+    }
+    .section-card {
+      flex-shrink: 0; background: #111; border: 2px solid #333; border-radius: 16px;
+      padding: 2.5vh 4vw; text-decoration: none; display: flex; flex-direction: column;
+      justify-content: center; align-items: center; gap: 1vh; cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .section-card:hover { border-color: #FFF; transform: translateY(-2px); }
+    .section-card.disabled { opacity: 0.4; cursor: not-allowed; }
+    .section-card.disabled:hover { border-color: #333; transform: none; }
+    .card-icon {
+      width: 6vh; height: 6vh; border: 2px solid #444; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .card-icon svg { width: 3vh; height: 3vh; color: #FFF; }
+    .card-title { font-size: 2.5vh; letter-spacing: 3px; color: #FFF; }
+    .card-subtitle { font-size: 1.4vh; color: #888; text-align: center; }
+    .card-badge {
+      font-size: 1.3vh; padding: 0.4vh 2vw; border: 1px solid #444;
+      border-radius: 4px; color: #AAA;
+    }
+    .card-badge.active { border-color: #FFF; color: #FFF; }
+
+    /* Small Cards Row (Shop & Blog) */
+    .small-cards-row {
+      flex-shrink: 0; display: flex; gap: 3vw; margin-top: auto;
+    }
+    .small-card {
+      flex: 1; background: #111; border: 2px solid #333; border-radius: 12px;
+      padding: 1.5vh 3vw; display: flex; flex-direction: column;
+      justify-content: center; align-items: center; gap: 0.8vh; cursor: pointer;
+      transition: all 0.2s ease; text-decoration: none;
+    }
+    .small-card:hover { border-color: #FFF; transform: translateY(-2px); }
+    .small-card-icon {
+      width: 4vh; height: 4vh; border: 2px solid #444; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .small-card-icon svg { width: 2vh; height: 2vh; color: #FFF; }
+    .small-card-title { font-size: 1.8vh; letter-spacing: 2px; color: #FFF; }
+    .small-card-subtitle { font-size: 1.2vh; color: #888; text-align: center; }
+
+    /* Modals */
+    .modal {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.95); z-index: 1000; align-items: center;
+      justify-content: center; padding: 4vw;
+    }
+    .modal.active { display: flex; }
+    .modal-content {
+      background: #111; border: 2px solid #333; border-radius: 16px;
+      padding: 3vh 4vw; max-width: 400px; width: 100%; max-height: 80vh; overflow-y: auto;
+    }
+    .modal-title { font-size: 2.5vh; letter-spacing: 2px; text-align: center; margin-bottom: 3vh; }
+    .plan-list { display: flex; flex-direction: column; gap: 1.5vh; }
+    .plan-item {
+      background: #1A1A1A; border: 2px solid #333; border-radius: 12px;
+      padding: 2vh 3vw; cursor: pointer; transition: all 0.2s ease;
+    }
+    .plan-item:hover { border-color: #FFF; }
+    .plan-item-name { font-size: 2vh; color: #FFF; margin-bottom: 0.5vh; }
+    .plan-item-progress { font-size: 1.4vh; color: #666; }
+    .modal-close {
+      margin-top: 2vh; width: 100%; padding: 1.5vh; background: none;
+      border: 2px solid #444; border-radius: 8px; color: #FFF;
+      font-family: 'Staatliches', sans-serif; font-size: 1.8vh; cursor: pointer;
+    }
+    .modal-close:hover { border-color: #FFF; }
+
+    /* Profile */
+    .profile-actions { display: flex; flex-direction: column; gap: 1.5vh; }
+    .profile-btn {
+      padding: 1.5vh 3vw; background: #1A1A1A; border: 1px solid #333;
+      border-radius: 8px; color: #FFF; font-family: 'Staatliches', sans-serif;
+      font-size: 1.6vh; cursor: pointer; text-align: left;
+    }
+    .profile-btn:hover { border-color: #FFF; }
+    .profile-btn.logout { border-color: #600; color: #F44; }
+    .subscription-info {
+      text-align: center; padding: 2vh; background: #1A1A1A;
+      border-radius: 8px; margin-bottom: 2vh;
+    }
+    .subscription-status { font-size: 1.6vh; margin-bottom: 0.5vh; }
+    .subscription-status.active { color: #4CAF50; }
+    .subscription-status.expired { color: #F44336; }
+    .subscription-date { font-size: 1.4vh; color: #666; }
+
+    /* Loading - Nascosto di default, mostrato solo se necessario */
+    .loading-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: #000; display: none; flex-direction: column;
+      align-items: center; justify-content: center; gap: 2vh; z-index: 2000;
+    }
+    .loading-overlay.visible { display: flex; }
+    .loading-spinner {
+      width: 40px; height: 40px; border: 3px solid #333;
+      border-top-color: #FFF; border-radius: 50%; animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Preload Progress Bar */
+    .preload-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: #111; border-top: 1px solid #333;
+      padding: 1.5vh 4vw; display: none; z-index: 100;
+    }
+    .preload-bar.active { display: block; }
+    .preload-bar-text { font-size: 1.4vh; color: #888; margin-bottom: 0.5vh; text-align: center; }
+    .preload-bar-track { height: 4px; background: #333; border-radius: 2px; overflow: hidden; }
+    .preload-bar-fill { height: 100%; background: #FFF; width: 0%; transition: width 0.3s ease; }
+  </style>
+</head>
+<body>
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="loading-spinner"></div>
+    <p style="color:#AAA;font-size:1.6vh;">Caricamento...</p>
+  </div>
+
+  <!-- Global Preload Progress Bar (injected by js/global-preload-bar.js) -->
+
+  <div class="dashboard-container">
+    <header>
+      <div class="header-left"></div>
+      <div class="header-center">
+        <img src="https://lh3.googleusercontent.com/d/1va6OkGp9yAHDJBfeDM3npwqlJJoLUh5C" alt="Viltrum Fitness" style="height: 40px !important; max-height: 40px !important; width: auto !important; max-width: 150px !important;" />
+      </div>
+      <div class="header-right">
+        <button class="header-action-btn" onclick="openProfileModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/>
+            <path d="M7 20.662V19a2 2 0 012-2h6a2 2 0 012 2v1.662"/>
+          </svg>
+          PROFILO
+        </button>
+      </div>
+    </header>
+
+    <div class="welcome-section">
+      <h1 id="welcome-text">BENVENUTO</h1>
+    </div>
+
+    <div class="stats-section">
+      <div class="stat-box">
+        <div class="stat-label">ULTIMO ALLENAMENTO</div>
+        <div class="stat-value" id="last-workout-name">-</div>
+        <div class="stat-sub" id="last-workout-time">-</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">TOTALE WORKOUT</div>
+        <div class="stat-value" id="total-workouts">0</div>
+      </div>
+    </div>
+
+    <main>
+      <div class="section-card" id="training-card" onclick="handleTrainingClick()">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6.5 6.5l11 11M6.5 17.5l11-11M3 12h3m12 0h3M12 3v3m0 12v3"/>
+          </svg>
+        </div>
+        <h2 class="card-title">ALLENAMENTO</h2>
+        <p class="card-subtitle">Forza e resistenza combinati</p>
+        <span class="card-badge active" id="training-badge">-</span>
+      </div>
+
+      <div class="section-card" id="nutrition-card" onclick="handleNutritionClick()">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v20M12 2a9 9 0 019 9H3a9 9 0 019-9z"/>
+          </svg>
+        </div>
+        <h2 class="card-title">NUTRIZIONE</h2>
+        <p class="card-subtitle">Piano alimentare personalizzato</p>
+        <span class="card-badge" id="nutrition-badge">-</span>
+      </div>
+
+      <!-- Small Cards: Shop & Blog -->
+      <div class="small-cards-row">
+        <div class="small-card" onclick="window.open('https://shop.viltrumfitness.com/collections/all', '_blank')">
+          <div class="small-card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/>
+            </svg>
+          </div>
+          <h3 class="small-card-title">SHOP</h3>
+          <p class="small-card-subtitle">Acquista pacchetti</p>
+        </div>
+
+        <div class="small-card" onclick="window.open('https://shop.viltrumfitness.com/blogs/nutrition', '_blank')">
+          <div class="small-card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 014 17V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H6.5"/>
+              <path d="M8 7h8M8 11h6"/>
+            </svg>
+          </div>
+          <h3 class="small-card-title">BLOG</h3>
+          <p class="small-card-subtitle">Articoli e consigli</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal" id="plan-modal">
+    <div class="modal-content">
+      <h2 class="modal-title">SELEZIONA PIANO</h2>
+      <div class="plan-list" id="plan-list"></div>
+      <button class="modal-close" onclick="closePlanModal()">CHIUDI</button>
+    </div>
+  </div>
+
+  <div class="modal" id="profile-modal">
+    <div class="modal-content">
+      <h2 class="modal-title">PROFILO</h2>
+      <div class="subscription-info">
+        <div class="subscription-status" id="subscription-status">Caricamento...</div>
+        <div class="subscription-date" id="subscription-date">-</div>
+      </div>
+      <div class="profile-actions">
+        <button class="profile-btn" onclick="alert('Coming soon')">Cambia Username</button>
+        <button class="profile-btn" onclick="alert('Coming soon')">Cambia Password</button>
+        <button class="profile-btn logout" onclick="handleLogout()">Logout</button>
+      </div>
+      <button class="modal-close" onclick="closeProfileModal()">CHIUDI</button>
+    </div>
+  </div>
+
+  <script src="../viewport.js"></script>
+  <script src="../js/offline-preloader.js"></script>
+  <script src="../js/global-preload-bar.js"></script>
+  <script type="module">
+    import DataPreloader from '../js/data-preloader.js';
+    import { GOOGLE_SCRIPT_URL } from '../js/config.js';
+    
+    let userData = null;
+    let userPlans = [];
+    let allProgress = {};
+    let allPlansData = {};
+    
+    async function init() {
+      const email = localStorage.getItem('loggedUser');
+      if (!email) { window.location.href = '../index.html'; return; }
+      
+      // 🚀 V8: Mostra UI SUBITO - nessun loading screen
+      document.getElementById('loading-overlay').classList.add('hidden');
+      
+      try {
+        // Carica dati (da cache se disponibile, poi aggiorna in background)
+        await DataPreloader.loadAll(email);
+        
+        userData = DataPreloader.getUserData();
+        userPlans = userData?.plans || [];
+        allPlansData = DataPreloader.getPlans();
+        allProgress = DataPreloader.getAllProgress();
+        
+        // Fallback se non ci sono dati
+        if (!userData) {
+          userData = { plans: [], fullName: localStorage.getItem('userName') || 'User' };
+        }
+        
+        // Render UI
+        renderUI();
+        
+        // Ascolta aggiornamenti in background
+        window.addEventListener('dataRefreshed', (e) => {
+          console.log('🔄 UI: Aggiornamento dati ricevuto');
+          userData = DataPreloader.getUserData();
+          userPlans = userData?.plans || [];
+          allPlansData = DataPreloader.getPlans();
+          allProgress = DataPreloader.getAllProgress();
+          renderUI();
+        });
+        
+        // 🚀 V8: Avvia offline preloader IMMEDIATAMENTE (no delay)
+        // Il preload potrebbe già essere in corso da auth.js, in quel caso skippa
+        if (typeof OfflinePreloader !== 'undefined' && userData) {
+          const userInfo = {
+            email: userData.email,
+            plans: userPlans,
+            allPlansData: allPlansData,
+            allWorkoutsData: DataPreloader.getAllMuscleWorkouts(),
+            runWorkouts: DataPreloader.getAllRunWorkouts(),
+            nutritionPdfUrl: userData.nutritionPdfUrl
+          };
+          
+          // Questo controlla se già in corso e skippa se necessario
+          OfflinePreloader.preloadAll(userInfo, { scriptUrl: GOOGLE_SCRIPT_URL })
+            .then(result => {
+              if (result.skipped) {
+                console.log('⏭️ Preload already in progress');
+              } else if (result.cached) {
+                console.log('✅ Already cached');
+              } else {
+                console.log('✅ Preload complete');
+              }
+            });
+        }
+        
+      } catch (error) {
+        console.error('Failed to initialize:', error);
+        // Mostra errore solo se non abbiamo dati di fallback
+        if (!userData) {
+          document.getElementById('welcome-text').textContent = 'ERRORE CARICAMENTO';
+        }
+      }
+    }
+    
+    function renderUI() {
+      const name = userData.fullName || localStorage.getItem('userName') || 'Atleta';
+      document.getElementById('welcome-text').textContent = `BENVENUTO, ${name.toUpperCase()}`;
+      
+      // Stats
+      let totalWorkouts = 0;
+      for (const planName in allProgress) {
+        const progress = allProgress[planName];
+        if (progress.lastWorkoutIndex >= 0) totalWorkouts += progress.lastWorkoutIndex + 1;
+      }
+      const localTotal = parseInt(localStorage.getItem('viltrum_total_workouts')) || 0;
+      document.getElementById('total-workouts').textContent = Math.max(totalWorkouts, localTotal);
+      
+      // Training badge
+      const trainingBadge = document.getElementById('training-badge');
+      if (userPlans.length > 0) {
+        trainingBadge.textContent = `${userPlans.length} PIAN${userPlans.length > 1 ? 'I' : 'O'}`;
+        trainingBadge.classList.add('active');
+      } else {
+        trainingBadge.textContent = 'NESSUN PIANO';
+        document.getElementById('training-card').classList.add('disabled');
+      }
+      
+      // Nutrition badge
+      const nutritionBadge = document.getElementById('nutrition-badge');
+      if (userData.nutritionPdfUrl) {
+        nutritionBadge.textContent = 'ATTIVO';
+        nutritionBadge.classList.add('active');
+      } else {
+        nutritionBadge.textContent = 'NON ATTIVO';
+        document.getElementById('nutrition-card').classList.add('disabled');
+      }
+      
+      // Subscription
+      const statusEl = document.getElementById('subscription-status');
+      const dateEl = document.getElementById('subscription-date');
+      if (userData.scadenza) {
+        const expDate = new Date(userData.scadenza);
+        const daysRemaining = Math.ceil((expDate - new Date()) / (1000 * 60 * 60 * 24));
+        statusEl.textContent = daysRemaining < 0 ? 'Abbonamento Scaduto' : 'Abbonamento Attivo';
+        statusEl.className = 'subscription-status ' + (daysRemaining < 0 ? 'expired' : 'active');
+        dateEl.textContent = `Scadenza: ${expDate.toLocaleDateString('it-IT')}`;
+      } else {
+        statusEl.textContent = 'Stato sconosciuto';
+        dateEl.textContent = '';
+      }
+    }
+    
+    window.handleTrainingClick = function() {
+      if (userPlans.length === 0) { alert('Nessun piano assegnato'); return; }
+      if (userPlans.length === 1) {
+        sessionStorage.setItem('selectedPlan', userPlans[0]);
+        window.location.href = 'plan-view.html';
+      } else {
+        openPlanModal();
+      }
+    };
+    
+    window.handleNutritionClick = function() {
+      if (!userData.nutritionPdfUrl) { alert('Piano nutrizionale non disponibile'); return; }
+      window.location.href = 'nutrition.html';
+    };
+    
+    window.openPlanModal = function() {
+      const list = document.getElementById('plan-list');
+      list.innerHTML = '';
+      
+      userPlans.forEach(planName => {
+        const progress = allProgress[planName] || { lastWorkoutIndex: -1 };
+        const planData = allPlansData[planName] || { totalWorkouts: 0 };
+        const completed = progress.lastWorkoutIndex + 1;
+        const total = planData.totalWorkouts || 0;
+        
+        const item = document.createElement('div');
+        item.className = 'plan-item';
+        item.innerHTML = `
+          <div class="plan-item-name">${planName}</div>
+          <div class="plan-item-progress">${completed}/${total} completati</div>
+        `;
+        item.onclick = () => {
+          sessionStorage.setItem('selectedPlan', planName);
+          window.location.href = 'plan-view.html';
+        };
+        list.appendChild(item);
+      });
+      
+      document.getElementById('plan-modal').classList.add('active');
+    };
+    
+    window.closePlanModal = function() {
+      document.getElementById('plan-modal').classList.remove('active');
+    };
+    
+    window.openProfileModal = function() {
+      document.getElementById('profile-modal').classList.add('active');
+    };
+    
+    window.closeProfileModal = function() {
+      document.getElementById('profile-modal').classList.remove('active');
+    };
+    
+    window.handleLogout = function() {
+      localStorage.removeItem('loggedUser');
+      localStorage.removeItem('userName');
+      sessionStorage.clear();
+      window.location.href = '../index.html';
+    };
+    
+    document.addEventListener('DOMContentLoaded', init);
+    
+    // V8: Preload progress is now handled by GlobalPreloadBar
+    // The global bar listens for 'preloadProgress' and 'preloadComplete' events automatically
+  </script>
+</body>
+</html>

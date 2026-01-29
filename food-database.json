@@ -1,0 +1,641 @@
+{
+  "conversions": {
+    "pieceToGrams": {
+      "mandorle": {
+        "unitWeight": 1.2,
+        "description": "1 mandorla sgusciata",
+        "visual": "~15 mandorle = 18-20g"
+      },
+      "noci": {
+        "unitWeight": 5,
+        "description": "1 metà noce sgusciata",
+        "visual": "4-5 noci = 20-25g"
+      },
+      "nocciole": {
+        "unitWeight": 1.3,
+        "description": "1 nocciola sgusciata",
+        "visual": "~15 nocciole = 19-20g"
+      },
+      "anacardi": {
+        "unitWeight": 1.7,
+        "description": "1 anacardo",
+        "visual": "~12 anacardi = 20g"
+      },
+      "pistacchi": {
+        "unitWeight": 0.7,
+        "description": "1 pistacchio sgusciato",
+        "visual": "~30 pistacchi = 21g"
+      },
+      "galletta_riso": {
+        "unitWeight": 7,
+        "description": "1 galletta di riso",
+        "visual": "4 gallette = 28g"
+      },
+      "galletta_mais": {
+        "unitWeight": 8,
+        "description": "1 galletta di mais",
+        "visual": "5 gallette = 40g"
+      },
+      "wasa": {
+        "unitWeight": 10,
+        "description": "1 fetta Wasa",
+        "visual": "3 fette = 30g"
+      },
+      "fetta_biscottata": {
+        "unitWeight": 8,
+        "description": "1 fetta biscottata",
+        "visual": "4 fette = 32g"
+      },
+      "weetabix": {
+        "unitWeight": 19,
+        "description": "1 formella Weetabix",
+        "visual": "2 formelle = 38g"
+      },
+      "fetta_panbauletto": {
+        "unitWeight": 28,
+        "description": "1 fetta pan bauletto",
+        "visual": "1 fetta ≈ 30g"
+      },
+      "fetta_pane_toast": {
+        "unitWeight": 25,
+        "description": "1 fetta da toast",
+        "visual": "~4 fette = 100g"
+      },
+      "uovo_medio": {
+        "unitWeight": 50,
+        "description": "1 uovo medio senza guscio",
+        "visual": "2 uova = 100g"
+      }
+    },
+    "volumeToGrams": {
+      "cucchiaino_raso": {
+        "olio": 5,
+        "burro_arachidi": 5,
+        "miele": 7,
+        "parmigiano": 3,
+        "zucchero": 5,
+        "sale": 5
+      },
+      "cucchiaio_raso": {
+        "olio": 10,
+        "burro_arachidi": 15,
+        "parmigiano": 8,
+        "farina": 10,
+        "zucchero": 12,
+        "cacao": 7
+      },
+      "cucchiaio_colmo": {
+        "farina": 15,
+        "zucchero": 18,
+        "cacao": 10
+      },
+      "bicchiere_200ml": {
+        "latte": 200,
+        "acqua": 200,
+        "riso_crudo": 180,
+        "pasta_cruda": 160
+      }
+    },
+    "rawToCooked": {
+      "pasta": {
+        "multiplier": 2.5,
+        "reverse": 0.4,
+        "description": "Pasta cruda → cotta (assorbe acqua)",
+        "example": "80g crudo = 200g cotto"
+      },
+      "riso": {
+        "multiplier": 3,
+        "reverse": 0.33,
+        "description": "Riso crudo → cotto",
+        "example": "80g crudo = 240g cotto"
+      },
+      "quinoa": {
+        "multiplier": 3,
+        "reverse": 0.33,
+        "description": "Quinoa cruda → cotta",
+        "example": "80g crudo = 240g cotto"
+      },
+      "couscous": {
+        "multiplier": 2.5,
+        "reverse": 0.4,
+        "description": "Cous cous crudo → cotto",
+        "example": "80g crudo = 200g cotto"
+      },
+      "farro": {
+        "multiplier": 2.5,
+        "reverse": 0.4,
+        "description": "Farro crudo → cotto",
+        "example": "80g crudo = 200g cotto"
+      },
+      "orzo": {
+        "multiplier": 2.5,
+        "reverse": 0.4,
+        "description": "Orzo crudo → cotto",
+        "example": "80g crudo = 200g cotto"
+      },
+      "legumi_secchi": {
+        "multiplier": 2.4,
+        "reverse": 0.42,
+        "description": "Legumi secchi → cotti",
+        "example": "50g secchi = 120g cotti",
+        "note": "Nel piano i legumi sono già indicati COTTI"
+      },
+      "patate": {
+        "multiplier": 1,
+        "reverse": 1,
+        "description": "Patate crude ≈ cotte (perdono solo acqua)",
+        "example": "250g crude ≈ 250g cotte"
+      },
+      "carne": {
+        "multiplier": 0.75,
+        "reverse": 1.33,
+        "description": "Carne cruda → cotta (perde 25% peso)",
+        "example": "150g cruda = 112g cotta"
+      },
+      "pesce": {
+        "multiplier": 0.8,
+        "reverse": 1.25,
+        "description": "Pesce crudo → cotto (perde 20% peso)",
+        "example": "150g crudo = 120g cotto"
+      },
+      "pollo": {
+        "multiplier": 0.75,
+        "reverse": 1.33,
+        "description": "Pollo crudo → cotto (perde 25% peso)",
+        "example": "150g crudo = 112g cotto"
+      }
+    }
+  },
+  "equivalents": {
+    "proteine_colazione": {
+      "baseProfile": {
+        "kcal": 75,
+        "protein": 15,
+        "carbs": 5,
+        "fat": 0
+      },
+      "tolerance": 0.15,
+      "alternatives": [
+        {
+          "id": "skyr_0",
+          "name": "Skyr 0%",
+          "per100g": {
+            "kcal": 57,
+            "protein": 11,
+            "carbs": 4,
+            "fat": 0.2
+          },
+          "suggestedQty": 150,
+          "inOriginalPlan": false,
+          "note": "Simile a yogurt greco, texture più densa"
+        },
+        {
+          "id": "yogurt_greco_2",
+          "name": "Yogurt Greco 2%",
+          "per100g": {
+            "kcal": 73,
+            "protein": 10,
+            "carbs": 4,
+            "fat": 2
+          },
+          "suggestedQty": 150,
+          "adjustments": "Togli 5g grassi dallo slot grassi",
+          "inOriginalPlan": false
+        },
+        {
+          "id": "ricotta_light",
+          "name": "Ricotta Light",
+          "per100g": {
+            "kcal": 138,
+            "protein": 11,
+            "carbs": 4,
+            "fat": 8
+          },
+          "suggestedQty": 120,
+          "adjustments": "Rimuovi grassi dal pasto",
+          "inOriginalPlan": false
+        },
+        {
+          "id": "cottage_cheese",
+          "name": "Cottage Cheese",
+          "per100g": {
+            "kcal": 98,
+            "protein": 11,
+            "carbs": 3,
+            "fat": 4
+          },
+          "suggestedQty": 130,
+          "adjustments": "Togli metà grassi dallo slot grassi",
+          "inOriginalPlan": false
+        },
+        {
+          "id": "bresaola",
+          "name": "Bresaola",
+          "per100g": {
+            "kcal": 151,
+            "protein": 32,
+            "carbs": 0,
+            "fat": 2.6
+          },
+          "suggestedQty": 50,
+          "note": "Alternativa solida alle proteine in polvere",
+          "warning": "Alta in sodio, non usare spesso",
+          "inOriginalPlan": false
+        }
+      ]
+    },
+    "carboidrati_colazione": {
+      "baseProfile": {
+        "kcal": 100,
+        "protein": 3,
+        "carbs": 20,
+        "fat": 1
+      },
+      "tolerance": 0.1,
+      "alternatives": [
+        {
+          "id": "pane_kamut",
+          "name": "Pane di Kamut",
+          "per100g": {
+            "kcal": 295,
+            "protein": 12,
+            "carbs": 56,
+            "fat": 2
+          },
+          "suggestedQty": 35,
+          "note": "Più denso del pane integrale",
+          "inOriginalPlan": false
+        },
+        {
+          "id": "crackers_integrali",
+          "name": "Crackers Integrali",
+          "per100g": {
+            "kcal": 395,
+            "protein": 10,
+            "carbs": 65,
+            "fat": 10
+          },
+          "suggestedQty": 25,
+          "adjustments": "Hanno grassi extra, togli 3g grassi",
+          "inOriginalPlan": false
+        },
+        {
+          "id": "pane_cassetta",
+          "name": "Pane in Cassetta Integrale",
+          "per100g": {
+            "kcal": 247,
+            "protein": 8,
+            "carbs": 45,
+            "fat": 3
+          },
+          "suggestedQty": 40,
+          "visualHelp": "~1.5 fette",
+          "inOriginalPlan": false
+        },
+        {
+          "id": "corn_flakes",
+          "name": "Corn Flakes semplici",
+          "per100g": {
+            "kcal": 357,
+            "protein": 7,
+            "carbs": 84,
+            "fat": 0.9
+          },
+          "suggestedQty": 25,
+          "note": "Senza zuccheri aggiunti",
+          "inOriginalPlan": false
+        }
+      ]
+    },
+    "grassi_colazione": {
+      "baseProfile": {
+        "kcal": 90,
+        "protein": 2,
+        "carbs": 2,
+        "fat": 10
+      },
+      "tolerance": 0.12,
+      "alternatives": [
+        {
+          "id": "burro_mandorle",
+          "name": "Burro di Mandorle",
+          "per100g": {
+            "kcal": 614,
+            "protein": 21,
+            "carbs": 6,
+            "fat": 56
+          },
+          "suggestedQty": 18,
+          "note": "Leggermente più proteico",
+          "inOriginalPlan": false
+        },
+        {
+          "id": "semi_chia",
+          "name": "Semi di Chia",
+          "per100g": {
+            "kcal": 486,
+            "protein": 17,
+            "carbs": 42,
+            "fat": 31
+          },
+          "suggestedQty": 15,
+          "note": "Ricchi di omega-3",
+          "inOriginalPlan": false
+        },
+        {
+          "id": "semi_lino",
+          "name": "Semi di Lino macinati",
+          "per100g": {
+            "kcal": 534,
+            "protein": 18,
+            "carbs": 29,
+            "fat": 42
+          },
+          "suggestedQty": 15,
+          "note": "Macinare al momento",
+          "inOriginalPlan": false
+        }
+      ]
+    },
+    "proteine_principali": {
+      "baseProfile": {
+        "kcal": 165,
+        "protein": 35,
+        "carbs": 0,
+        "fat": 3
+      },
+      "tolerance": 0.12,
+      "alternatives": [
+        {
+          "id": "merluzzo",
+          "name": "Merluzzo",
+          "per100g": {
+            "kcal": 82,
+            "protein": 17,
+            "carbs": 0,
+            "fat": 1
+          },
+          "suggestedQty": 180,
+          "note": "Pesce magro, ottimo",
+          "inOriginalPlan": false
+        },
+        {
+          "id": "orata",
+          "name": "Orata",
+          "per100g": {
+            "kcal": 121,
+            "protein": 20,
+            "carbs": 0,
+            "fat": 4
+          },
+          "suggestedQty": 165,
+          "inOriginalPlan": false
+        },
+        {
+          "id": "tacchino_affettato",
+          "name": "Tacchino Affettato (cotto)",
+          "per100g": {
+            "kcal": 107,
+            "protein": 22,
+            "carbs": 1,
+            "fat": 1.5
+          },
+          "suggestedQty": 180,
+          "note": "Già cotto: usa 180g invece di 150g crudo",
+          "inOriginalPlan": false,
+          "isCooked": true
+        },
+        {
+          "id": "gamberetti",
+          "name": "Gamberetti",
+          "per100g": {
+            "kcal": 99,
+            "protein": 24,
+            "carbs": 0,
+            "fat": 0.3
+          },
+          "suggestedQty": 140,
+          "note": "Altissimo contenuto proteico",
+          "inOriginalPlan": false
+        },
+        {
+          "id": "tofu",
+          "name": "Tofu",
+          "per100g": {
+            "kcal": 76,
+            "protein": 8,
+            "carbs": 2,
+            "fat": 4.8
+          },
+          "suggestedQty": 250,
+          "note": "Alternativa vegetale (usa più quantità)",
+          "inOriginalPlan": false
+        }
+      ]
+    },
+    "carboidrati_principali": {
+      "baseProfile": {
+        "kcal": 280,
+        "protein": 8,
+        "carbs": 60,
+        "fat": 2
+      },
+      "tolerance": 0.1,
+      "alternatives": [
+        {
+          "id": "orzo_perlato",
+          "name": "Orzo Perlato",
+          "per100g": {
+            "kcal": 352,
+            "protein": 10,
+            "carbs": 73,
+            "fat": 1
+          },
+          "suggestedQty": 80,
+          "cookedEquivalent": 240,
+          "rawWeight": true,
+          "inOriginalPlan": false
+        },
+        {
+          "id": "pasta_normale",
+          "name": "Pasta di Grano Duro",
+          "per100g": {
+            "kcal": 353,
+            "protein": 12,
+            "carbs": 71,
+            "fat": 1.5
+          },
+          "suggestedQty": 80,
+          "note": "Quasi identica a integrale",
+          "cookedEquivalent": 200,
+          "rawWeight": true,
+          "inOriginalPlan": false
+        },
+        {
+          "id": "riso_venere",
+          "name": "Riso Venere",
+          "per100g": {
+            "kcal": 356,
+            "protein": 8,
+            "carbs": 75,
+            "fat": 2.5
+          },
+          "suggestedQty": 80,
+          "note": "Più antiossidanti",
+          "cookedEquivalent": 240,
+          "rawWeight": true,
+          "inOriginalPlan": false
+        },
+        {
+          "id": "riso_basmati",
+          "name": "Riso Basmati",
+          "per100g": {
+            "kcal": 345,
+            "protein": 7.5,
+            "carbs": 77,
+            "fat": 0.6
+          },
+          "suggestedQty": 80,
+          "note": "Indice glicemico più basso",
+          "cookedEquivalent": 240,
+          "rawWeight": true,
+          "inOriginalPlan": false
+        },
+        {
+          "id": "patate_dolci",
+          "name": "Patate Dolci",
+          "per100g": {
+            "kcal": 86,
+            "protein": 1.6,
+            "carbs": 20,
+            "fat": 0.1
+          },
+          "suggestedQty": 280,
+          "note": "Più dolci, ottima fonte",
+          "rawWeight": true,
+          "inOriginalPlan": false
+        },
+        {
+          "id": "pane_integrale_comune",
+          "name": "Pane Integrale Comune",
+          "per100g": {
+            "kcal": 247,
+            "protein": 8,
+            "carbs": 45,
+            "fat": 3
+          },
+          "suggestedQty": 110,
+          "visualHelp": "~4 fette",
+          "inOriginalPlan": false
+        }
+      ]
+    }
+  },
+  "warnings": {
+    "tonno_olio": {
+      "trigger": ["tonno in olio", "tonno sott'olio"],
+      "message": "⚠️ Piano prevede TONNO AL NATURALE. Il tonno in olio ha grassi extra.",
+      "solutions": [
+        "Scola MOLTO bene e togli grassi dal pasto",
+        "Usa tonno al naturale come da piano ✅",
+        "Pesa solo la parte solida (scarta tutto l'olio)"
+      ]
+    },
+    "yogurt_zuccherato": {
+      "trigger": ["yogurt alla frutta", "yogurt dolce"],
+      "message": "⚠️ Piano prevede YOGURT SENZA ZUCCHERO. Yogurt alla frutta ha 15-20g zuccheri extra.",
+      "solutions": [
+        "Usa yogurt greco 0% naturale ✅",
+        "Se proprio devi: rimuovi tutta la frutta dal pasto"
+      ]
+    },
+    "carne_rossa_limit": {
+      "trigger": "carne_rossa",
+      "message": "🥩 Carne rossa: MAX 2 VOLTE A SETTIMANA",
+      "tracking": true
+    },
+    "latte_lattosio": {
+      "trigger": ["latte", "latte vaccino"],
+      "message": "⚠️ Piano prevede TUTTO SENZA LATTOSIO",
+      "solutions": [
+        "Usa latte vegetale senza zucchero (mandorla, soia, avena)",
+        "Usa latte delattosato"
+      ]
+    }
+  },
+  "visualMeasures": {
+    "hands": {
+      "palmo": {
+        "description": "Palmo mano aperto",
+        "grams": "~100-120g proteine (carne/pesce cruda)",
+        "visual": "🖐️"
+      },
+      "pugno": {
+        "description": "Pugno chiuso",
+        "grams": "~150g carboidrati (pasta cotta, patate)",
+        "visual": "✊"
+      },
+      "pollice": {
+        "description": "Falange del pollice",
+        "grams": "~10g grassi (formaggio, burro)",
+        "visual": "👍"
+      },
+      "manciatina": {
+        "description": "Quantità che sta in mano a cucchiaio",
+        "grams": "~20-25g frutta secca",
+        "visual": "🤏"
+      }
+    },
+    "commonPackages": {
+      "scatoletta_tonno": {
+        "range": "50-80g",
+        "note": "Controllare sempre etichetta, varia molto",
+        "typical": "52g, 80g"
+      },
+      "vasetto_fiocchi_latte": {
+        "standard": "150g",
+        "note": "Alcuni vasetti sono 200g"
+      },
+      "yogurt_greco_monodose": {
+        "standard": "150-170g",
+        "brands": "Fage 150g, Total 170g"
+      },
+      "mozzarella": {
+        "standard": "125g",
+        "note": "Formato classico"
+      },
+      "confezione_proteine": {
+        "standard": "25-30g",
+        "note": "1 misurino ≈ 30g"
+      },
+      "scatoletta_legumi": {
+        "standard": "400g",
+        "sgocciolato": "240g",
+        "note": "Peso sgocciolato ≈ 60% del totale"
+      }
+    }
+  },
+  "substitutionRules": {
+    "rules": [
+      {
+        "name": "Sostituzioni dentro lo stesso slot",
+        "description": "Puoi scambiare liberamente alimenti dello stesso slot",
+        "examples": [
+          "Pasta ↔ Riso ↔ Quinoa (carboidrati)",
+          "Pollo ↔ Pesce ↔ Tonno (proteine)",
+          "Mandorle ↔ Nocciole ↔ Olio (grassi)"
+        ]
+      },
+      {
+        "name": "Rispetta i macro target",
+        "description": "Quando sostituisci fuori piano, mantieni i macro simili (±15%)",
+        "priority": "Alta"
+      },
+      {
+        "name": "Crudo vs Cotto",
+        "description": "Tutti i pesi sono a CRUDO tranne legumi (cotti)",
+        "exceptions": ["legumi", "affettati pre-cotti"]
+      }
+    ]
+  }
+}

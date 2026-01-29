@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Dashboard - Viltrum Fitness</title>
+  
+  <!-- CRITICAL: Inline styles to prevent FOUC in PWA standalone mode -->
+  <style id="fouc-prevention">
+    /* Hide all form elements initially to prevent native styling flash */
+    /* IMPORTANT: Exclude checkboxes to preserve their native appearance */
+    select, input:not([type="checkbox"]):not([type="radio"]), button { 
+      -webkit-appearance: none !important; 
+      -moz-appearance: none !important;
+      appearance: none !important;
+    }
+    /* Ensure black background shows immediately */
+    html, body { background: #000000 !important; }
+  </style>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Staatliches&display=swap" rel="stylesheet" />
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="../manifest.json" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="apple-mobile-web-app-title" content="Viltrum Fitness" />
+  <link rel="apple-touch-icon" href="../icons/icon-192x192.png" />
+  
+  <!-- Welcome Modal CSS -->
+  <link rel="stylesheet" href="../css/welcome-modal.css" />
+  
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100vh;
+      height: var(--dvh-px, 100vh);
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      font-family: 'Staatliches', sans-serif;
+      background: #000000;
+      color: #FFFFFF;
+      overflow: hidden;
+    }
+
+    /* Dashboard container */
+    .dashboard-container {
+      height: 100vh;
+      height: var(--dvh-px, 100vh);
+      display: flex;
+      flex-direction: column;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+
+    /* Header - Fixed 10% of viewport height */
+    header {
+      flex-shrink: 0;
+      display: grid !important;
+      grid-template-columns: 1fr auto 1fr !important;
+      align-items: center !important;
+      gap: 1vw !important;
+      padding: 0 2vw;
+      background: rgba(0, 0, 0, 0.98);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      height: 10vh;
+    }
+
+    header img {
+      grid-column: 2 !important;
+      justify-self: center !important;
+      height: 6vh;
+      width: auto;
+      max-width: 25vw;
+    }
+
+    .header-profile-btn {
+      grid-column: 3 !important;
+      justify-self: end !important;
+      position: relative !important;
+      padding: 1vh 2vw;
+      background: #FFFFFF;
+      border: 2px solid #FFFFFF;
+      border-radius: 10px;
+      color: #000000;
+      font-family: 'Staatliches', sans-serif;
+      font-size: 1.8vh;
+      font-weight: bold;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.8vw;
+      box-shadow: 0 4px 15px rgba(255, 255, 255, 0.3);
+      white-space: nowrap;
+    }
+
+    .header-profile-btn:hover {
+      background: #B0B0B0;
+      transform: scale(1.05);
+      box-shadow: 0 6px 20px rgba(255, 255, 255, 0.4);
+    }
+
+    .header-profile-btn svg {
+      width: 2.5vh;
+      height: 2.5vh;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 768px) {
+      header {
+        padding: 12px 15px;
+      }
+
+      header img {
+        max-width: 140px;
+      }
+
+      .header-profile-btn {
+        padding: 8px 16px;
+        font-size: 14px;
+      }
+
+      .header-profile-btn svg {
+        width: 18px;
+        height: 18px;
+      }
+    }
+
+    /* Welcome section - Fixed 6% of viewport height */
+    .welcome-section {
+      flex-shrink: 0;
+      text-align: center;
+      padding: 0 2vw;
+      height: 6vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .welcome-section h1 {
+      color: #FFFFFF;
+      font-size: 2.2vh;
+      letter-spacing: 1.5px;
+      margin: 0;
+    }
+
+    /* Main content - Takes remaining viewport height (71vh) */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 0 2vw 1.5vh 2vw;
+      overflow: hidden;
+      min-height: 0;
+      height: 71vh;
+    }
+
+    /* 3-card vertical layout - Cards divide equally */
+    .app-sections-grid {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2vh;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    /* Card styling - Each card takes equal space (1fr) */
+    .section-card {
+      flex: 1;
+      background: linear-gradient(135deg, rgba(77, 77, 77, 0.8), rgba(77, 77, 77, 0.4));
+      border: 2px solid #7D7D7D;
+      border-radius: 2vh;
+      padding: 1.5vh 2vw;
+      text-decoration: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      gap: 0.8vh;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      min-height: 0;
+    }
+
+    .section-card:hover {
+      transform: translateY(-4px);
+      border-color: #FFFFFF;
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.5);
+    }
+
+    .section-card.disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .section-card.disabled:hover {
+      transform: none;
+      border-color: #7D7D7D;
+      box-shadow: none;
+    }
+
+    /* Card header */
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.5vw;
+      flex-shrink: 0;
+    }
+
+    .card-icon {
+      width: 6vh;
+      height: 6vh;
+      border-radius: 1.5vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.15);
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      flex-shrink: 0;
+    }
+
+    .section-card:hover .card-icon {
+      background: rgba(255, 255, 255, 0.25);
+      transform: scale(1.05);
+    }
+
+    .card-icon svg {
+      width: 3.5vh;
+      height: 3.5vh;
+      color: #FFFFFF;
+    }
+
+    /* Status badge */
+    .status-badge {
+      padding: 0.6vh 1.5vw;
+      border-radius: 1.5vh;
+      font-size: 1.4vh;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .status-badge.active {
+      background: rgba(76, 175, 80, 0.25);
+      color: #4CAF50;
+      border: 1px solid rgba(76, 175, 80, 0.5);
+    }
+
+    .status-badge.coming-soon {
+      background: rgba(158, 158, 158, 0.25);
+      color: #9E9E9E;
+      border: 1px solid rgba(158, 158, 158, 0.5);
+    }
+
+    .status-badge.in-dev {
+      background: rgba(255, 193, 7, 0.25);
+      color: #FFC107;
+      border: 1px solid rgba(255, 193, 7, 0.5);
+    }
+
+    /* Card content */
+    .card-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      gap: 0.5vh;
+      padding: 0;
+      min-height: 0;
+    }
+
+    .card-content h2 {
+      color: #FFFFFF;
+      font-size: 2.5vh;
+      margin: 0;
+      letter-spacing: 1.5px;
+      line-height: 1.2;
+      flex-shrink: 0;
+    }
+
+    .card-content p {
+      color: #B0B0B0;
+      font-size: 1.5vh;
+      line-height: 1.3;
+      margin: 0;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      flex-shrink: 0;
+    }
+
+    /* Modal styling */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      height: var(--dvh-px, 100vh);
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: linear-gradient(135deg, #2D2D2D, #1A1A1A);
+      border: 2px solid #7D7D7D;
+      border-radius: 20px;
+      padding: 30px;
+      max-width: 400px;
+      width: 100%;
+      max-height: 90vh;
+      max-height: calc(var(--dvh-px, 100vh) * 0.9);
+      overflow-y: auto;
+    }
+
+    .modal-content h3 {
+      color: #FFFFFF;
+      font-size: 24px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    /* Subscription status in modal */
+    .subscription-status {
+      margin-bottom: 20px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      text-align: center;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+      border: 1px solid;
+    }
+
+    .subscription-status.trial {
+      background: rgba(255, 193, 7, 0.15);
+      border-color: rgba(255, 193, 7, 0.4);
+      color: #FFC107;
+    }
+
+    .subscription-status.active {
+      background: rgba(76, 175, 80, 0.15);
+      border-color: rgba(76, 175, 80, 0.4);
+      color: #4CAF50;
+    }
+
+    .subscription-status.expired {
+      background: rgba(244, 67, 54, 0.15);
+      border-color: rgba(244, 67, 54, 0.4);
+      color: #F44336;
+    }
+
+    /* Expiration date info */
+    #expiration-info {
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    #expiration-date {
+      color: #FFFFFF;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .modal-content input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      color: #FFFFFF;
+      font-family: 'Staatliches', sans-serif;
+      font-size: 16px;
+    }
+
+    .modal-content button {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 10px;
+      background: #FFFFFF;
+      color: #000000;
+      border: none;
+      border-radius: 10px;
+      font-family: 'Staatliches', sans-serif;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .modal-content button:hover {
+      background: #B0B0B0;
+      transform: scale(1.02);
+    }
+
+    .modal-content button.secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .modal-content .message {
+      text-align: center;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .modal-content .message.success {
+      background: rgba(76, 175, 80, 0.2);
+      color: #4CAF50;
+    }
+
+    .modal-content .message.error {
+      background: rgba(244, 67, 54, 0.2);
+      color: #F44336;
+    }
+
+    /* Profile actions */
+    .profile-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .profile-btn {
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 10px;
+      font-family: 'Staatliches', sans-serif;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .profile-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: scale(1.02);
+    }
+
+    .profile-btn.logout {
+      background: rgba(244, 67, 54, 0.2);
+      border-color: rgba(244, 67, 54, 0.5);
+      color: #F44336;
+    }
+
+    .profile-btn.logout:hover {
+      background: rgba(244, 67, 54, 0.3);
+    }
+
+    /* Workout History Section */
+    .workout-history-section {
+      margin: 0 2vw 1vh 2vw;
+      padding: 1vh 1.5vw;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      flex-shrink: 0;
+      height: 12vh;
+    }
+
+    .workout-history-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1vw;
+      height: 100%;
+    }
+
+    .history-stat {
+      padding: 1vh 1vw;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3vh;
+      justify-content: center;
+    }
+
+    .history-stat-label {
+      font-size: 1.3vh;
+      color: #B0B0B0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      line-height: 1.2;
+    }
+
+    .history-stat-value {
+      font-size: 3vh;
+      color: #FFFFFF;
+      font-weight: bold;
+      line-height: 1;
+    }
+
+    .history-stat-workout {
+      font-size: 1.2vh;
+      color: #B0B0B0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      line-height: 1.2;
+      word-break: break-word;
+    }
+
+    .history-stat.last-workout {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    /* Mobile responsive adjustments for workout history */
+    @media (max-width: 375px) {
+      .workout-history-section {
+        margin: 0 0.625rem 0.5rem 0.625rem;
+        padding: 0.5rem;
+      }
+
+      .workout-history-stats {
+        gap: 0.4rem;
+      }
+
+      .history-stat {
+        padding: 0.5rem 0.4rem;
+        min-height: 60px;
+      }
+    }
+
+    /* Offline Preload Progress Bar */
+    .offline-progress-container {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0, 0, 0, 0.95);
+      border-top: 2px solid rgba(255, 255, 255, 0.1);
+      padding: 8px 15px;
+      display: none; /* Hidden by default */
+      flex-direction: column;
+      gap: 6px;
+      z-index: 1000;
+      backdrop-filter: blur(10px);
+    }
+
+    .offline-progress-container.active {
+      display: flex;
+    }
+
+    .progress-text {
+      font-size: 12px;
+      color: #B0B0B0;
+      text-align: center;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #FFFFFF 0%, #B0B0B0 100%);
+      width: 0%;
+      transition: width 0.3s ease;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    }
+
+    .progress-details {
+      font-size: 10px;
+      color: #808080;
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+
+    /* Adjust dashboard for progress bar */
+    .dashboard-container.preloading {
+      padding-bottom: 70px;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    <!-- Header with Profile Button -->
+    <header>
+      <img id="header-logo" data-src="https://lh3.googleusercontent.com/d/1va6OkGp9yAHDJBfeDM3npwqlJJoLUh5C" alt="Viltrum Fitness" style="opacity: 0;" />
+      <button class="header-profile-btn" onclick="openProfileModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <circle cx="12" cy="10" r="3"/>
+          <path d="M7 20.662V19a2 2 0 012-2h6a2 2 0 012 2v1.662"/>
+        </svg>
+        PROFILE
+      </button>
+    </header>
+
+    <!-- Welcome -->
+    <div class="welcome-section">
+      <h1 id="welcome-text">BENVENUTO!</h1>
+    </div>
+
+    <!-- Workout History -->
+    <div class="workout-history-section">
+      <div class="workout-history-stats">
+        <div class="history-stat last-workout">
+          <div class="history-stat-label">Ultimo allenamento</div>
+          <div class="history-stat-value" id="last-workout-name">-</div>
+          <div class="history-stat-workout" id="last-workout-time">-</div>
+        </div>
+        <div class="history-stat">
+          <div class="history-stat-label">Total workouts</div>
+          <div class="history-stat-value" id="total-workouts">0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <main>
+      <!-- 3-Card Vertical Grid -->
+      <div class="app-sections-grid">
+        
+        <!-- More Muscle -->
+        <a href="workout.html" class="section-card">
+          <div class="card-header">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6.5 6.5l11 11M6.5 17.5l11-11M3 12h3m12 0h3M12 3v3m0 12v3"/>
+              </svg>
+            </div>
+            <span class="status-badge active">Attivo</span>
+          </div>
+          <div class="card-content">
+            <h2>MORE MUSCLE</h2>
+            <p>Allenamento personalizzato con timer e progressi</p>
+          </div>
+        </a>
+
+        <!-- Nutrition -->
+        <a href="nutrition.html" class="section-card">
+          <div class="card-header">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v20M12 2a9 9 0 019 9H3a9 9 0 019-9z"/>
+              </svg>
+            </div>
+            <span class="status-badge in-dev">In Sviluppo</span>
+          </div>
+          <div class="card-content">
+            <h2>NUTRITION</h2>
+            <p>Traccia pasti e monitora calorie</p>
+          </div>
+        </a>
+
+        <!-- Endurance / Running -->
+        <a href="endurance.html" class="section-card" id="endurance-card">
+          <div class="card-header">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M13 4v16M13 4l4 4M13 4l-4 4"/>
+                <circle cx="7" cy="17" r="3"/>
+                <circle cx="17" cy="17" r="3"/>
+              </svg>
+            </div>
+            <span class="status-badge active" id="endurance-badge">Attivo</span>
+          </div>
+          <div class="card-content">
+            <h2>ENDURANCE</h2>
+            <p>Running e cardio training</p>
+          </div>
+        </a>
+
+      </div>
+    </main>
+
+    <!-- Offline Preload Progress Bar -->
+    <div id="offline-progress" class="offline-progress-container">
+      <div class="progress-text" id="progress-text">Preparazione modalità offline...</div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="progress-details" id="progress-details">0 / 0</div>
+    </div>
+  </div>
+
+  <!-- Profile Modal -->
+  <div id="profile-modal" class="modal">
+    <div class="modal-content">
+      <h3>👤 PROFILO</h3>
+      
+      <!-- Subscription Status -->
+      <div id="subscription-status" class="subscription-status active">
+        <span id="subscription-text">✓ Abbonamento Attivo</span>
+      </div>
+      
+      <!-- Expiration Date -->
+      <div id="expiration-info" style="text-align: center; margin-bottom: 15px; color: #B0B0B0; font-size: 13px;">
+        Scadenza: <span id="expiration-date">Caricamento...</span>
+      </div>
+      
+      <div class="profile-actions">
+        <button class="profile-btn" onclick="openUsernameModal()">
+          👤 Cambia Username
+        </button>
+        
+        <button class="profile-btn" onclick="openEmailModal()">
+          ✉️ Cambia Email
+        </button>
+        
+        <button class="profile-btn" onclick="openPasswordModal()">
+          🔒 Cambia Password
+        </button>
+        
+        <button class="profile-btn logout" onclick="handleLogout()">
+          🚪 Logout
+        </button>
+        
+        <button class="profile-btn secondary" onclick="closeProfileModal()">
+          ← Indietro
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Username Change Modal -->
+  <div id="username-modal" class="modal">
+    <div class="modal-content">
+      <h3>👤 CAMBIA USERNAME</h3>
+      
+      <input type="text" id="new-username" placeholder="Nuovo Username" minlength="2">
+      
+      <button onclick="saveUsername()">Salva Username</button>
+      <button class="secondary" onclick="closeUsernameModal()">Annulla</button>
+      
+      <div class="message" id="username-message" style="display: none;"></div>
+    </div>
+  </div>
+
+  <!-- Email Change Modal -->
+  <div id="email-modal" class="modal">
+    <div class="modal-content">
+      <h3>✉️ CAMBIA EMAIL</h3>
+      
+      <input type="email" id="new-email" placeholder="Nuova Email">
+      <input type="password" id="email-password" placeholder="Password Attuale" minlength="6">
+      
+      <button onclick="saveEmail()">Salva Email</button>
+      <button class="secondary" onclick="closeEmailModal()">Annulla</button>
+      
+      <div class="message" id="email-message" style="display: none;"></div>
+    </div>
+  </div>
+
+  <!-- Password Change Modal -->
+  <div id="password-modal" class="modal">
+    <div class="modal-content">
+      <h3>🔒 CAMBIA PASSWORD</h3>
+      
+      <input type="password" id="new-password" placeholder="Nuova Password" minlength="6">
+      <input type="password" id="new-password-confirm" placeholder="Conferma Password" minlength="6">
+      
+      <button onclick="savePassword()">Salva Password</button>
+      <button class="secondary" onclick="closePasswordModal()">Annulla</button>
+      
+      <div class="message" id="password-message" style="display: none;"></div>
+    </div>
+  </div>
+
+  <!-- Load Offline Preloader -->
+  <script src="../js/offline-preloader.js"></script>
+  <script src="../js/preload-modal.js"></script>
+  
+  <!-- Update Notifier - detect new versions -->
+  <script src="../js/update-notifier.js"></script>
+  
+  <!-- Disable auto-init - we'll init manually -->
+  <script>const DISABLE_AUTO_CACHE_INIT = true;</script>
+  
+  <!-- Load Session Cache Manager -->
+  <script type="module" src="../js/session-cache.js"></script>
+  
+  <!-- Load Supabase and auth system -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module" src="../js/auth.js"></script>
+
+  <script>
+    // Auth check
+    const user = localStorage.getItem('loggedUser');
+    const userName = localStorage.getItem('userName') || 'User';
+
+    if (!user) {
+      window.location.href = '../index.html';
+    }
+
+    // Set welcome text
+    document.getElementById('welcome-text').textContent = `BENVENUTO, ${userName.toUpperCase()}!`;
+    
+    // ⚡ SMART PRELOAD: Only fetch if cache is stale (24 hours) or missing
+    (async function smartPreload() {
+      const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+      const cachedData = localStorage.getItem('workoutData');
+      const cacheTimestamp = localStorage.getItem('workoutDataTimestamp');
+      
+      // Check if cache is still valid
+      if (cachedData && cacheTimestamp) {
+        const age = Date.now() - parseInt(cacheTimestamp);
+        if (age < CACHE_DURATION) {
+          console.log('✅ Using cached workout data (age: ' + Math.round(age/60000) + ' min)');
+          // Also copy to sessionStorage for instant access
+          sessionStorage.setItem('viltrum_session_data', cachedData);
+          sessionStorage.setItem('viltrum_session_timestamp', cacheTimestamp);
+          return; // Cache is valid, no need to fetch
+        }
+        console.log('⚠️ Cache expired, refreshing...');
+      } else {
+        console.log('📦 No cache found, fetching fresh data...');
+      }
+      
+      // Fetch fresh data only if needed
+      try {
+        // Import URL from config (single source of truth)
+        const { GOOGLE_SCRIPT_URL } = await import('../js/config.js');
+        const response = await fetch(GOOGLE_SCRIPT_URL);
+        if (response.ok) {
+          const data = await response.json();
+          const dataStr = JSON.stringify(data);
+          const timestamp = Date.now().toString();
+          
+          // Save to both storages
+          sessionStorage.setItem('viltrum_session_data', dataStr);
+          sessionStorage.setItem('viltrum_session_timestamp', timestamp);
+          localStorage.setItem('workoutData', dataStr);
+          localStorage.setItem('workoutDataTimestamp', timestamp);
+          console.log('✅ Fresh workout data cached (valid for 24 hours)');
+        }
+      } catch (e) {
+        console.warn('⚠️ Preload fetch failed:', e);
+      }
+    })();
+
+    // Load and display user session data (uses SessionCache with offline preloading)
+    async function initializeDashboard() {
+      try {
+        console.log('🏠 Initializing dashboard...');
+        
+        // Wait for SessionCache module to load
+        while (typeof window.SessionCache === 'undefined') {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        
+        // ALWAYS load user info first - don't wait for preload
+        const userInfo = await SessionCache.getCurrentUserInfo();
+        updateSubscriptionDisplay(userInfo);
+        
+        // ⚡ Check if we already have cached workout data (from smartPreload)
+        const cachedData = localStorage.getItem('workoutData');
+        if (cachedData) {
+          // Also put in sessionStorage for instant access
+          sessionStorage.setItem('viltrum_session_data', cachedData);
+          console.log('💾 Workout data ready for all pages');
+        }
+        
+        // ═══════════════════════════════════════════════════════════════════════
+        // ONE-TIME CLOUD SYNC: Only if we don't have local progress data
+        // ═══════════════════════════════════════════════════════════════════════
+        const hasLocalProgress = localStorage.getItem('viltrum_last_workout_index') !== null;
+        const hasLocalWeights = localStorage.getItem('viltrum_exercise_weights') !== null;
+        const hasLocalTotal = localStorage.getItem('viltrum_total_workouts') !== null;
+        
+        if (!hasLocalProgress || !hasLocalWeights || !hasLocalTotal) {
+          console.log('📡 First login - syncing progress from cloud...');
+          try {
+            const { initializeWeightsSync, initializeLastWorkoutSync } = await import('../js/workout-history.js');
+            
+            if (!hasLocalWeights) {
+              await initializeWeightsSync();
+              console.log('✅ Weights synced from cloud');
+            }
+            
+            if (!hasLocalProgress || !hasLocalTotal) {
+              await initializeLastWorkoutSync();
+              console.log('✅ Last workout & total synced from cloud');
+              // Reload the workout history display
+              if (typeof window.loadWorkoutHistory === 'function') {
+                window.loadWorkoutHistory();
+              }
+            }
+          } catch (e) {
+            console.warn('⚠️ Cloud sync failed (will use local):', e);
+          }
+        } else {
+          console.log('✅ Using local progress data (no cloud sync needed)');
+        }
+        // ═══════════════════════════════════════════════════════════════════════
+        
+        console.log('✅ Dashboard initialized');
+        
+        // Setup progress bar to listen for global preload events
+        const progressContainer = document.getElementById('offline-progress');
+        const progressFill = document.getElementById('progress-fill');
+        const progressText = document.getElementById('progress-text');
+        const progressDetails = document.getElementById('progress-details');
+        const dashboardContainer = document.querySelector('.dashboard-container');
+        
+        // Track progress
+        let totalItems = 0;
+        let completedItems = 0;
+        const progressByType = {
+          image: { loaded: 0, total: 0 },
+          audio: { loaded: 0, total: 0 },
+          beppe: { loaded: 0, total: 0 },
+          nutrition: { loaded: 0, total: 0 }
+        };
+        let preloadStarted = false;
+        
+        // Listen for global preload progress events
+        window.addEventListener('preloadProgress', (event) => {
+          const data = event.detail;
+          
+          // Show progress bar on first progress event
+          if (!preloadStarted && progressContainer) {
+            preloadStarted = true;
+            progressContainer.classList.add('active');
+            if (dashboardContainer) dashboardContainer.classList.add('preloading');
+          }
+          
+          // Update progress tracking
+          progressByType[data.type] = { loaded: data.loaded, total: data.total };
+          
+          // Calculate total progress
+          totalItems = Object.values(progressByType).reduce((sum, p) => sum + p.total, 0);
+          completedItems = Object.values(progressByType).reduce((sum, p) => sum + p.loaded, 0);
+          
+          const percentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
+          
+          // Update UI
+          if (progressFill) progressFill.style.width = `${percentage}%`;
+          if (progressDetails) progressDetails.textContent = `${completedItems} / ${totalItems}`;
+          
+          // Update text based on what's loading
+          const typeLabels = {
+            image: 'Caricamento immagini',
+            audio: 'Caricamento audio',
+            beppe: 'Caricamento audio Beppe',
+            nutrition: 'Caricamento piano nutrizionale'
+          };
+          if (progressText) {
+            progressText.textContent = `${typeLabels[data.type] || 'Caricamento'} (${data.loaded}/${data.total})`;
+          }
+          
+          console.log(`📦 Preload: ${data.type} ${data.loaded}/${data.total} - Total: ${completedItems}/${totalItems}`);
+        });
+        
+        // Listen for preload complete event
+        window.addEventListener('preloadComplete', (event) => {
+          const result = event.detail;
+          console.log('✅ Background preload complete:', result);
+          
+          if (result.cached) {
+            // Already cached, don't show progress bar
+            if (progressContainer) progressContainer.classList.remove('active');
+            if (dashboardContainer) dashboardContainer.classList.remove('preloading');
+          } else if (preloadStarted) {
+            // Show completion and hide progress bar
+            if (progressText) progressText.textContent = '✓ Modalità offline pronta!';
+            if (progressFill) progressFill.style.width = '100%';
+            
+            setTimeout(() => {
+              if (progressContainer) progressContainer.classList.remove('active');
+              if (dashboardContainer) dashboardContainer.classList.remove('preloading');
+            }, 2000);
+          }
+        });
+        
+        // ========== START PRELOAD NOW ==========
+        // This runs in background - doesn't block UI
+        if (typeof OfflinePreloader !== 'undefined') {
+          console.log('🔄 Starting background preload from dashboard...');
+          
+          OfflinePreloader.preloadAll(userInfo, {
+            skipBeppeAudio: true,
+            onProgress: (data) => {
+              // Dispatch event for progress bar
+              window.dispatchEvent(new CustomEvent('preloadProgress', { detail: data }));
+            }
+          }).then(result => {
+            // Dispatch completion event
+            window.dispatchEvent(new CustomEvent('preloadComplete', { detail: result }));
+          }).catch(error => {
+            console.warn('⚠️ Preload error:', error);
+          });
+        } else {
+          console.warn('⚠️ OfflinePreloader not available');
+        }
+        
+      } catch (error) {
+        console.error('❌ Dashboard init failed:', error);
+        // Hide preload modal if showing
+        if (typeof PreloadModal !== 'undefined') {
+          PreloadModal.hide();
+        }
+        // Show error state in UI
+        const statusElement = document.getElementById('subscription-status');
+        if (statusElement) {
+          statusElement.className = 'subscription-status expired';
+          document.getElementById('subscription-text').textContent = '⚠️ Errore caricamento dati';
+        }
+      }
+    }
+    
+    // Update subscription display from user info
+    function updateSubscriptionDisplay(userInfo) {
+      if (!userInfo || !userInfo.scadenza) {
+        console.warn('No subscription data available');
+        return;
+      }
+      
+      const subStatus = SessionCache.getSubscriptionStatus(userInfo.scadenza);
+      
+      // Update expiration date
+      const expirationElement = document.getElementById('expiration-date');
+      if (expirationElement && subStatus.expirationDate) {
+        expirationElement.textContent = subStatus.expirationDate.toLocaleDateString('it-IT');
+      }
+      
+      // Update subscription status badge
+      const statusElement = document.getElementById('subscription-status');
+      const statusText = document.getElementById('subscription-text');
+      
+      if (!statusElement || !statusText) return;
+      
+      if (subStatus.isExpired) {
+        statusElement.className = 'subscription-status expired';
+        statusText.textContent = '❌ Abbonamento Scaduto';
+      } else if (subStatus.isTrial) {
+        statusElement.className = 'subscription-status trial';
+        statusText.textContent = `⏳ Trial - ${subStatus.daysRemaining} giorni rimasti`;
+      } else {
+        statusElement.className = 'subscription-status active';
+        statusText.textContent = '✓ Abbonamento Attivo';
+      }
+      
+      console.log(`📊 Subscription: ${subStatus.status}, ${subStatus.daysRemaining} days remaining`);
+    }
+    
+    // Initialize dashboard on load
+    initializeDashboard();
+
+    // Modal functions
+    function openProfileModal() {
+      document.getElementById('profile-modal').classList.add('active');
+    }
+
+    function closeProfileModal() {
+      document.getElementById('profile-modal').classList.remove('active');
+    }
+
+    function openPasswordModal() {
+      closeProfileModal();
+      document.getElementById('password-modal').classList.add('active');
+    }
+
+    function closePasswordModal() {
+      document.getElementById('password-modal').classList.remove('active');
+      document.getElementById('new-password').value = '';
+      document.getElementById('new-password-confirm').value = '';
+      document.getElementById('password-message').style.display = 'none';
+    }
+
+    async function savePassword() {
+      const newPassword = document.getElementById('new-password').value.trim();
+      const confirmPassword = document.getElementById('new-password-confirm').value.trim();
+      const message = document.getElementById('password-message');
+
+      if (!newPassword || !confirmPassword) {
+        message.textContent = 'Compila tutti i campi';
+        message.className = 'message error';
+        message.style.display = 'block';
+        return;
+      }
+
+      if (newPassword.length < 6) {
+        message.textContent = 'Password deve essere di almeno 6 caratteri';
+        message.className = 'message error';
+        message.style.display = 'block';
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        message.textContent = 'Le password non corrispondono';
+        message.className = 'message error';
+        message.style.display = 'block';
+        return;
+      }
+
+      message.textContent = 'Aggiornamento...';
+      message.className = 'message';
+      message.style.display = 'block';
+
+      try {
+        const { error } = await supabase.auth.updateUser({
+          password: newPassword
+        });
+
+        if (error) {
+          message.textContent = error.message;
+          message.className = 'message error';
+        } else {
+          message.textContent = '✅ Password aggiornata!';
+          message.className = 'message success';
+          setTimeout(() => {
+            closePasswordModal();
+          }, 2000);
+        }
+      } catch (error) {
+        message.textContent = 'Errore durante aggiornamento';
+        message.className = 'message error';
+      }
+
+      message.style.display = 'block';
+    }
+
+    async function handleLogout() {
+      if (confirm('Sei sicuro di voler uscire?')) {
+        try {
+          await signOut();
+          window.location.href = '../index.html';
+        } catch (error) {
+          console.error('Logout error:', error);
+          alert('Errore durante logout');
+        }
+      }
+    }
+
+    // Username modal functions
+    function openUsernameModal() {
+      closeProfileModal();
+      const currentUsername = localStorage.getItem('userName') || '';
+      document.getElementById('new-username').value = currentUsername;
+      document.getElementById('username-modal').classList.add('active');
+    }
+
+    function closeUsernameModal() {
+      document.getElementById('username-modal').classList.remove('active');
+      document.getElementById('new-username').value = '';
+      document.getElementById('username-message').style.display = 'none';
+    }
+
+    async function saveUsername() {
+      const newUsername = document.getElementById('new-username').value.trim();
+      const message = document.getElementById('username-message');
+
+      if (!newUsername || newUsername.length < 2) {
+        message.textContent = 'Username deve essere di almeno 2 caratteri';
+        message.className = 'message error';
+        message.style.display = 'block';
+        return;
+      }
+
+      message.textContent = 'Aggiornamento...';
+      message.className = 'message';
+      message.style.display = 'block';
+
+      try {
+        // Update localStorage
+        localStorage.setItem('userName', newUsername);
+        
+        // Update Supabase user metadata
+        const { error } = await supabase.auth.updateUser({
+          data: { username: newUsername }
+        });
+
+        if (error) {
+          console.error('Supabase update error:', error);
+          // Still show success since localStorage was updated
+          message.textContent = '✅ Username aggiornato localmente!';
+          message.className = 'message success';
+        } else {
+          message.textContent = '✅ Username aggiornato!';
+          message.className = 'message success';
+        }
+        
+        // Update welcome text
+        document.getElementById('welcome-text').textContent = `BENVENUTO, ${newUsername.toUpperCase()}!`;
+        
+        setTimeout(() => {
+          closeUsernameModal();
+        }, 2000);
+      } catch (error) {
+        console.error('Username update error:', error);
+        message.textContent = 'Errore durante aggiornamento';
+        message.className = 'message error';
+      }
+
+      message.style.display = 'block';
+    }
+
+    // Email modal functions
+    function openEmailModal() {
+      closeProfileModal();
+      const currentEmail = localStorage.getItem('loggedUser') || '';
+      document.getElementById('new-email').value = currentEmail;
+      document.getElementById('email-modal').classList.add('active');
+    }
+
+    function closeEmailModal() {
+      document.getElementById('email-modal').classList.remove('active');
+      document.getElementById('new-email').value = '';
+      document.getElementById('email-password').value = '';
+      document.getElementById('email-message').style.display = 'none';
+    }
+
+    async function saveEmail() {
+      const newEmail = document.getElementById('new-email').value.trim().toLowerCase();
+      const password = document.getElementById('email-password').value;
+      const message = document.getElementById('email-message');
+
+      if (!newEmail || !newEmail.includes('@')) {
+        message.textContent = 'Inserisci un\'email valida';
+        message.className = 'message error';
+        message.style.display = 'block';
+        return;
+      }
+
+      if (!password || password.length < 6) {
+        message.textContent = 'Inserisci la password attuale';
+        message.className = 'message error';
+        message.style.display = 'block';
+        return;
+      }
+
+      message.textContent = 'Verifico password...';
+      message.className = 'message';
+      message.style.display = 'block';
+
+      try {
+        // Verify password first
+        const currentEmail = localStorage.getItem('loggedUser');
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: currentEmail,
+          password: password
+        });
+
+        if (signInError) {
+          message.textContent = '❌ Password non corretta';
+          message.className = 'message error';
+          message.style.display = 'block';
+          return;
+        }
+
+        // Update email
+        message.textContent = 'Aggiornamento email...';
+        const { error } = await supabase.auth.updateUser({
+          email: newEmail
+        });
+
+        if (error) {
+          message.textContent = '❌ ' + error.message;
+          message.className = 'message error';
+        } else {
+          // Update localStorage
+          localStorage.setItem('loggedUser', newEmail);
+          
+          message.textContent = '✅ Email aggiornata! Controlla la tua casella per confermare.';
+          message.className = 'message success';
+          
+          setTimeout(() => {
+            closeEmailModal();
+          }, 3000);
+        }
+      } catch (error) {
+        console.error('Email update error:', error);
+        message.textContent = 'Errore durante aggiornamento';
+        message.className = 'message error';
+      }
+
+      message.style.display = 'block';
+    }
+
+    function showComingSoon(feature) {
+      alert(`${feature} sarà disponibile presto! 🚀`);
+    }
+
+    // Close modals on outside click
+    document.getElementById('profile-modal').addEventListener('click', function(e) {
+      if (e.target === this) closeProfileModal();
+    });
+
+    document.getElementById('password-modal').addEventListener('click', function(e) {
+      if (e.target === this) closePasswordModal();
+    });
+
+    document.getElementById('username-modal').addEventListener('click', function(e) {
+      if (e.target === this) closeUsernameModal();
+    });
+
+    document.getElementById('email-modal').addEventListener('click', function(e) {
+      if (e.target === this) closeEmailModal();
+    });
+
+    // Enter key for password
+    document.getElementById('new-password-confirm').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') savePassword();
+    });
+
+    // Enter key for username
+    document.getElementById('new-username').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') saveUsername();
+    });
+
+    // Enter key for email
+    document.getElementById('email-password').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') saveEmail();
+    });
+  </script>
+
+  <!-- Viewport.js -->
+  <script src="../viewport.js"></script>
+  
+  <!-- Welcome Modal -->
+  <script src="../js/welcome-modal-v2.js"></script>
+  
+  <!-- Load Workout History -->
+  <script type="module">
+    import { getWorkoutStats, getLastWorkoutIndexLocal } from '../js/workout-history.js';
+    
+    function loadWorkoutHistory() {
+      const lastWorkoutEl = document.getElementById('last-workout-time');
+      const lastWorkoutNameEl = document.getElementById('last-workout-name');
+      const totalWorkoutsEl = document.getElementById('total-workouts');
+      
+      // Get local stats
+      const stats = getWorkoutStats();
+      const lastWorkoutIndex = getLastWorkoutIndexLocal();
+      const cloudTotal = parseInt(localStorage.getItem('viltrum_total_workouts')) || 0;
+      
+      console.log('📊 Loading workout history - lastIndex:', lastWorkoutIndex, 'localStats:', stats.total, 'cloudTotal:', cloudTotal);
+      
+      // Use the highest value for total workouts
+      let totalWorkouts = Math.max(stats.total || 0, cloudTotal, lastWorkoutIndex >= 0 ? lastWorkoutIndex + 1 : 0);
+      
+      totalWorkoutsEl.textContent = totalWorkouts;
+      
+      // Display last workout info from local cache
+      if (stats.lastWorkout) {
+        const lastDate = new Date(stats.lastWorkout.completedAt);
+        const now = new Date();
+        const diffMs = now - lastDate;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHours / 24);
+        
+        let timeText;
+        if (diffMins < 60) {
+          timeText = `${diffMins}m fa`;
+        } else if (diffHours < 24) {
+          timeText = `${diffHours}h fa`;
+        } else if (diffDays === 1) {
+          timeText = 'Ieri';
+        } else if (diffDays < 7) {
+          timeText = `${diffDays}g fa`;
+        } else {
+          timeText = lastDate.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+        }
+        
+        lastWorkoutNameEl.textContent = stats.lastWorkout.workoutName || 'Workout';
+        lastWorkoutEl.textContent = timeText;
+      } else if (lastWorkoutIndex >= 0) {
+        // We have index but no detailed stats
+        lastWorkoutNameEl.textContent = `Sesh ${lastWorkoutIndex + 1}`;
+        lastWorkoutEl.textContent = 'Completato';
+      } else {
+        lastWorkoutNameEl.textContent = 'Nessuno';
+        lastWorkoutEl.textContent = '';
+      }
+    }
+    
+    // Make it globally accessible so initializeDashboard can call it after cloud sync
+    window.loadWorkoutHistory = loadWorkoutHistory;
+    
+    // Load on page load
+    document.addEventListener('DOMContentLoaded', loadWorkoutHistory);
+    
+    // ===== CHECK FOR RUN WORKOUTS =====
+    async function checkEnduranceAvailability() {
+      const enduranceCard = document.getElementById('endurance-card');
+      const enduranceBadge = document.getElementById('endurance-badge');
+      
+      if (!enduranceCard) return;
+      
+      try {
+        // Check session cache for runWorkouts
+        const cached = sessionStorage.getItem('viltrum_session_data');
+        if (cached) {
+          const data = JSON.parse(cached);
+          const runWorkouts = data.runWorkouts || {};
+          const hasRunWorkouts = Object.keys(runWorkouts).length > 0;
+          
+          if (hasRunWorkouts) {
+            console.log('🏃 Run workouts available:', Object.keys(runWorkouts).length);
+            enduranceCard.classList.remove('disabled');
+            enduranceBadge.textContent = 'Attivo';
+            enduranceBadge.className = 'status-badge active';
+          } else {
+            console.log('⏳ No run workouts yet');
+            enduranceCard.classList.add('disabled');
+            enduranceCard.href = '#';
+            enduranceCard.onclick = (e) => {
+              e.preventDefault();
+              showComingSoon('Endurance');
+            };
+            enduranceBadge.textContent = 'Coming Soon';
+            enduranceBadge.className = 'status-badge coming-soon';
+          }
+        }
+      } catch (error) {
+        console.warn('Could not check endurance availability:', error);
+      }
+    }
+    
+    // Check endurance availability when cache is ready
+    document.addEventListener('DOMContentLoaded', () => {
+      // Wait a bit for session cache to be available
+      setTimeout(checkEnduranceAvailability, 500);
+    });
+
+    // ===== LOAD LOGO FROM CACHE =====
+    document.addEventListener('DOMContentLoaded', async () => {
+      const headerLogo = document.getElementById('header-logo') || document.querySelector('header img');
+      if (headerLogo) {
+        const logoUrl = headerLogo.getAttribute('data-src') || headerLogo.src;
+        if (logoUrl && logoUrl !== window.location.href) {
+          // Wait for OfflinePreloader to be available
+          let attempts = 0;
+          while (typeof OfflinePreloader === 'undefined' && attempts < 30) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+            attempts++;
+          }
+          
+          if (typeof OfflinePreloader !== 'undefined') {
+            try {
+              const cachedLogoUrl = await OfflinePreloader.getCachedImage(logoUrl);
+              if (cachedLogoUrl) {
+                console.log('✅ Using cached logo on dashboard');
+                headerLogo.src = cachedLogoUrl;
+                headerLogo.style.opacity = '1';
+              } else {
+                console.log('⚠️ Logo not in cache, loading from network');
+                headerLogo.src = logoUrl;
+                headerLogo.style.opacity = '1';
+              }
+            } catch (error) {
+              console.warn('⚠️ Failed to load cached logo:', error);
+              headerLogo.src = logoUrl;
+              headerLogo.style.opacity = '1';
+            }
+          } else {
+            headerLogo.src = logoUrl;
+            headerLogo.style.opacity = '1';
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Viltrum Fitness</title>
+  
+  <!-- CRITICAL: Inline styles to prevent FOUC in PWA standalone mode -->
+  <style id="fouc-prevention">
+    /* Hide all form elements initially to prevent native styling flash */
+    select, input:not([type="checkbox"]):not([type="radio"]), button { 
+      -webkit-appearance: none !important; 
+      -moz-appearance: none !important;
+      appearance: none !important;
+    }
+    /* Ensure black background shows immediately */
+    html, body { background: #000000 !important; }
+  </style>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Staatliches&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/main.css" />
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="apple-mobile-web-app-title" content="Viltrum Fitness" />
+  <link rel="apple-touch-icon" href="./icons/icon-192x192.png" />
+  
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <style>
+    /* Header adjustments for login button */
+    header {
+      display: grid !important;
+      grid-template-columns: 1fr auto 1fr !important;
+      align-items: center !important;
+      gap: 15px !important;
+    }
+
+    header img {
+      grid-column: 2 !important;
+      justify-self: center !important;
+      height: auto !important;
+      width: auto !important;
+      max-width: 55vw !important;
+      max-height: 12vh !important;
+      position: relative !important;
+      z-index: 1;
+    }
+
+    /* LOGIN BUTTON IN HEADER */
+    .header-login-btn {
+      grid-column: 3 !important;
+      justify-self: end !important;
+      position: relative !important;
+      padding: 10px 20px;
+      background: #FFFFFF;
+      border: 2px solid #FFFFFF;
+      border-radius: 10px;
+      color: #000000;
+      font-family: 'Staatliches', sans-serif;
+      font-size: 16px;
+      font-weight: bold;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 15px rgba(255, 255, 255, 0.3);
+      z-index: 100;
+      white-space: nowrap;
+    }
+
+    .header-login-btn:hover {
+      background: #B0B0B0;
+      transform: scale(1.05);
+      box-shadow: 0 6px 20px rgba(255, 255, 255, 0.4);
+    }
+
+    .header-login-btn:active {
+      transform: scale(0.98);
+    }
+
+    .header-login-btn svg {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    /* DASHBOARD BUTTON IN HEADER */
+    .header-dashboard-btn {
+      grid-column: 3 !important;
+      justify-self: end !important;
+      position: relative !important;
+      padding: 10px 20px;
+      background: #FFFFFF;
+      border: 2px solid #FFFFFF;
+      border-radius: 10px;
+      color: #000000;
+      font-family: 'Staatliches', sans-serif;
+      font-size: 16px;
+      font-weight: bold;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 15px rgba(255, 255, 255, 0.3);
+      z-index: 100;
+      white-space: nowrap;
+      text-decoration: none;
+    }
+
+    .header-dashboard-btn:hover {
+      background: #B0B0B0;
+      transform: scale(1.05);
+      box-shadow: 0 6px 20px rgba(255, 255, 255, 0.4);
+    }
+
+    .header-dashboard-btn:active {
+      transform: scale(0.98);
+    }
+
+    .header-dashboard-btn svg {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    /* HIDE ALL BROWSER PASSWORD ICONS */
+    input[type="password"]::-ms-reveal,
+    input[type="password"]::-ms-clear {
+      display: none !important;
+    }
+
+    /* Safe: don't kill the decoration container on iOS */
+    input[type="password"]::-webkit-credentials-auto-fill-button,
+    input[type="email"]::-webkit-credentials-auto-fill-button {
+      opacity: 0 !important;             /* visually gone */
+      pointer-events: none !important;   /* not clickable */
+      width: 0 !important;               /* collapse hit area */
+      height: 0 !important;
+      overflow: hidden !important;
+    }
+
+    input[type="password"],
+    input[type="email"] {
+      background-image: none !important;
+    }
+
+    /* REDESIGNED PASSWORD INPUT - BUTTON NEXT TO INPUT (BEST PRACTICE FOR iOS) */
+    .password-input-wrapper {
+      display: flex !important;
+      align-items: stretch !important;
+      width: 100% !important;
+      min-height: 48px !important;
+      margin-bottom: 12px !important;
+      background: rgba(0, 0, 0, 0.5) !important;
+      border: 1px solid #7D7D7D !important;
+      border-radius: 10px !important;
+      /* REMOVED overflow: hidden - was blocking iOS password touches */
+      transition: all 0.3s ease !important;
+      position: relative !important;
+    }
+
+    .password-input-wrapper:focus-within {
+      border-color: #FFFFFF !important;
+      background: rgba(0, 0, 0, 0.7) !important;
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1) !important;
+    }
+
+    .password-input-wrapper input {
+      flex: 1 !important;
+      padding: 12px 14px !important;
+      margin-bottom: 0 !important;
+      background: transparent !important;
+      border: none !important;
+      border-radius: 10px 0 0 10px !important;
+      color: #FFFFFF !important;
+      font-size: 16px !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+      letter-spacing: 0.3px !important;
+      font-weight: 400 !important;
+      box-sizing: border-box !important;
+      outline: none !important;
+      /* iOS Safari fixes */
+      -webkit-appearance: none !important;
+      appearance: none !important;
+      width: 100% !important;
+      /* Ensure input is ALWAYS interactive on iOS */
+      pointer-events: auto !important;
+      touch-action: manipulation !important;
+      -webkit-user-select: text !important;
+      user-select: text !important;
+    }
+    
+    /* Password type - CRITICAL: Ensure dots are visible on iOS */
+    .password-input-wrapper input[type="password"] {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+      color: #FFFFFF !important;
+      -webkit-text-fill-color: #FFFFFF !important;
+      opacity: 1 !important;
+      font-size: 16px !important;
+    }
+    
+    /* Text type when revealed - Ensure visible */
+    .password-input-wrapper input[type="text"] {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+      font-size: 16px !important;
+      letter-spacing: 0.3px !important;
+      color: #FFFFFF !important;
+      -webkit-text-fill-color: #FFFFFF !important;
+      opacity: 1 !important;
+    }
+    
+    /* Ensure font applies to autofill state */
+    .password-input-wrapper input:-webkit-autofill,
+    .password-input-wrapper input:-webkit-autofill:hover,
+    .password-input-wrapper input:-webkit-autofill:focus,
+    .password-input-wrapper input:-webkit-autofill:active {
+      -webkit-text-fill-color: #FFFFFF !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+      font-size: 16px !important;
+      letter-spacing: 0.3px !important;
+      -webkit-box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.5) inset !important;
+      box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.5) inset !important;
+      transition: background-color 5000s ease-in-out 0s !important;
+    }
+
+    .password-input-wrapper input::placeholder {
+      color: #B0B0B0 !important;
+      opacity: 0.8 !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+      font-size: 16px !important;
+      letter-spacing: 0.3px !important;
+      font-weight: 400 !important;
+    }
+    
+    /* Webkit placeholder */
+    .password-input-wrapper input::-webkit-input-placeholder {
+      color: #B0B0B0 !important;
+      opacity: 0.8 !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+      font-size: 16px !important;
+      letter-spacing: 0.3px !important;
+    }
+    
+    /* Mozilla placeholder */
+    .password-input-wrapper input::-moz-placeholder {
+      color: #B0B0B0 !important;
+      opacity: 0.8 !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+      font-size: 16px !important;
+      letter-spacing: 0.3px !important;
+    }
+    
+    /* MS placeholder */
+    .password-input-wrapper input:-ms-input-placeholder {
+      color: #B0B0B0 !important;
+      opacity: 0.8 !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+      font-size: 16px !important;
+      letter-spacing: 0.3px !important;
+    }
+
+    .password-input-wrapper input:focus {
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+
+    /* Password toggle button - NEXT TO input, not over it */
+    .auth-modal .password-toggle-btn {
+      /* Layout */
+      flex-shrink: 0 !important;
+      width: 44px !important;
+      min-width: 44px !important;
+      height: auto !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      
+      /* Appearance */
+      background: transparent !important;
+      border: none !important;
+      border-left: 1px solid rgba(125, 125, 125, 0.3) !important;
+      border-radius: 0 10px 10px 0 !important;
+      color: #B0B0B0 !important;
+      
+      /* Interaction */
+      cursor: pointer !important;
+      outline: none !important;
+      
+      /* Transitions */
+      transition: all 0.2s ease !important;
+      
+      /* Mobile/Touch */
+      -webkit-tap-highlight-color: transparent !important;
+      -webkit-user-select: none !important;
+      -moz-user-select: none !important;
+      -ms-user-select: none !important;
+      user-select: none !important;
+      -webkit-touch-callout: none !important;
+      touch-action: manipulation !important;
+      
+      /* Typography reset */
+      font-size: 0 !important;
+      line-height: 1 !important;
+      letter-spacing: 0 !important;
+      text-align: center !important;
+      
+      /* Box model */
+      box-sizing: border-box !important;
+      vertical-align: middle !important;
+    }
+    
+    .auth-modal .password-toggle-btn:hover {
+      background: rgba(255, 255, 255, 0.05) !important;
+      color: #FFFFFF !important;
+    }
+    
+    .auth-modal .password-toggle-btn:active {
+      background: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    .auth-modal .password-toggle-btn:focus {
+      outline: none !important;
+      box-shadow: none !important;
+    }
+
+    /* SVG Icon Positioning and Toggle */
+    .auth-modal .password-toggle-btn {
+      position: relative !important;
+    }
+    /* SVG Icon Positioning and Toggle */
+    .auth-modal .password-toggle-btn {
+      position: relative !important;
+    }
+
+    .auth-modal .password-toggle-btn svg {
+      width: 20px !important;
+      height: 20px !important;
+      display: block !important;
+      pointer-events: none !important;
+      /* CRITICAL: Both icons absolutely positioned in same spot */
+      position: absolute !important;
+      top: 50% !important;
+      left: 50% !important;
+      margin-top: -10px !important;
+      margin-left: -10px !important;
+      transition: opacity 0.2s ease, transform 0.2s ease !important;
+    }
+
+    /* Default state: Show eye (password hidden) */
+    .password-toggle-btn .eye-icon {
+      opacity: 1 !important;
+      transform: scale(1) rotate(0deg) !important;
+      z-index: 2 !important;
+    }
+
+    .password-toggle-btn .eye-off-icon {
+      opacity: 0 !important;
+      transform: scale(0.8) rotate(5deg) !important;
+      z-index: 1 !important;
+    }
+
+    /* Active state: Show eye-off (password visible) */
+    .password-toggle-btn.showing .eye-icon {
+      opacity: 0 !important;
+      transform: scale(0.8) rotate(-5deg) !important;
+      z-index: 1 !important;
+    }
+
+    .password-toggle-btn.showing .eye-off-icon {
+      opacity: 1 !important;
+      transform: scale(1) rotate(0deg) !important;
+      z-index: 2 !important;
+    }
+
+    /* AUTH MODAL (Login/Signup) */
+    .auth-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(10px);
+      z-index: 10000;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .auth-modal.active {
+      display: flex;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .auth-modal-content {
+      background: linear-gradient(135deg, rgba(77, 77, 77, 0.95), rgba(77, 77, 77, 0.8));
+      border: 2px solid #7D7D7D;
+      border-radius: 20px;
+      padding: 45px 25px 25px 25px;
+      width: 100%;
+      max-width: 350px;
+      position: relative;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+      animation: slideUp 0.4s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .auth-modal-close {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(255, 255, 255, 0.15);
+      border: 1.5px solid rgba(255, 255, 255, 0.3);
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      color: #FFFFFF;
+      font-size: 18px;
+      font-weight: 300;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      z-index: 100;
+      font-family: Arial, sans-serif;
+      padding: 0;
+    }
+
+    .auth-modal-close:hover {
+      background: rgba(255, 255, 255, 0.25);
+      border-color: rgba(255, 255, 255, 0.5);
+      transform: scale(1.08);
+    }
+
+    .auth-modal-close:active {
+      transform: scale(0.95);
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .auth-view {
+      display: none;
+    }
+
+    .auth-view.active {
+      display: block;
+    }
+
+    .auth-modal h3 {
+      color: #FFFFFF;
+      font-size: 26px;
+      text-align: center;
+      margin-bottom: 20px;
+      letter-spacing: 2px;
+    }
+
+    .auth-modal input:not(.password-input-wrapper input) {
+      width: 100%;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid #7D7D7D;
+      border-radius: 10px;
+      color: #FFFFFF;
+      font-size: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      letter-spacing: 0.3px;
+      transition: all 0.3s ease;
+      /* iOS Safari fixes */
+      -webkit-appearance: none;
+      appearance: none;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: text;
+      user-select: text;
+      position: relative;
+      z-index: 1;
+    }
+
+    .auth-modal input:not(.password-input-wrapper input)::placeholder {
+      color: #B0B0B0;
+      opacity: 0.8;
+    }
+
+    .auth-modal input:not(.password-input-wrapper input):focus {
+      outline: none;
+      border-color: #FFFFFF;
+      background: rgba(0, 0, 0, 0.7);
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+    }
+    
+    /* Ensure font applies to autofill state for email/other inputs */
+    .auth-modal input:not(.password-input-wrapper input):-webkit-autofill,
+    .auth-modal input:not(.password-input-wrapper input):-webkit-autofill:hover,
+    .auth-modal input:not(.password-input-wrapper input):-webkit-autofill:focus,
+    .auth-modal input:not(.password-input-wrapper input):-webkit-autofill:active {
+      -webkit-text-fill-color: #FFFFFF !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+      font-size: 16px !important;
+      letter-spacing: 0.3px !important;
+      -webkit-box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.5) inset !important;
+      box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.5) inset !important;
+      border: 1px solid #7D7D7D !important;
+      transition: background-color 5000s ease-in-out 0s !important;
+    }
+
+    .auth-modal button:not(.auth-modal-close) {
+      width: 100%;
+      padding: 12px;
+      background: #FFFFFF;
+      color: #000000;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      font-family: 'Staatliches', sans-serif;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 8px;
+    }
+
+    .auth-modal button:not(.auth-modal-close):hover {
+      background: #B0B0B0;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(255, 255, 255, 0.3);
+    }
+
+    .auth-modal button:not(.auth-modal-close):active {
+      transform: translateY(0);
+    }
+
+    .auth-modal button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .auth-toggle {
+      text-align: center;
+      margin-top: 15px;
+      color: #B0B0B0;
+      font-size: 14px;
+      font-family: 'Staatliches', sans-serif;
+      letter-spacing: 0.5px;
+    }
+
+    .auth-toggle a {
+      color: #FFFFFF;
+      text-decoration: none;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .auth-toggle a:hover {
+      text-decoration: underline;
+    }
+
+    .auth-message {
+      padding: 10px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 13px;
+      font-family: 'Staatliches', sans-serif;
+      letter-spacing: 0.5px;
+      margin-top: 12px;
+      display: none;
+    }
+
+    .auth-message.error {
+      background: rgba(255, 107, 107, 0.2);
+      border: 1px solid #ff6b6b;
+      color: #ff6b6b;
+    }
+
+    .auth-message.success {
+      background: rgba(76, 175, 80, 0.2);
+      border: 1px solid #4CAF50;
+      color: #4CAF50;
+    }
+
+    .auth-message.info {
+      background: rgba(255, 215, 0, 0.2);
+      border: 1px solid #FFD700;
+      color: #FFD700;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .header-login-btn,
+      .header-dashboard-btn {
+        padding: 8px 12px;
+        font-size: 13px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+  <header>
+    <img src="https://drive.google.com/thumbnail?id=1va6OkGp9yAHDJBfeDM3npwqlJJoLUh5C&sz=w400" alt="Logo" />
+    <audio controls src="https://drive.google.com/uc?export=download&id=1L8OmsZjgrVvHR0vyfSDhaueR1rweGtH7"></audio>
+    
+    <!-- LOGIN BUTTON (shown when logged out) -->
+    <button class="header-login-btn" id="header-login-btn" style="display: none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+        <polyline points="10 17 15 12 10 7"/>
+        <line x1="15" y1="12" x2="3" y2="12"/>
+      </svg>
+      <span>Login</span>
+    </button>
+    
+    <!-- DASHBOARD BUTTON (shown when logged in) -->
+    <a href="pages/dashboard-v7.html" class="header-dashboard-btn" id="header-dashboard-btn" style="display: none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+      <span>Dashboard</span>
+    </a>
+  </header>
+
+  <!-- AUTH MODAL (Login/Signup) -->
+  <div class="auth-modal" id="auth-modal">
+    <div class="auth-modal-content">
+      <button class="auth-modal-close" id="auth-modal-close">×</button>
+      
+      <!-- LOGIN VIEW -->
+      <div class="auth-view active" id="login-view">
+        <h3>Login</h3>
+        <input type="email" placeholder="Email" id="login-email" autocomplete="email">
+        <div class="password-input-wrapper">
+          <input type="password" placeholder="Password" id="login-password" autocomplete="current-password">
+          <button type="button" class="password-toggle-btn" data-target="login-password" aria-label="Mostra/Nascondi Password">
+            <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            <svg class="eye-off-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+            </svg>
+          </button>
+        </div>
+        <button id="login-button">Accedi</button>
+        <div class="auth-message" id="login-message"></div>
+        <div class="auth-toggle">
+          Non hai un account? <a id="show-signup">Registrati</a>
+        </div>
+        <div class="auth-toggle" style="margin-top: 10px;">
+          <a id="show-forgot-password">Password dimenticata?</a>
+        </div>
+      </div>
+      
+      <!-- FORGOT PASSWORD VIEW -->
+      <div class="auth-view" id="forgot-password-view">
+        <h3>Recupera Password</h3>
+        <p style="font-size: 14px; margin-bottom: 15px; color: #ccc;">Inserisci la tua email e ti invieremo un link per reimpostare la password.</p>
+        <input type="email" placeholder="Email" id="forgot-email" autocomplete="email">
+        <button id="forgot-button">Invia Link</button>
+        <div class="auth-message" id="forgot-message"></div>
+        <div class="auth-toggle">
+          <a id="back-to-login">Torna al Login</a>
+        </div>
+      </div>
+      
+      <!-- RESET PASSWORD VIEW -->
+      <div class="auth-view" id="reset-password-view">
+        <h3>Nuova Password</h3>
+        <div class="password-input-wrapper">
+          <input type="password" placeholder="Nuova Password (min 6 caratteri)" id="reset-password" autocomplete="new-password" minlength="6">
+          <button type="button" class="password-toggle-btn" data-target="reset-password" aria-label="Mostra/Nascondi Password">
+            <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            <svg class="eye-off-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="password-input-wrapper">
+          <input type="password" placeholder="Conferma Nuova Password" id="reset-password-confirm" autocomplete="new-password" minlength="6">
+          <button type="button" class="password-toggle-btn" data-target="reset-password-confirm" aria-label="Mostra/Nascondi Password">
+            <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            <svg class="eye-off-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+            </svg>
+          </button>
+        </div>
+        <button id="reset-button">Cambia Password</button>
+        <div class="auth-message" id="reset-message"></div>
+      </div>
+      
+      <!-- SIGNUP VIEW -->
+      <div class="auth-view" id="signup-view">
+        <h3>Registrati</h3>
+        <input type="text" placeholder="Nome Completo" id="signup-name" autocomplete="name">
+        <input type="text" placeholder="Username" id="signup-username" autocomplete="username">
+        <input type="email" placeholder="Email" id="signup-email" autocomplete="email">
+        <div class="password-input-wrapper">
+          <input type="password" placeholder="Password (min 6 caratteri)" id="signup-password" autocomplete="new-password" minlength="6">
+          <button type="button" class="password-toggle-btn" data-target="signup-password" aria-label="Mostra/Nascondi Password">
+            <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            <svg class="eye-off-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="password-input-wrapper">
+          <input type="password" placeholder="Conferma Password" id="signup-password-confirm" autocomplete="new-password" minlength="6">
+          <button type="button" class="password-toggle-btn" data-target="signup-password-confirm" aria-label="Mostra/Nascondi Password">
+            <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            <svg class="eye-off-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+            </svg>
+          </button>
+        </div>
+        <button id="signup-button">Crea Account</button>
+        <div class="auth-message" id="signup-message"></div>
+        <div class="auth-toggle">
+          Hai già un account? <a id="show-login">Accedi</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main class="page-safe screen">
+    <!-- TRAINING SELECTOR -->
+    <div id="training-selector" data-reach-bottom="true">
+      <div class="training-selector-container">
+        <p class="selector-instruction">Tocca per selezionare il tuo focus di allenamento</p>
+        <div class="training-image-wrapper">
+          <img src="https://drive.google.com/thumbnail?id=1M9SZSKuOO6FNnM2pi0ECOiHGv1SDFxYQ&sz=w1000" alt="Training Options" class="training-base-image" />
+          
+          <div class="training-zone nutrition-zone" data-training="nutrition">
+            <span class="zone-label">NUTRITION</span>
+            <div class="ripple-container">
+              <div class="ripple-ring ripple-1"></div>
+              <div class="ripple-ring ripple-2"></div>
+              <span class="tap-text">TOCCA</span>
+            </div>
+          </div>
+          
+          <div class="training-zone aerobic-zone" data-training="aerobic">
+            <span class="zone-label">AEROBIC<br>TRAINING</span>
+            <div class="ripple-container">
+              <div class="ripple-ring ripple-1"></div>
+              <div class="ripple-ring ripple-2"></div>
+              <span class="tap-text">TOCCA</span>
+            </div>
+          </div>
+          
+          <div class="training-zone muscle-zone" data-training="muscle">
+            <span class="zone-label">MORE<br>MUSCLE</span>
+            <div class="ripple-container">
+              <div class="ripple-ring ripple-1"></div>
+              <div class="ripple-ring ripple-2"></div>
+              <span class="tap-text">TOCCA</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Sheet -->
+      <div id="training-bottom-sheet" class="bottom-sheet">
+        <div class="bottom-sheet-overlay"></div>
+        <div class="bottom-sheet-panel">
+          <div class="bottom-sheet-handle"></div>
+          <div class="bottom-sheet-content">
+            <h3 id="sheet-title">Nutrizione</h3>
+            
+            <div class="carousel-container">
+              <div class="carousel-wrapper">
+                <div class="carousel-track" id="carousel-track"></div>
+                <!-- Overlay for main text when expanded -->
+                <div class="carousel-text-overlay" id="carousel-text-overlay" style="display: none;">
+                  <p id="overlay-text"></p>
+                </div>
+              </div>
+              <button class="carousel-btn prev" id="carousel-prev" aria-label="Previous">‹</button>
+              <button class="carousel-btn next" id="carousel-next" aria-label="Next">›</button>
+              <div class="carousel-dots" id="carousel-dots"></div>
+            </div>
+            
+            <!-- Main text that syncs with carousel -->
+            <p id="sheet-main-text" class="sheet-main-text">Testo principale</p>
+            
+            <button id="details-toggle-btn" class="details-toggle-btn">
+              <span>Altri dettagli</span>
+              <span class="toggle-icon">↓</span>
+            </button>
+            
+            <div id="details-section" class="details-section" style="display: none;">
+              <div class="detail-item" id="detail-1">
+                <h4>Traccia Macronutrienti</h4>
+                <p>Monitora proteine, carboidrati e grassi per risultati ottimali</p>
+              </div>
+              <div class="detail-item" id="detail-2">
+                <h4>Piano Personalizzato</h4>
+                <p>Ricette e piani pasto basati sui tuoi obiettivi specifici</p>
+              </div>
+              <div class="detail-item" id="detail-3">
+                <h4>Progressi Visibili</h4>
+                <p>Analisi dettagliata delle tue abitudini alimentari nel tempo</p>
+              </div>
+            </div>
+            
+            <div class="sheet-actions">
+              <button id="sheet-start-btn" class="sheet-btn primary">Inizia Allenamento</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  </div><!-- /.app -->
+
+  <audio id="beep-sound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+  <audio id="transition-sound" src="https://actions.google.com/sounds/v1/emergency/emergency_siren_short_burst.ogg" preload="auto"></audio>
+
+  <script src="viewport.js"></script>
+  <script src="js/training-selector.js"></script>
+  <!-- V8: Preloading scripts -->
+  <script src="js/offline-preloader.js"></script>
+  <script src="js/global-preload-bar.js"></script>
+  <script type="module" src="js/auth.js"></script>
+  
+  <script>
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EMAIL CONFIRMATION HANDLER - FIX 3
+    // Gestisce il redirect quando l'utente clicca il link nell'email
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    async function handleEmailConfirmation() {
+        // Estrai i parametri dall'URL hash (#access_token=...)
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        const type = hashParams.get('type');
+        
+        // Se ci sono tokens e questo è un signup/recovery/magiclink
+        if (accessToken && (type === 'signup' || type === 'recovery' || type === 'magiclink')) {
+            console.log('✅ Email confirmation detected, type:', type);
+            
+            try {
+                // Autentica l'utente usando i tokens dall'URL
+                const { data, error } = await supabase.auth.setSession({
+                    access_token: accessToken,
+                    refresh_token: refreshToken
+                });
+                
+                if (error) {
+                    console.error('Error setting session:', error);
+                    alert('Errore nella conferma email: ' + error.message);
+                    return;
+                }
+                
+                if (data.user) {
+                    console.log('✅ Email confirmed successfully!', data.user.email);
+                    
+                    // Salva info utente in localStorage
+                    localStorage.setItem('loggedUser', data.user.email.toLowerCase());
+                    localStorage.setItem('userName', data.user.user_metadata?.username || 'User');
+                    localStorage.setItem('userFullName', data.user.user_metadata?.full_name || 'User');
+                    
+                    // Pulisci l'URL (rimuovi i tokens per sicurezza)
+                    const cleanUrl = window.location.pathname + window.location.search;
+                    window.history.replaceState({}, document.title, cleanUrl);
+                    
+                    // Redirect alla dashboard
+                    console.log('Redirecting to dashboard...');
+                    window.location.href = 'pages/dashboard-v7.html';
+                }
+            } catch (error) {
+                console.error('Exception during email confirmation:', error);
+                alert('Errore durante la conferma: ' + error.message);
+            }
+        }
+    }
+    
+    // Esegui l'handler quando la pagina carica
+    if (window.supabase) {
+        handleEmailConfirmation();
+    } else {
+        window.addEventListener('load', () => {
+            setTimeout(handleEmailConfirmation, 500);
+        });
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // AUTH MODAL CONTROLS
+    const authModal = document.getElementById('auth-modal');
+    const headerLoginBtn = document.getElementById('header-login-btn');
+    const headerDashboardBtn = document.getElementById('header-dashboard-btn');
+    const modalCloseBtn = document.getElementById('auth-modal-close');
+    
+    // Views
+    const loginView = document.getElementById('login-view');
+    const signupView = document.getElementById('signup-view');
+    const forgotPasswordView = document.getElementById('forgot-password-view');
+    const resetPasswordView = document.getElementById('reset-password-view');
+    
+    // Login elements
+    const loginEmailInput = document.getElementById('login-email');
+    const loginPasswordInput = document.getElementById('login-password');
+    const loginButton = document.getElementById('login-button');
+    const loginMessage = document.getElementById('login-message');
+    
+    // Signup elements
+    const signupNameInput = document.getElementById('signup-name');
+    const signupUsernameInput = document.getElementById('signup-username');
+    const signupEmailInput = document.getElementById('signup-email');
+    const signupPasswordInput = document.getElementById('signup-password');
+    const signupPasswordConfirmInput = document.getElementById('signup-password-confirm');
+    const signupButton = document.getElementById('signup-button');
+    const signupMessage = document.getElementById('signup-message');
+    
+    // Forgot password elements
+    const forgotEmailInput = document.getElementById('forgot-email');
+    const forgotButton = document.getElementById('forgot-button');
+    const forgotMessage = document.getElementById('forgot-message');
+    
+    // Reset password elements
+    const resetPasswordInput = document.getElementById('reset-password');
+    const resetPasswordConfirmInput = document.getElementById('reset-password-confirm');
+    const resetButton = document.getElementById('reset-button');
+    const resetMessage = document.getElementById('reset-message');
+    
+    // Toggle buttons
+    const showSignupBtn = document.getElementById('show-signup');
+    const showLoginBtn = document.getElementById('show-login');
+    const showForgotPasswordBtn = document.getElementById('show-forgot-password');
+    const backToLoginBtn = document.getElementById('back-to-login');
+    
+    const sheetStartBtn = document.getElementById('sheet-start-btn');
+
+    // Check if user is already logged in (wait for auth.js module to load)
+    async function initAuth() {
+      // Wait for checkAuth to be available
+      while (typeof window.checkAuth !== 'function') {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      
+      const isLoggedIn = await checkAuth();
+      if (isLoggedIn) {
+        headerDashboardBtn.style.display = 'flex';
+        headerLoginBtn.style.display = 'none';
+      } else {
+        headerLoginBtn.style.display = 'flex';
+        headerDashboardBtn.style.display = 'none';
+      }
+    }
+    
+    initAuth();
+
+    // Open modal (show login by default)
+    function openAuthModal() {
+      authModal.classList.add('active');
+      showLogin();
+      setTimeout(() => loginEmailInput.focus(), 300);
+    }
+
+    headerLoginBtn.addEventListener('click', openAuthModal);
+
+    // Close modal
+    modalCloseBtn.addEventListener('click', () => {
+      authModal.classList.remove('active');
+      clearMessages();
+    });
+
+    // Close on overlay click
+    authModal.addEventListener('click', (e) => {
+      if (e.target === authModal) {
+        authModal.classList.remove('active');
+        clearMessages();
+      }
+    });
+
+    // Close on escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && authModal.classList.contains('active')) {
+        authModal.classList.remove('active');
+        clearMessages();
+      }
+    });
+
+    // Toggle views
+    function showLogin() {
+      loginView.classList.add('active');
+      signupView.classList.remove('active');
+      forgotPasswordView.classList.remove('active');
+      resetPasswordView.classList.remove('active');
+      clearMessages();
+    }
+
+    function showSignup() {
+      signupView.classList.add('active');
+      loginView.classList.remove('active');
+      forgotPasswordView.classList.remove('active');
+      resetPasswordView.classList.remove('active');
+      clearMessages();
+    }
+    
+    function showForgotPassword() {
+      forgotPasswordView.classList.add('active');
+      loginView.classList.remove('active');
+      signupView.classList.remove('active');
+      resetPasswordView.classList.remove('active');
+      clearMessages();
+    }
+    
+    function showResetPassword() {
+      resetPasswordView.classList.add('active');
+      loginView.classList.remove('active');
+      signupView.classList.remove('active');
+      forgotPasswordView.classList.remove('active');
+      clearMessages();
+    }
+
+    showSignupBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      showSignup();
+      setTimeout(() => signupNameInput.focus(), 100);
+    });
+
+    showLoginBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      showLogin();
+      setTimeout(() => loginEmailInput.focus(), 100);
+    });
+    
+    showForgotPasswordBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      showForgotPassword();
+      setTimeout(() => forgotEmailInput.focus(), 100);
+    });
+    
+    backToLoginBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      showLogin();
+      setTimeout(() => loginEmailInput.focus(), 100);
+    });
+
+    // Clear all messages
+    function clearMessages() {
+      loginMessage.style.display = 'none';
+      signupMessage.style.display = 'none';
+      forgotMessage.style.display = 'none';
+      resetMessage.style.display = 'none';
+      loginMessage.textContent = '';
+      signupMessage.textContent = '';
+      forgotMessage.textContent = '';
+      resetMessage.textContent = '';
+    }
+
+    // Show message helper
+    function showMessage(element, text, type) {
+      element.textContent = text;
+      element.className = `auth-message ${type}`;
+      element.style.display = 'block';
+    }
+
+    // LOGIN HANDLER
+    async function handleLogin(e) {
+      if (e) e.preventDefault();
+      
+      const email = loginEmailInput.value.trim();
+      const password = loginPasswordInput.value.trim();
+
+      if (!email || !password) {
+        showMessage(loginMessage, "Inserisci email e password", "error");
+        return;
+      }
+
+      showMessage(loginMessage, "Accesso in corso...", "info");
+      loginButton.disabled = true;
+
+      const result = await signIn(email, password);
+      
+      if (result.success) {
+        showMessage(loginMessage, "Accesso riuscito!", "success");
+        setTimeout(() => {
+          window.location.href = "pages/dashboard-v7.html";
+        }, 500);
+      } else {
+        showMessage(loginMessage, result.error || "Errore durante il login", "error");
+        loginButton.disabled = false;
+      }
+    }
+
+    loginButton.addEventListener('click', handleLogin);
+    loginPasswordInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') handleLogin();
+    });
+    loginEmailInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') loginPasswordInput.focus();
+    });
+
+    // SIGNUP HANDLER
+    async function handleSignup(e) {
+      if (e) e.preventDefault();
+      
+      const name = signupNameInput.value.trim();
+      const username = signupUsernameInput.value.trim();
+      const email = signupEmailInput.value.trim();
+      const password = signupPasswordInput.value.trim();
+      const passwordConfirm = signupPasswordConfirmInput.value.trim();
+
+      if (!name || !username || !email || !password || !passwordConfirm) {
+        showMessage(signupMessage, "Compila tutti i campi", "error");
+        return;
+      }
+
+      if (password.length < 6) {
+        showMessage(signupMessage, "La password deve essere di almeno 6 caratteri", "error");
+        return;
+      }
+
+      if (password !== passwordConfirm) {
+        showMessage(signupMessage, "Le password non corrispondono", "error");
+        return;
+      }
+
+      showMessage(signupMessage, "Creazione account in corso...", "info");
+      signupButton.disabled = true;
+
+      const result = await signUp(email, password, name, username);
+      
+      if (result.success) {
+        showMessage(signupMessage, "✅ Account creato con successo!", "success");
+        
+        // Redirect to dashboard immediately
+        setTimeout(() => {
+          window.location.href = "pages/dashboard-v7.html";
+        }, 500);
+      } else {
+        showMessage(signupMessage, result.error || "Errore durante la registrazione", "error");
+        signupButton.disabled = false;
+      }
+    }
+
+    signupButton.addEventListener('click', handleSignup);
+    signupPasswordConfirmInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') handleSignup();
+    });
+    signupPasswordInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') signupPasswordConfirmInput.focus();
+    });
+    signupEmailInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') signupPasswordInput.focus();
+    });
+    signupUsernameInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') signupEmailInput.focus();
+    });
+    signupNameInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') signupUsernameInput.focus();
+    });
+
+    // FORGOT PASSWORD HANDLER
+    async function handleForgotPassword(e) {
+      if (e) e.preventDefault();
+      
+      const email = forgotEmailInput.value.trim();
+      
+      if (!email) {
+        showMessage(forgotMessage, "Inserisci la tua email", "error");
+        return;
+      }
+      
+      showMessage(forgotMessage, "Invio email in corso...", "info");
+      forgotButton.disabled = true;
+      
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin + '/index.html'
+        });
+        
+        if (error) {
+          showMessage(forgotMessage, error.message, "error");
+          forgotButton.disabled = false;
+        } else {
+          showMessage(forgotMessage, "✅ Email inviata! Controlla la tua casella di posta.", "success");
+          forgotEmailInput.value = '';
+          // Keep button disabled to prevent spam
+        }
+      } catch (error) {
+        showMessage(forgotMessage, "Errore durante l'invio", "error");
+        forgotButton.disabled = false;
+      }
+    }
+    
+    forgotButton.addEventListener('click', handleForgotPassword);
+    forgotEmailInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') handleForgotPassword();
+    });
+
+    // RESET PASSWORD HANDLER
+    async function handleResetPassword(e) {
+      if (e) e.preventDefault();
+      
+      const password = resetPasswordInput.value.trim();
+      const passwordConfirm = resetPasswordConfirmInput.value.trim();
+      
+      if (!password || !passwordConfirm) {
+        showMessage(resetMessage, "Compila tutti i campi", "error");
+        return;
+      }
+      
+      if (password.length < 6) {
+        showMessage(resetMessage, "La password deve essere di almeno 6 caratteri", "error");
+        return;
+      }
+      
+      if (password !== passwordConfirm) {
+        showMessage(resetMessage, "Le password non corrispondono", "error");
+        return;
+      }
+      
+      showMessage(resetMessage, "Aggiornamento password...", "info");
+      resetButton.disabled = true;
+      
+      try {
+        const { error } = await supabase.auth.updateUser({
+          password: password
+        });
+        
+        if (error) {
+          showMessage(resetMessage, error.message, "error");
+          resetButton.disabled = false;
+        } else {
+          showMessage(resetMessage, "✅ Password aggiornata con successo!", "success");
+          setTimeout(() => {
+            window.location.href = "pages/dashboard-v7.html";
+          }, 1500);
+        }
+      } catch (error) {
+        showMessage(resetMessage, "Errore durante l'aggiornamento", "error");
+        resetButton.disabled = false;
+      }
+    }
+    
+    resetButton.addEventListener('click', handleResetPassword);
+    resetPasswordConfirmInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') handleResetPassword();
+    });
+    resetPasswordInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') resetPasswordConfirmInput.focus();
+    });
+    
+    // Check for password reset token in URL
+    (async function() {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const type = hashParams.get('type');
+      
+      if (type === 'recovery') {
+        // User clicked password reset link
+        authModal.classList.add('active');
+        showResetPassword();
+        setTimeout(() => resetPasswordInput.focus(), 300);
+      }
+    })();
+
+    // TRAINING SELECTOR: When "Inizia Allenamento" is clicked, open auth modal
+    sheetStartBtn?.addEventListener('click', () => {
+      // Store selected training
+      const selectedTraining = sessionStorage.getItem('selectedTraining');
+      
+      // Close bottom sheet
+      document.getElementById('training-bottom-sheet')?.classList.remove('active');
+      
+      // Open auth modal
+      openAuthModal();
+    });
+
+    // PASSWORD TOGGLE FUNCTIONALITY (iOS Safari compatible)
+    let toggleTimeout = null;
+    
+    document.addEventListener('click', function(e) {
+      const toggleBtn = e.target.closest('.password-toggle-btn');
+      if (toggleBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Debounce rapid clicks
+        if (toggleTimeout) {
+          clearTimeout(toggleTimeout);
+        }
+        
+        toggleTimeout = setTimeout(() => {
+          const targetId = toggleBtn.getAttribute('data-target');
+          const passwordInput = document.getElementById(targetId);
+          
+          if (passwordInput) {
+            // Get current state
+            const isPassword = passwordInput.type === 'password';
+            const currentValue = passwordInput.value;
+            
+            if (isPassword) {
+              // Show password - simple type change works
+              passwordInput.type = 'text';
+              toggleBtn.classList.add('showing');
+              toggleBtn.setAttribute('aria-label', 'Nascondi Password');
+              
+              // Keep focus
+              setTimeout(() => {
+                passwordInput.focus();
+                // Move cursor to end
+                passwordInput.setSelectionRange(currentValue.length, currentValue.length);
+              }, 10);
+            } else {
+              // Hide password – safe path on iOS: blur → switch type → focus
+              const currentValue = passwordInput.value;
+              passwordInput.blur();
+              // Small delay helps iOS detach secure buffer cleanly
+              setTimeout(() => {
+                passwordInput.setAttribute('type', 'password');
+                toggleBtn.classList.remove('showing');
+                toggleBtn.setAttribute('aria-label', 'Mostra Password');
+                // Restore focus and caret
+                passwordInput.focus();
+                const end = currentValue.length;
+                if (end > 0) passwordInput.setSelectionRange(end, end);
+              }, 10);
+            }
+          }
+          
+          toggleTimeout = null;
+        }, 50); // 50ms debounce
+      }
+    });
+    
+    // Also handle touch events for mobile devices
+    document.addEventListener('touchend', function(e) {
+      const toggleBtn = e.target.closest('.password-toggle-btn');
+      if (toggleBtn) {
+        // Prevent click event from also firing
+        e.preventDefault();
+        toggleBtn.click();
+      }
+    }, { passive: false });
+  </script>
+  
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then((registration) => {
+            console.log('Service Worker registered successfully:', registration.scope);
+          })
+          .catch((error) => {
+            console.log('Service Worker registration failed:', error);
+          });
+      });
+    }
+  </script>
+</body>
+</html>

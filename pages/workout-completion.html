@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <!-- CRITICAL: Use interactive-widget=resizes-content for keyboard handling -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Workout Completato - Viltrum Fitness</title>
+  
+  <!-- CRITICAL: Inline styles to prevent FOUC in PWA standalone mode -->
+  <style id="fouc-prevention">
+    /* Hide all form elements initially to prevent native styling flash */
+    select, input:not([type="checkbox"]):not([type="radio"]), button { 
+      -webkit-appearance: none !important; 
+      -moz-appearance: none !important;
+      appearance: none !important;
+    }
+    /* Ensure black background shows immediately */
+    html, body { background: #000000 !important; }
+  </style>
+  
+  <link rel="manifest" href="../manifest.json">
+  <link rel="stylesheet" href="../css/main.css">
+  <link href="https://fonts.googleapis.com/css2?family=Staatliches&display=swap" rel="stylesheet">
+  <script src="../viewport.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #000000;
+      font-family: 'Staatliches', sans-serif;
+      height: 100%;
+      /* CRITICAL: Allow scrolling when keyboard is open */
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .completion-container {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;
+      background: #000000;
+      /* Allow scrolling */
+      overflow-y: auto;
+    }
+
+    .completion-header {
+      flex-shrink: 0;
+      text-align: center;
+      padding: 1.5rem 2rem 1rem 2rem;
+    }
+
+    .completion-title {
+      font-family: 'Staatliches', sans-serif;
+      font-size: clamp(1.8rem, 6vw, 2.5rem);
+      color: #FFFFFF;
+      margin-bottom: 0.25rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .completion-workout-name {
+      font-family: 'Staatliches', sans-serif;
+      font-size: clamp(1rem, 3.5vw, 1.25rem);
+      color: #B0B0B0;
+      margin-bottom: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .completion-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      padding: 0 2rem;
+      margin-bottom: 1rem;
+      flex-shrink: 0;
+    }
+
+    .stat-item {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 0.75rem;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .stat-label {
+      font-family: 'Staatliches', sans-serif;
+      font-size: 0.75rem;
+      color: #B0B0B0;
+      margin-bottom: 0.15rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .stat-value {
+      font-family: 'Staatliches', sans-serif;
+      font-size: 1.5rem;
+      font-weight: normal;
+      color: #FFFFFF;
+      letter-spacing: 1px;
+    }
+
+    /* WEIGHT LOGGING SECTION */
+    .weight-logging-section {
+      flex: 1;
+      padding: 0 2rem 1rem 2rem;
+    }
+
+    .weight-logging h3 {
+      font-family: 'Staatliches', sans-serif;
+      font-size: 1rem;
+      color: #FFFFFF;
+      margin-bottom: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .weight-logging h3::before {
+      content: "🏋️";
+      font-size: 1.1rem;
+    }
+
+    .exercise-weight-input {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 0.6rem;
+      padding: 0.6rem 0.75rem;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .exercise-weight-input label {
+      flex: 1;
+      font-family: 'Staatliches', sans-serif;
+      color: #FFFFFF;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      line-height: 1.2;
+    }
+
+    .exercise-weight-input input {
+      width: 90px;
+      padding: 0.6rem 0.5rem;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 8px;
+      color: #FFFFFF;
+      font-family: 'Staatliches', sans-serif;
+      font-size: 1rem;
+      letter-spacing: 1px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .exercise-weight-input input:focus {
+      outline: none;
+      border-color: #FFFFFF;
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .exercise-weight-input .previous-weight {
+      font-family: 'Staatliches', sans-serif;
+      font-size: 0.7rem;
+      color: #7D7D7D;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    /* ACTION BUTTONS - STICKY AT BOTTOM */
+    .action-buttons-container {
+      flex-shrink: 0;
+      padding: 1rem 2rem calc(1rem + env(safe-area-inset-bottom));
+      background: linear-gradient(to top, #000000 80%, transparent);
+      position: sticky;
+      bottom: 0;
+      z-index: 10;
+    }
+    
+    /* When keyboard is open, don't sticky */
+    .keyboard-open .action-buttons-container {
+      position: relative;
+      background: #000000;
+    }
+
+    .action-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .action-button {
+      padding: 0.9rem 1.5rem;
+      border-radius: 10px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: none;
+      font-family: 'Staatliches', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+
+    .action-button.primary {
+      background: #FFFFFF;
+      color: #000000;
+      border: 2px solid #FFFFFF;
+    }
+
+    .action-button.primary:active {
+      transform: scale(0.98);
+      background: #B0B0B0;
+    }
+
+    .action-button.secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #FFFFFF;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .action-button.secondary:active {
+      transform: scale(0.98);
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .share-message {
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      color: #FFFFFF;
+      font-family: 'Staatliches', sans-serif;
+      font-size: 0.8rem;
+      text-align: center;
+      letter-spacing: 1px;
+      display: none;
+    }
+
+    .share-message.show {
+      display: block;
+    }
+    
+    /* Where weights info */
+    .weights-info {
+      margin-top: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      background: rgba(106, 176, 76, 0.15);
+      border: 1px solid rgba(106, 176, 76, 0.3);
+      border-radius: 8px;
+      color: #B0B0B0;
+      font-size: 0.7rem;
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+    
+    .weights-info strong {
+      color: #FFFFFF;
+    }
+  </style>
+</head>
+<body>
+  <div class="completion-container" id="completion-container">
+    <div class="completion-header">
+      <h1 class="completion-title">OTTIMO LAVORO!</h1>
+      <p class="completion-workout-name" id="workout-name">Workout</p>
+    </div>
+    
+    <div class="completion-stats">
+      <div class="stat-item">
+        <div class="stat-label">Durata</div>
+        <div class="stat-value" id="duration">--:--</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Esercizi</div>
+        <div class="stat-value" id="exercise-count">--</div>
+      </div>
+    </div>
+
+    <div class="weight-logging-section">
+      <div class="weight-logging" id="weight-logging">
+        <h3>REGISTRA I PESI USATI</h3>
+        <div id="exercise-weights"></div>
+        <div class="weights-info" id="weights-info">
+          💾 I pesi vengono salvati <strong>su questo dispositivo</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="action-buttons-container">
+      <div class="action-buttons">
+        <button class="action-button primary" onclick="shareToInstagram()">
+          CONDIVIDI SU INSTAGRAM STORY
+        </button>
+        <button class="action-button secondary" onclick="saveAndReturn()">
+          SALVA E TORNA ALLA DASHBOARD
+        </button>
+      </div>
+
+      <div class="share-message" id="share-message">
+        Risultato copiato negli appunti
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/global-preload-bar.js"></script>
+  <script type="module">
+    import { addWorkoutToHistory, shareWorkoutCompletion } from '../js/workout-history.js';
+    import { getExerciseWeight } from '../js/workout-history.js';
+    import { GOOGLE_SCRIPT_URL } from '../js/config.js';
+
+    // ========== KEYBOARD HANDLING ==========
+    // Detect when keyboard opens/closes and adjust layout
+    const container = document.getElementById('completion-container');
+    
+    // Method 1: visualViewport API (most reliable)
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => {
+        const keyboardOpen = window.visualViewport.height < window.innerHeight * 0.75;
+        document.body.classList.toggle('keyboard-open', keyboardOpen);
+        
+        // Scroll focused input into view
+        if (keyboardOpen && document.activeElement && document.activeElement.tagName === 'INPUT') {
+          setTimeout(() => {
+            document.activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 100);
+        }
+      });
+    }
+    
+    // Method 2: Focus/blur events as backup
+    document.querySelectorAll('input').forEach(input => {
+      input.addEventListener('focus', () => {
+        document.body.classList.add('keyboard-open');
+        setTimeout(() => {
+          input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+      });
+      
+      input.addEventListener('blur', () => {
+        setTimeout(() => {
+          if (!document.activeElement || document.activeElement.tagName !== 'INPUT') {
+            document.body.classList.remove('keyboard-open');
+          }
+        }, 100);
+      });
+    });
+
+    // Get workout data from sessionStorage
+    const workoutName = sessionStorage.getItem('completedWorkout') || 'Workout';
+    const duration = parseInt(sessionStorage.getItem('workoutDuration')) || 0;
+    const exerciseCount = parseInt(sessionStorage.getItem('exerciseCount')) || 0;
+    
+    // Get exercise list from sessionStorage
+    let exercises = [];
+    try {
+      const exercisesJson = sessionStorage.getItem('workoutExercises');
+      if (exercisesJson) {
+        exercises = JSON.parse(exercisesJson);
+      }
+    } catch (e) {
+      console.error('Error parsing exercises:', e);
+    }
+
+    // Display workout info
+    document.getElementById('workout-name').textContent = workoutName;
+    
+    const minutes = Math.floor(duration / 60);
+    const seconds = duration % 60;
+    document.getElementById('duration').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    document.getElementById('exercise-count').textContent = exerciseCount || exercises.length || '--';
+
+    // Create weight input fields for exercises
+    const weightContainer = document.getElementById('exercise-weights');
+    if (exercises.length > 0) {
+      // Filter exercises that need weight tracking and remove duplicates
+      const weightKeywords = ['press', 'curl', 'row', 'fly', 'raise', 'pull', 'squat', 'deadlift', 'lunge', 'extension', 'shrug', 'dumbbell', 'barbell', 'bilanciere', 'manubrio', 'kettlebell', 'peso', 'kg'];
+      
+      const seenExercises = new Set();
+      const filteredExercises = exercises.filter(exercise => {
+        // Skip if we've already seen this exercise
+        if (seenExercises.has(exercise.name.toLowerCase())) {
+          return false;
+        }
+        seenExercises.add(exercise.name.toLowerCase());
+        
+        // Check if exercise name contains weight-related keywords
+        const exerciseLower = exercise.name.toLowerCase();
+        return weightKeywords.some(keyword => exerciseLower.includes(keyword));
+      });
+      
+      if (filteredExercises.length > 0) {
+        filteredExercises.forEach((exercise, index) => {
+          const previousWeight = getExerciseWeight(exercise.name);
+          
+          const div = document.createElement('div');
+          div.className = 'exercise-weight-input';
+          div.innerHTML = `
+            <label>
+              ${exercise.name}
+              ${previousWeight ? `<br><span class="previous-weight">Ultimo: ${previousWeight}</span>` : ''}
+            </label>
+            <input 
+              type="text" 
+              inputmode="decimal"
+              id="weight-${index}" 
+              data-exercise-name="${exercise.name}"
+              placeholder="es. 20kg"
+              value="${previousWeight || ''}"
+            >
+          `;
+          weightContainer.appendChild(div);
+        });
+        
+        // Update weights info based on login status
+        const weightsInfoEl = document.getElementById('weights-info');
+        const userEmail = localStorage.getItem('loggedUser');
+        if (weightsInfoEl) {
+          if (userEmail) {
+            weightsInfoEl.innerHTML = '☁️ I pesi vengono sincronizzati sul <strong>cloud</strong> e saranno visibili su tutti i dispositivi';
+            weightsInfoEl.style.borderColor = 'rgba(106, 176, 76, 0.5)';
+          } else {
+            weightsInfoEl.innerHTML = '💾 I pesi vengono salvati <strong>solo su questo dispositivo</strong>';
+            weightsInfoEl.style.borderColor = 'rgba(176, 176, 176, 0.3)';
+          }
+        }
+        
+        // Re-attach keyboard handlers to dynamically created inputs
+        document.querySelectorAll('.exercise-weight-input input').forEach(input => {
+          input.addEventListener('focus', () => {
+            document.body.classList.add('keyboard-open');
+            setTimeout(() => {
+              input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+          });
+          
+          input.addEventListener('blur', () => {
+            setTimeout(() => {
+              if (!document.activeElement || document.activeElement.tagName !== 'INPUT') {
+                document.body.classList.remove('keyboard-open');
+              }
+            }, 100);
+          });
+        });
+      } else {
+        document.getElementById('weight-logging').style.display = 'none';
+      }
+    } else {
+      document.getElementById('weight-logging').style.display = 'none';
+    }
+
+    // Share to Instagram
+    window.shareToInstagram = function() {
+      // Use native share API which works better on mobile
+      if (navigator.share) {
+        const shareData = {
+          title: 'Viltrum Fitness - Workout Completato!',
+          text: `Ho completato "${workoutName}" su Viltrum Fitness!\nDurata: ${minutes}:${seconds.toString().padStart(2, '0')}\nEsercizi: ${exerciseCount || exercises.length}\n\n#ViltrumFitness #Workout #Fitness`,
+          url: window.location.origin
+        };
+        
+        navigator.share(shareData)
+          .then(() => {
+            const message = document.getElementById('share-message');
+            message.textContent = 'Condiviso con successo!';
+            message.classList.add('show');
+            setTimeout(() => {
+              message.classList.remove('show');
+            }, 3000);
+          })
+          .catch((err) => {
+            console.log('Share cancelled or failed:', err);
+            // Fallback to copying text
+            fallbackShare();
+          });
+      } else {
+        // Fallback for browsers that don't support Web Share API
+        fallbackShare();
+      }
+    };
+    
+    function fallbackShare() {
+      const shareText = `Ho completato "${workoutName}" su Viltrum Fitness!\nDurata: ${minutes}:${seconds.toString().padStart(2, '0')}\nEsercizi: ${exerciseCount || exercises.length}\n\n#ViltrumFitness #Workout #Fitness\n\n${window.location.origin}`;
+      
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(shareText)
+          .then(() => {
+            const message = document.getElementById('share-message');
+            message.textContent = 'Testo copiato! Incollalo nella tua Storia Instagram.';
+            message.classList.add('show');
+            setTimeout(() => {
+              message.classList.remove('show');
+            }, 5000);
+          })
+          .catch(() => {
+            const message = document.getElementById('share-message');
+            message.textContent = 'Impossibile copiare il testo';
+            message.classList.add('show');
+            setTimeout(() => {
+              message.classList.remove('show');
+            }, 3000);
+          });
+      } else {
+        const message = document.getElementById('share-message');
+        message.textContent = 'Funzione di condivisione non disponibile';
+        message.classList.add('show');
+        setTimeout(() => {
+          message.classList.remove('show');
+        }, 3000);
+      }
+    }
+
+    // Save workout and return to dashboard
+    window.saveAndReturn = async function() {
+      // Collect weight data from all inputs
+      const weights = {};
+      const weightInputs = document.querySelectorAll('.exercise-weight-input input[data-exercise-name]');
+      
+      weightInputs.forEach(input => {
+        if (input.value.trim()) {
+          const exerciseName = input.getAttribute('data-exercise-name');
+          weights[exerciseName] = input.value.trim();
+        }
+      });
+
+      // Save to history (local storage - immediate)
+      addWorkoutToHistory(workoutName, duration, weights);
+
+      const userEmail = localStorage.getItem('loggedUser');
+      
+      // ═══════════════════════════════════════════════════════════════════════
+      // SYNC LAST WORKOUT TO CLOUD (v6.3.15)
+      // Save which workout was just completed so next time we auto-select the next one
+      // ═══════════════════════════════════════════════════════════════════════
+      const completedWorkoutIndex = sessionStorage.getItem('completedWorkoutIndex');
+      if (completedWorkoutIndex !== null && userEmail) {
+        try {
+          const workoutIndex = parseInt(completedWorkoutIndex);
+          console.log('📤 Syncing last workout to cloud:', workoutIndex, workoutName);
+          
+          const progressUrl = new URL(GOOGLE_SCRIPT_URL);
+          progressUrl.searchParams.append('action', 'saveLastWorkout');
+          progressUrl.searchParams.append('email', userEmail);
+          progressUrl.searchParams.append('lastWorkoutIndex', workoutIndex.toString());
+          progressUrl.searchParams.append('lastWorkoutName', workoutName);
+          
+          const progressResponse = await fetch(progressUrl.toString(), { 
+            method: 'GET',
+            redirect: 'follow',
+            keepalive: true 
+          });
+          
+          console.log('📥 Last workout sync response:', progressResponse.status);
+          console.log('✅ Last workout synced to cloud');
+          
+          // Also save locally
+          localStorage.setItem('viltrum_last_workout_index', workoutIndex.toString());
+        } catch (e) {
+          console.warn('⚠️ Last workout cloud sync error:', e);
+          // Still save locally
+          if (completedWorkoutIndex !== null) {
+            localStorage.setItem('viltrum_last_workout_index', completedWorkoutIndex);
+          }
+        }
+      } else if (completedWorkoutIndex !== null) {
+        // Not logged in, just save locally
+        localStorage.setItem('viltrum_last_workout_index', completedWorkoutIndex);
+        console.log('💾 Last workout saved locally (not logged in)');
+      }
+      // ═══════════════════════════════════════════════════════════════════════
+
+      // Ensure weights cloud sync completes before redirecting
+      if (Object.keys(weights).length > 0) {
+        try {
+          if (userEmail) {
+            // Get full weights from localStorage (merged)
+            const allWeights = JSON.parse(localStorage.getItem('viltrum_exercise_weights') || '{}');
+            const url = new URL(GOOGLE_SCRIPT_URL);
+            url.searchParams.append('action', 'saveWeights');
+            url.searchParams.append('email', userEmail);
+            url.searchParams.append('weights', JSON.stringify(allWeights));
+            
+            console.log('📤 Syncing weights to cloud before redirect...');
+            console.log('📤 URL:', url.toString().substring(0, 100) + '...');
+            
+            // Use redirect: follow for Google Apps Script, keepalive for navigation
+            const response = await fetch(url.toString(), { 
+              method: 'GET',
+              redirect: 'follow',
+              keepalive: true 
+            });
+            
+            console.log('📥 Response status:', response.status);
+            console.log('✅ Weights synced to cloud');
+          }
+        } catch (e) {
+          console.warn('⚠️ Cloud sync error (saved locally):', e);
+        }
+      }
+
+      // Clear session storage
+      sessionStorage.removeItem('completedWorkout');
+      sessionStorage.removeItem('workoutDuration');
+      sessionStorage.removeItem('exerciseCount');
+      sessionStorage.removeItem('workoutExercises');
+      sessionStorage.removeItem('completedWorkoutIndex');
+      sessionStorage.removeItem('totalUserWorkouts');
+
+      // V7: Check if coming from plan-view
+      const v7PlanInfo = sessionStorage.getItem('v7PlanInfo');
+      if (v7PlanInfo) {
+        sessionStorage.removeItem('v7PlanInfo');
+        // Return to plan-view
+        window.location.href = 'plan-view.html';
+      } else {
+        // Return to dashboard (old flow)
+        window.location.href = '../pages/dashboard.html';
+      }
+    };
+  </script>
+</body>
+</html>
