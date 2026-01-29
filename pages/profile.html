@@ -291,6 +291,7 @@
           console.error('[Logout] Error signing out from Supabase:', error);
         }
         
+        // Clear all localStorage
         localStorage.removeItem('loggedUser');
         localStorage.removeItem('userName');
         localStorage.removeItem('userFullName');
@@ -298,6 +299,9 @@
         localStorage.removeItem('viltrum_last_workout_index');
         localStorage.removeItem('viltrum_exercise_weights');
         localStorage.removeItem('viltrum_total_workouts');
+        localStorage.removeItem('viltrum_user_cache');
+        
+        // Clear sessionStorage
         sessionStorage.clear();
         
         window.location.href = '../index.html';

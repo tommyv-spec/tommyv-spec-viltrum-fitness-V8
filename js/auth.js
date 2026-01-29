@@ -233,7 +233,7 @@ async function signOut() {
         localStorage.removeItem('userFullName');
         
         // 🚀 V7: Pulisci cache dati
-        DataPreloader.clear();
+        DataPreloader.clearCache();
         
         return { success: true };
 

@@ -31,7 +31,6 @@
       padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     }
 
-    /* Header - FORZATO per evitare problemi con main.css */
     header {
       display: grid !important;
       grid-template-columns: 1fr auto 1fr !important;
@@ -62,11 +61,9 @@
     }
     .header-action-btn svg { width: 18px; height: 18px; }
 
-    /* Welcome */
     .welcome-section { flex-shrink: 0; text-align: center; padding: 1.5vh 4vw; }
     .welcome-section h1 { font-size: 2.2vh; letter-spacing: 2px; }
 
-    /* Stats */
     .stats-section {
       flex-shrink: 0; display: flex; justify-content: center; gap: 6vw;
       padding: 1.5vh 4vw; border-bottom: 1px solid #222;
@@ -76,12 +73,11 @@
     .stat-value { font-size: 2vh; color: #FFF; }
     .stat-sub { font-size: 1.2vh; color: #888; }
 
-    /* Main Cards Container - scrollabile se necessario */
     main { 
       flex: 1; display: flex; flex-direction: column; 
       padding: 2vh 4vw; gap: 1.5vh; 
       overflow-y: auto; overflow-x: hidden;
-      min-height: 0; /* Importante per flex scroll */
+      min-height: 0;
     }
     .section-card {
       flex-shrink: 0; background: #111; border: 2px solid #333; border-radius: 16px;
@@ -105,10 +101,7 @@
     }
     .card-badge.active { border-color: #FFF; color: #FFF; }
 
-    /* Small Cards Row (Shop & Blog) */
-    .small-cards-row {
-      flex-shrink: 0; display: flex; gap: 3vw; margin-top: auto;
-    }
+    .small-cards-row { flex-shrink: 0; display: flex; gap: 3vw; margin-top: auto; }
     .small-card {
       flex: 1; background: #111; border: 2px solid #333; border-radius: 12px;
       padding: 1.5vh 3vw; display: flex; flex-direction: column;
@@ -124,7 +117,6 @@
     .small-card-title { font-size: 1.8vh; letter-spacing: 2px; color: #FFF; }
     .small-card-subtitle { font-size: 1.2vh; color: #888; text-align: center; }
 
-    /* Modals */
     .modal {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.95); z-index: 1000; align-items: center;
@@ -151,7 +143,6 @@
     }
     .modal-close:hover { border-color: #FFF; }
 
-    /* Profile */
     .profile-actions { display: flex; flex-direction: column; gap: 1.5vh; }
     .profile-btn {
       padding: 1.5vh 3vw; background: #1A1A1A; border: 1px solid #333;
@@ -170,69 +161,35 @@
     .subscription-status.expired { color: #F44336; }
     .subscription-date { font-size: 1.4vh; color: #666; }
 
-    /* Form Inputs for Modals */
     .modal-content input {
-      width: 100%;
-      padding: 1.5vh 2vw;
-      margin-bottom: 1.5vh;
-      background: #1A1A1A;
-      border: 1px solid #333;
-      border-radius: 8px;
-      color: #FFF;
-      font-family: 'Staatliches', sans-serif;
-      font-size: 1.6vh;
+      width: 100%; padding: 1.5vh 2vw; margin-bottom: 1.5vh;
+      background: #1A1A1A; border: 1px solid #333; border-radius: 8px;
+      color: #FFF; font-family: 'Staatliches', sans-serif; font-size: 1.6vh;
     }
-    .modal-content input:focus {
-      outline: none;
-      border-color: #4CAF50;
-    }
-    .modal-content input::placeholder {
-      color: #666;
-    }
+    .modal-content input:focus { outline: none; border-color: #4CAF50; }
+    .modal-content input::placeholder { color: #666; }
     .modal-content button {
-      width: 100%;
-      padding: 1.5vh;
-      margin-bottom: 1vh;
-      background: #4CAF50;
-      border: none;
-      border-radius: 8px;
-      color: #FFF;
-      font-family: 'Staatliches', sans-serif;
-      font-size: 1.6vh;
-      cursor: pointer;
-      transition: background 0.2s ease;
+      width: 100%; padding: 1.5vh; margin-bottom: 1vh;
+      background: #4CAF50; border: none; border-radius: 8px;
+      color: #FFF; font-family: 'Staatliches', sans-serif;
+      font-size: 1.6vh; cursor: pointer; transition: background 0.2s ease;
     }
-    .modal-content button:hover {
-      background: #45a049;
-    }
+    .modal-content button:hover { background: #45a049; }
     .modal-content button.secondary {
-      background: transparent;
-      border: 1px solid #444;
-      color: #888;
+      background: transparent; border: 1px solid #444; color: #888;
     }
-    .modal-content button.secondary:hover {
-      border-color: #FFF;
-      color: #FFF;
-    }
+    .modal-content button.secondary:hover { border-color: #FFF; color: #FFF; }
     .message {
-      padding: 1.5vh;
-      border-radius: 8px;
-      text-align: center;
-      font-size: 1.4vh;
-      margin-top: 1vh;
+      padding: 1.5vh; border-radius: 8px; text-align: center;
+      font-size: 1.4vh; margin-top: 1vh;
     }
     .message.error {
-      background: rgba(244, 67, 54, 0.2);
-      border: 1px solid #F44336;
-      color: #F44336;
+      background: rgba(244, 67, 54, 0.2); border: 1px solid #F44336; color: #F44336;
     }
     .message.success {
-      background: rgba(76, 175, 80, 0.2);
-      border: 1px solid #4CAF50;
-      color: #4CAF50;
+      background: rgba(76, 175, 80, 0.2); border: 1px solid #4CAF50; color: #4CAF50;
     }
 
-    /* Loading - Nascosto di default, mostrato solo se necessario */
     .loading-overlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: #000; display: none; flex-direction: column;
@@ -245,7 +202,6 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Preload Progress Bar */
     .preload-bar {
       position: fixed; bottom: 0; left: 0; right: 0;
       background: #111; border-top: 1px solid #333;
@@ -267,7 +223,7 @@
     <header>
       <div class="header-left"></div>
       <div class="header-center">
-        <img src="../icons/icon-192x192.png" alt="Viltrum" onerror="this.style.display='none'">
+        <img src="https://lh3.googleusercontent.com/d/1va6OkGp9yAHDJBfeDM3npwqlJJoLUh5C" alt="Viltrum Fitness" style="height: 40px !important; max-height: 40px !important; width: auto !important; max-width: 150px !important;" />
       </div>
       <div class="header-right">
         <button class="header-action-btn" onclick="openProfileModal()">
@@ -319,21 +275,21 @@
       </div>
 
       <div class="small-cards-row">
-        <div class="small-card" onclick="window.open('https://www.yourshop.com', '_blank')">
+        <div class="small-card" onclick="window.open('https://shop.viltrumfitness.com/collections/all', '_blank')">
           <div class="small-card-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
-              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/>
             </svg>
           </div>
           <h3 class="small-card-title">SHOP</h3>
-          <p class="small-card-subtitle">Abbigliamento & accessori</p>
+          <p class="small-card-subtitle">Acquista pacchetti</p>
         </div>
-        <div class="small-card" onclick="window.open('https://www.yourblog.com', '_blank')">
+
+        <div class="small-card" onclick="window.open('https://shop.viltrumfitness.com/blogs/nutrition', '_blank')">
           <div class="small-card-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+              <path d="M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 014 17V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H6.5"/>
+              <path d="M8 7h8M8 11h6"/>
             </svg>
           </div>
           <h3 class="small-card-title">BLOG</h3>
@@ -409,15 +365,23 @@
   <script src="../js/offline-preloader.js"></script>
   <script src="../js/global-preload-bar.js"></script>
   
-  <!-- Supabase for auth operations -->
+  <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Auth module (provides signOut, supabase global) -->
+  <script type="module" src="../js/auth.js"></script>
   
   <script type="module">
     import DataPreloader from '../js/data-preloader.js';
     import { GOOGLE_SCRIPT_URL, SUPABASE_URL, SUPABASE_ANON_KEY } from '../js/config.js';
     
-    // Initialize Supabase client for profile operations
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Use supabase from auth.js (exposed as window.supabase) or create our own
+    let supabase;
+    if (window.supabase && window.supabase.auth) {
+      supabase = window.supabase;
+    } else {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
     
     let userData = null;
     let userPlans = [];
@@ -428,11 +392,9 @@
       const email = localStorage.getItem('loggedUser');
       if (!email) { window.location.href = '../index.html'; return; }
       
-      // 🚀 V8: Mostra UI SUBITO - nessun loading screen
       document.getElementById('loading-overlay').classList.add('hidden');
       
       try {
-        // Carica dati (da cache se disponibile, poi aggiorna in background)
         await DataPreloader.loadAll(email);
         
         userData = DataPreloader.getUserData();
@@ -440,15 +402,12 @@
         allPlansData = DataPreloader.getPlans();
         allProgress = DataPreloader.getAllProgress();
         
-        // Fallback se non ci sono dati
         if (!userData) {
           userData = { plans: [], fullName: localStorage.getItem('userName') || 'User' };
         }
         
-        // Render UI
         renderUI();
         
-        // Ascolta aggiornamenti in background
         window.addEventListener('dataRefreshed', (e) => {
           console.log('🔄 UI: Aggiornamento dati ricevuto');
           userData = DataPreloader.getUserData();
@@ -458,7 +417,6 @@
           renderUI();
         });
         
-        // 🚀 V8: Avvia offline preloader IMMEDIATAMENTE (no delay)
         if (typeof OfflinePreloader !== 'undefined' && userData) {
           const userInfo = {
             email: userData.email,
@@ -471,13 +429,9 @@
           
           OfflinePreloader.preloadAll(userInfo, { scriptUrl: GOOGLE_SCRIPT_URL })
             .then(result => {
-              if (result.skipped) {
-                console.log('⏭️ Preload already in progress');
-              } else if (result.cached) {
-                console.log('✅ Already cached');
-              } else {
-                console.log('✅ Preload complete');
-              }
+              if (result.skipped) console.log('⏭️ Preload already in progress');
+              else if (result.cached) console.log('✅ Already cached');
+              else console.log('✅ Preload complete');
             });
         }
         
@@ -493,7 +447,6 @@
       const name = userData.fullName || localStorage.getItem('userName') || 'Atleta';
       document.getElementById('welcome-text').textContent = `BENVENUTO, ${name.toUpperCase()}`;
       
-      // Stats
       let totalWorkouts = 0;
       for (const planName in allProgress) {
         const progress = allProgress[planName];
@@ -502,7 +455,6 @@
       const localTotal = parseInt(localStorage.getItem('viltrum_total_workouts')) || 0;
       document.getElementById('total-workouts').textContent = Math.max(totalWorkouts, localTotal);
       
-      // Training badge
       const trainingBadge = document.getElementById('training-badge');
       if (userPlans.length > 0) {
         trainingBadge.textContent = `${userPlans.length} PIAN${userPlans.length > 1 ? 'I' : 'O'}`;
@@ -512,7 +464,6 @@
         document.getElementById('training-card').classList.add('disabled');
       }
       
-      // Nutrition badge
       const nutritionBadge = document.getElementById('nutrition-badge');
       if (userData.nutritionPdfUrl) {
         nutritionBadge.textContent = 'ATTIVO';
@@ -522,7 +473,6 @@
         document.getElementById('nutrition-card').classList.add('disabled');
       }
       
-      // Subscription
       const statusEl = document.getElementById('subscription-status');
       const dateEl = document.getElementById('subscription-date');
       if (userData.scadenza) {
@@ -538,7 +488,7 @@
     }
     
     // ═══════════════════════════════════════════════════════════════════════════
-    // NAVIGATION HANDLERS
+    // NAVIGATION
     // ═══════════════════════════════════════════════════════════════════════════
     
     window.handleTrainingClick = function() {
@@ -646,24 +596,25 @@
         if (error) {
           console.error('Supabase update error:', error);
           message.textContent = '✅ Username aggiornato localmente!';
-          message.className = 'message success';
         } else {
           message.textContent = '✅ Username aggiornato!';
-          message.className = 'message success';
         }
+        message.className = 'message success';
         
-        // Update welcome text
+        // Update welcome text immediately
         document.getElementById('welcome-text').textContent = `BENVENUTO, ${newUsername.toUpperCase()}`;
         
-        setTimeout(() => {
-          closeUsernameModal();
-        }, 2000);
+        // Also update the DataPreloader cache so it persists
+        if (userData) {
+          userData.fullName = newUsername;
+        }
+        
+        setTimeout(() => closeUsernameModal(), 2000);
       } catch (error) {
         console.error('Username update error:', error);
         message.textContent = 'Errore durante aggiornamento';
         message.className = 'message error';
       }
-
       message.style.display = 'block';
     };
     
@@ -709,7 +660,6 @@
       message.style.display = 'block';
 
       try {
-        // Verify password first
         const currentEmail = localStorage.getItem('loggedUser');
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email: currentEmail,
@@ -723,32 +673,23 @@
           return;
         }
 
-        // Update email
         message.textContent = 'Aggiornamento email...';
-        const { error } = await supabase.auth.updateUser({
-          email: newEmail
-        });
+        const { error } = await supabase.auth.updateUser({ email: newEmail });
 
         if (error) {
           message.textContent = '❌ ' + error.message;
           message.className = 'message error';
         } else {
-          // Update localStorage
           localStorage.setItem('loggedUser', newEmail);
-          
           message.textContent = '✅ Email aggiornata! Controlla la tua casella per confermare.';
           message.className = 'message success';
-          
-          setTimeout(() => {
-            closeEmailModal();
-          }, 3000);
+          setTimeout(() => closeEmailModal(), 3000);
         }
       } catch (error) {
         console.error('Email update error:', error);
         message.textContent = 'Errore durante aggiornamento';
         message.className = 'message error';
       }
-
       message.style.display = 'block';
     };
     
@@ -799,9 +740,7 @@
       message.style.display = 'block';
 
       try {
-        const { error } = await supabase.auth.updateUser({
-          password: newPassword
-        });
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
 
         if (error) {
           message.textContent = error.message;
@@ -809,47 +748,57 @@
         } else {
           message.textContent = '✅ Password aggiornata!';
           message.className = 'message success';
-          setTimeout(() => {
-            closePasswordModal();
-          }, 2000);
+          setTimeout(() => closePasswordModal(), 2000);
         }
       } catch (error) {
         message.textContent = 'Errore durante aggiornamento';
         message.className = 'message error';
       }
-
       message.style.display = 'block';
     };
     
     // ═══════════════════════════════════════════════════════════════════════════
-    // LOGOUT
+    // LOGOUT - Uses signOut from auth.js or direct supabase call
     // ═══════════════════════════════════════════════════════════════════════════
     
     window.handleLogout = async function() {
       if (confirm('Sei sicuro di voler uscire?')) {
         try {
-          await supabase.auth.signOut();
-          console.log('[Logout] Signed out from Supabase');
+          // Try to use signOut from auth.js if available
+          if (typeof window.signOut === 'function') {
+            console.log('[Logout] Using auth.js signOut()');
+            await window.signOut();
+          } else {
+            // Fallback: direct Supabase signOut
+            console.log('[Logout] Direct Supabase signOut');
+            await supabase.auth.signOut();
+            
+            // Clear localStorage manually
+            localStorage.removeItem('loggedUser');
+            localStorage.removeItem('userName');
+            localStorage.removeItem('userFullName');
+          }
+          
+          // Clear DataPreloader cache
+          DataPreloader.clearCache();
+          
+          // Clear additional localStorage items
+          localStorage.removeItem('viltrum_user_settings');
+          localStorage.removeItem('viltrum_last_workout_index');
+          localStorage.removeItem('viltrum_exercise_weights');
+          localStorage.removeItem('viltrum_total_workouts');
+          
+          // Clear sessionStorage
+          sessionStorage.clear();
+          
+          console.log('[Logout] Complete, redirecting...');
+          window.location.href = '../index.html';
+          
         } catch (error) {
           console.error('[Logout] Error:', error);
+          // Even if there's an error, still redirect
+          window.location.href = '../index.html';
         }
-        
-        // Clear all localStorage
-        localStorage.removeItem('loggedUser');
-        localStorage.removeItem('userName');
-        localStorage.removeItem('userFullName');
-        localStorage.removeItem('viltrum_user_settings');
-        localStorage.removeItem('viltrum_last_workout_index');
-        localStorage.removeItem('viltrum_exercise_weights');
-        localStorage.removeItem('viltrum_total_workouts');
-        
-        // Clear sessionStorage
-        sessionStorage.clear();
-        
-        // Clear DataPreloader cache
-        DataPreloader.clear();
-        
-        window.location.href = '../index.html';
       }
     };
     
@@ -857,7 +806,6 @@
     // EVENT LISTENERS
     // ═══════════════════════════════════════════════════════════════════════════
     
-    // Close modals on outside click
     document.getElementById('profile-modal').addEventListener('click', function(e) {
       if (e.target === this) closeProfileModal();
     });
@@ -874,7 +822,6 @@
       if (e.target === this) closePasswordModal();
     });
     
-    // Enter key handlers
     document.getElementById('new-username').addEventListener('keypress', (e) => {
       if (e.key === 'Enter') saveUsername();
     });
@@ -885,7 +832,6 @@
       if (e.key === 'Enter') savePassword();
     });
     
-    // Initialize on DOM ready
     document.addEventListener('DOMContentLoaded', init);
   </script>
 </body>
