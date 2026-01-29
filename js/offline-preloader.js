@@ -623,17 +623,23 @@ const OfflinePreloader = {
       const { type, phase, current, total, percent } = event.data || {};
       
       if (type === 'PRELOAD_PROGRESS') {
+        // V8: Use broadcastProgress which updates localStorage for cross-page sync
         this.broadcastProgress({ phase, current, total, percent });
       }
       
       if (type === 'PRELOAD_COMPLETE' || type === 'PRELOAD_ALREADY_COMPLETE') {
         console.log('✅ Service Worker preload complete');
+        // Update localStorage state for polling
+        this.setPreloadState({ status: 'complete' });
+        // Also dispatch events for same-page listeners
         window.dispatchEvent(new CustomEvent('preloadProgress', { detail: { status: 'complete' } }));
         window.dispatchEvent(new CustomEvent('preloadComplete'));
       }
       
       if (type === 'PRELOAD_ERROR') {
         console.error('❌ Service Worker preload error:', event.data.error);
+        // Update localStorage state for polling
+        this.setPreloadState({ status: 'error', error: event.data.error });
         window.dispatchEvent(new CustomEvent('preloadProgress', { detail: { status: 'error' } }));
       }
     });
@@ -776,6 +782,19 @@ window.addEventListener('storage', (e) => {
     }
   }
 });
+
+// V8: Auto-setup Service Worker listeners on load for cross-page progress updates
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      OfflinePreloader.setupServiceWorkerListeners();
+    }
+  });
+} else {
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    OfflinePreloader.setupServiceWorkerListeners();
+  }
+}
 
 // Export
 if (typeof module !== 'undefined' && module.exports) {
