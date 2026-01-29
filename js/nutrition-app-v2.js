@@ -2,7 +2,11 @@
 // VILTRUM FITNESS - NUTRITION APP V2
 // Adaptive macro tracking - adjusts remaining meals
 // based on what you've already eaten
+// V8: Uses DataPreloader instead of SessionCache
 // ============================================
+
+// Import DataPreloader
+import DataPreloader from './data-preloader.js';
 
 // AUTH CHECK
 if (!localStorage.getItem('loggedUser')) {
@@ -35,12 +39,11 @@ let dailyTargets = {
 
 async function loadNutritionData() {
   try {
-    while (typeof window.SessionCache === 'undefined') {
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
+    console.log('📊 V8: Loading nutrition data from DataPreloader...');
     
-    console.log('📊 Loading nutrition data from session cache...');
-    userData = await SessionCache.getCurrentUserInfo();
+    // Use DataPreloader - data already loaded at login, instant access
+    await DataPreloader.loadAll(userEmail);
+    userData = DataPreloader.getUserData();
     
     if (!userData) {
       showError('Utente non trovato');

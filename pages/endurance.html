@@ -255,7 +255,7 @@
   <script src="../js/offline-preloader.js"></script>
   <script src="../js/global-preload-bar.js"></script>
   <script type="module">
-    import { GOOGLE_SCRIPT_URL } from '../js/config.js';
+    import DataPreloader from '../js/data-preloader.js';
 
     let runWorkouts = {}, userRunWorkouts = [], currentWorkout = null, currentLineIndex = 0;
     let gpsWatchId = null, gpsPositions = [], totalDistance = 0, gpsStartTime = null, gpsTimerInterval = null, isGPSTracking = false, wakeLock = null;
@@ -269,17 +269,10 @@
         const loggedUser = localStorage.getItem('loggedUser');
         if (!loggedUser) { window.location.href = '../index.html'; return; }
 
-        let data = null;
-        const cached = sessionStorage.getItem('viltrum_session_data');
-        if (cached) { data = JSON.parse(cached); }
-        else {
-          const response = await fetch(GOOGLE_SCRIPT_URL);
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          data = await response.json();
-          sessionStorage.setItem('viltrum_session_data', JSON.stringify(data));
-        }
-
-        runWorkouts = data.runWorkouts || {};
+        // V8: Use DataPreloader - data already loaded at login
+        console.log('🚀 V8: Loading run workouts from DataPreloader...');
+        await DataPreloader.loadAll(loggedUser);
+        runWorkouts = DataPreloader.getAllRunWorkouts();
         userRunWorkouts = Object.keys(runWorkouts);
         document.getElementById('loading-view').style.display = 'none';
 

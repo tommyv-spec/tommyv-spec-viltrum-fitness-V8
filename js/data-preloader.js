@@ -303,6 +303,26 @@ const DataPreloader = {
     }));
   },
   
+  /**
+   * Save plan progress locally and sync to cloud
+   * Used by plan-view.html when marking workouts complete
+   */
+  async savePlanProgress(planName, lastWorkoutIndex, totalWorkouts) {
+    // Update local cache first
+    this.updateLocalProgress(planName, lastWorkoutIndex, totalWorkouts);
+    
+    // Sync to cloud in background
+    const email = this._cache.userData?.email || localStorage.getItem('loggedUser');
+    if (email) {
+      try {
+        const url = `${GOOGLE_SCRIPT_URL}?action=saveLastWorkout&email=${encodeURIComponent(email)}&planName=${encodeURIComponent(planName)}&lastWorkoutIndex=${lastWorkoutIndex}&totalWorkouts=${totalWorkouts}`;
+        fetch(url).catch(err => console.warn('⚠️ Failed to sync progress to cloud:', err));
+      } catch (e) {
+        console.warn('⚠️ Failed to sync progress:', e);
+      }
+    }
+  },
+  
   clearCache() {
     this._cache = {
       userData: null,
