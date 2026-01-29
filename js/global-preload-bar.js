@@ -111,9 +111,17 @@ const GlobalPreloadBar = {
         box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
       }
       
-      /* Add padding to body when bar is visible */
+      /* Add margin to main content when bar is visible - doesn't affect scrolling */
       body.preload-bar-visible {
-        padding-bottom: 60px !important;
+        /* Use margin instead of padding to avoid scroll issues */
+      }
+      
+      body.preload-bar-visible main,
+      body.preload-bar-visible .dashboard-container,
+      body.preload-bar-visible .plan-container,
+      body.preload-bar-visible .endurance-container,
+      body.preload-bar-visible #app-container {
+        padding-bottom: 70px !important;
       }
       
       /* Ensure bar is above everything */
