@@ -444,7 +444,8 @@
     }
     
     function renderUI() {
-      const name = userData.fullName || localStorage.getItem('userName') || 'Atleta';
+      // Priority: localStorage userName (user's choice) > server fullName > fallback
+      const name = localStorage.getItem('userName') || userData.fullName || 'Atleta';
       document.getElementById('welcome-text').textContent = `BENVENUTO, ${name.toUpperCase()}`;
       
       let totalWorkouts = 0;
