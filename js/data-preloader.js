@@ -244,8 +244,17 @@ const DataPreloader = {
         w.type = 'muscle';
       }
       
+      // Build details object for preview rendering
+      const details = workoutData ? {
+        exercises: workoutData.exercises || [],
+        instructions: workoutData.instructions || '',
+        lines: workoutData.lines || [],  // for run workouts
+        materiale: workoutData.materiale || []
+      } : null;
+      
       return {
         ...w,
+        details,  // Add details object for renderPreview
         exercises: workoutData?.exercises || workoutData?.lines || [],
         instructions: workoutData?.instructions || '',
         data: workoutData
