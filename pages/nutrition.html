@@ -30,9 +30,9 @@
   
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100vh; font-family: 'Staatliches', sans-serif; background: #000; color: #FFF; overflow-x: hidden; }
+    html, body { height: 100%; min-height: 100vh; font-family: 'Staatliches', sans-serif; background: #000; color: #FFF; overflow-x: hidden; overflow-y: auto !important; }
     /* Header usa stili globali da main.css */
-    main { min-height: calc(100vh - 80px); max-width: 1200px; margin: 0 auto; padding: 20px; }
+    main { min-height: calc(100vh - 80px); max-width: 1200px; margin: 0 auto; padding: 20px; padding-bottom: 80px; }
     .page-header { text-align: center; margin-bottom: 30px; }
     .page-header h1 { font-size: clamp(36px, 5vw, 54px); margin-bottom: 10px; letter-spacing: 2px; }
     .page-header p { color: #B0B0B0; font-size: clamp(16px, 2.5vw, 20px); }
