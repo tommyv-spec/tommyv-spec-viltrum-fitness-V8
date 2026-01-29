@@ -160,6 +160,7 @@
     }
     .profile-btn:hover { border-color: #FFF; }
     .profile-btn.logout { border-color: #600; color: #F44; }
+    .profile-btn.secondary { border-color: #444; color: #888; text-align: center; }
     .subscription-info {
       text-align: center; padding: 2vh; background: #1A1A1A;
       border-radius: 8px; margin-bottom: 2vh;
@@ -168,6 +169,68 @@
     .subscription-status.active { color: #4CAF50; }
     .subscription-status.expired { color: #F44336; }
     .subscription-date { font-size: 1.4vh; color: #666; }
+
+    /* Form Inputs for Modals */
+    .modal-content input {
+      width: 100%;
+      padding: 1.5vh 2vw;
+      margin-bottom: 1.5vh;
+      background: #1A1A1A;
+      border: 1px solid #333;
+      border-radius: 8px;
+      color: #FFF;
+      font-family: 'Staatliches', sans-serif;
+      font-size: 1.6vh;
+    }
+    .modal-content input:focus {
+      outline: none;
+      border-color: #4CAF50;
+    }
+    .modal-content input::placeholder {
+      color: #666;
+    }
+    .modal-content button {
+      width: 100%;
+      padding: 1.5vh;
+      margin-bottom: 1vh;
+      background: #4CAF50;
+      border: none;
+      border-radius: 8px;
+      color: #FFF;
+      font-family: 'Staatliches', sans-serif;
+      font-size: 1.6vh;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .modal-content button:hover {
+      background: #45a049;
+    }
+    .modal-content button.secondary {
+      background: transparent;
+      border: 1px solid #444;
+      color: #888;
+    }
+    .modal-content button.secondary:hover {
+      border-color: #FFF;
+      color: #FFF;
+    }
+    .message {
+      padding: 1.5vh;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 1.4vh;
+      margin-top: 1vh;
+    }
+    .message.error {
+      background: rgba(244, 67, 54, 0.2);
+      border: 1px solid #F44336;
+      color: #F44336;
+    }
+    .message.success {
+      background: rgba(76, 175, 80, 0.2);
+      border: 1px solid #4CAF50;
+      color: #4CAF50;
+    }
 
     /* Loading - Nascosto di default, mostrato solo se necessario */
     .loading-overlay {
@@ -200,21 +263,18 @@
     <p style="color:#AAA;font-size:1.6vh;">Caricamento...</p>
   </div>
 
-  <!-- Global Preload Progress Bar (injected by js/global-preload-bar.js) -->
-
   <div class="dashboard-container">
     <header>
       <div class="header-left"></div>
       <div class="header-center">
-        <img src="https://lh3.googleusercontent.com/d/1va6OkGp9yAHDJBfeDM3npwqlJJoLUh5C" alt="Viltrum Fitness" style="height: 40px !important; max-height: 40px !important; width: auto !important; max-width: 150px !important;" />
+        <img src="../icons/icon-192x192.png" alt="Viltrum" onerror="this.style.display='none'">
       </div>
       <div class="header-right">
         <button class="header-action-btn" onclick="openProfileModal()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/>
-            <path d="M7 20.662V19a2 2 0 012-2h6a2 2 0 012 2v1.662"/>
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
           </svg>
-          PROFILO
         </button>
       </div>
     </header>
@@ -225,13 +285,13 @@
 
     <div class="stats-section">
       <div class="stat-box">
-        <div class="stat-label">ULTIMO ALLENAMENTO</div>
-        <div class="stat-value" id="last-workout-name">-</div>
-        <div class="stat-sub" id="last-workout-time">-</div>
+        <div class="stat-label">WORKOUT TOTALI</div>
+        <div class="stat-value" id="total-workouts">0</div>
       </div>
       <div class="stat-box">
-        <div class="stat-label">TOTALE WORKOUT</div>
-        <div class="stat-value" id="total-workouts">0</div>
+        <div class="stat-label">STREAK</div>
+        <div class="stat-value" id="streak-value">0</div>
+        <div class="stat-sub">giorni</div>
       </div>
     </div>
 
@@ -239,42 +299,41 @@
       <div class="section-card" id="training-card" onclick="handleTrainingClick()">
         <div class="card-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M6.5 6.5l11 11M6.5 17.5l11-11M3 12h3m12 0h3M12 3v3m0 12v3"/>
+            <path d="M6.5 6.5h11M6.5 17.5h11M4 12h16M7 6.5v11M17 6.5v11"/>
           </svg>
         </div>
         <h2 class="card-title">ALLENAMENTO</h2>
-        <p class="card-subtitle">Forza e resistenza combinati</p>
-        <span class="card-badge active" id="training-badge">-</span>
+        <p class="card-subtitle">I tuoi piani personalizzati</p>
+        <span class="card-badge" id="training-badge">CARICAMENTO...</span>
       </div>
 
       <div class="section-card" id="nutrition-card" onclick="handleNutritionClick()">
         <div class="card-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2v20M12 2a9 9 0 019 9H3a9 9 0 019-9z"/>
+            <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/>
           </svg>
         </div>
         <h2 class="card-title">NUTRIZIONE</h2>
-        <p class="card-subtitle">Piano alimentare personalizzato</p>
-        <span class="card-badge" id="nutrition-badge">-</span>
+        <p class="card-subtitle">Piano alimentare e tracker</p>
+        <span class="card-badge" id="nutrition-badge">CARICAMENTO...</span>
       </div>
 
-      <!-- Small Cards: Shop & Blog -->
       <div class="small-cards-row">
-        <div class="small-card" onclick="window.open('https://shop.viltrumfitness.com/collections/all', '_blank')">
+        <div class="small-card" onclick="window.open('https://www.yourshop.com', '_blank')">
           <div class="small-card-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/>
+              <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
             </svg>
           </div>
           <h3 class="small-card-title">SHOP</h3>
-          <p class="small-card-subtitle">Acquista pacchetti</p>
+          <p class="small-card-subtitle">Abbigliamento & accessori</p>
         </div>
-
-        <div class="small-card" onclick="window.open('https://shop.viltrumfitness.com/blogs/nutrition', '_blank')">
+        <div class="small-card" onclick="window.open('https://www.yourblog.com', '_blank')">
           <div class="small-card-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 014 17V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H6.5"/>
-              <path d="M8 7h8M8 11h6"/>
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
             </svg>
           </div>
           <h3 class="small-card-title">BLOG</h3>
@@ -284,6 +343,7 @@
     </main>
   </div>
 
+  <!-- Plan Selection Modal -->
   <div class="modal" id="plan-modal">
     <div class="modal-content">
       <h2 class="modal-title">SELEZIONA PIANO</h2>
@@ -292,28 +352,72 @@
     </div>
   </div>
 
+  <!-- Profile Modal -->
   <div class="modal" id="profile-modal">
     <div class="modal-content">
-      <h2 class="modal-title">PROFILO</h2>
+      <h2 class="modal-title">👤 PROFILO</h2>
       <div class="subscription-info">
         <div class="subscription-status" id="subscription-status">Caricamento...</div>
         <div class="subscription-date" id="subscription-date">-</div>
       </div>
       <div class="profile-actions">
-        <button class="profile-btn" onclick="alert('Coming soon')">Cambia Username</button>
-        <button class="profile-btn" onclick="alert('Coming soon')">Cambia Password</button>
-        <button class="profile-btn logout" onclick="handleLogout()">Logout</button>
+        <button class="profile-btn" onclick="openUsernameModal()">👤 Cambia Username</button>
+        <button class="profile-btn" onclick="openEmailModal()">✉️ Cambia Email</button>
+        <button class="profile-btn" onclick="openPasswordModal()">🔒 Cambia Password</button>
+        <button class="profile-btn logout" onclick="handleLogout()">🚪 Logout</button>
+        <button class="profile-btn secondary" onclick="closeProfileModal()">← Indietro</button>
       </div>
-      <button class="modal-close" onclick="closeProfileModal()">CHIUDI</button>
+    </div>
+  </div>
+
+  <!-- Username Change Modal -->
+  <div class="modal" id="username-modal">
+    <div class="modal-content">
+      <h2 class="modal-title">👤 CAMBIA USERNAME</h2>
+      <input type="text" id="new-username" placeholder="Nuovo Username" minlength="2">
+      <button onclick="saveUsername()">Salva Username</button>
+      <button class="secondary" onclick="closeUsernameModal()">Annulla</button>
+      <div class="message" id="username-message" style="display: none;"></div>
+    </div>
+  </div>
+
+  <!-- Email Change Modal -->
+  <div class="modal" id="email-modal">
+    <div class="modal-content">
+      <h2 class="modal-title">✉️ CAMBIA EMAIL</h2>
+      <input type="email" id="new-email" placeholder="Nuova Email">
+      <input type="password" id="email-password" placeholder="Password Attuale" minlength="6">
+      <button onclick="saveEmail()">Salva Email</button>
+      <button class="secondary" onclick="closeEmailModal()">Annulla</button>
+      <div class="message" id="email-message" style="display: none;"></div>
+    </div>
+  </div>
+
+  <!-- Password Change Modal -->
+  <div class="modal" id="password-modal">
+    <div class="modal-content">
+      <h2 class="modal-title">🔒 CAMBIA PASSWORD</h2>
+      <input type="password" id="new-password" placeholder="Nuova Password" minlength="6">
+      <input type="password" id="new-password-confirm" placeholder="Conferma Password" minlength="6">
+      <button onclick="savePassword()">Salva Password</button>
+      <button class="secondary" onclick="closePasswordModal()">Annulla</button>
+      <div class="message" id="password-message" style="display: none;"></div>
     </div>
   </div>
 
   <script src="../viewport.js"></script>
   <script src="../js/offline-preloader.js"></script>
   <script src="../js/global-preload-bar.js"></script>
+  
+  <!-- Supabase for auth operations -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
   <script type="module">
     import DataPreloader from '../js/data-preloader.js';
-    import { GOOGLE_SCRIPT_URL } from '../js/config.js';
+    import { GOOGLE_SCRIPT_URL, SUPABASE_URL, SUPABASE_ANON_KEY } from '../js/config.js';
+    
+    // Initialize Supabase client for profile operations
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
     let userData = null;
     let userPlans = [];
@@ -355,7 +459,6 @@
         });
         
         // 🚀 V8: Avvia offline preloader IMMEDIATAMENTE (no delay)
-        // Il preload potrebbe già essere in corso da auth.js, in quel caso skippa
         if (typeof OfflinePreloader !== 'undefined' && userData) {
           const userInfo = {
             email: userData.email,
@@ -366,7 +469,6 @@
             nutritionPdfUrl: userData.nutritionPdfUrl
           };
           
-          // Questo controlla se già in corso e skippa se necessario
           OfflinePreloader.preloadAll(userInfo, { scriptUrl: GOOGLE_SCRIPT_URL })
             .then(result => {
               if (result.skipped) {
@@ -381,7 +483,6 @@
         
       } catch (error) {
         console.error('Failed to initialize:', error);
-        // Mostra errore solo se non abbiamo dati di fallback
         if (!userData) {
           document.getElementById('welcome-text').textContent = 'ERRORE CARICAMENTO';
         }
@@ -427,7 +528,7 @@
       if (userData.scadenza) {
         const expDate = new Date(userData.scadenza);
         const daysRemaining = Math.ceil((expDate - new Date()) / (1000 * 60 * 60 * 24));
-        statusEl.textContent = daysRemaining < 0 ? 'Abbonamento Scaduto' : 'Abbonamento Attivo';
+        statusEl.textContent = daysRemaining < 0 ? '❌ Abbonamento Scaduto' : '✓ Abbonamento Attivo';
         statusEl.className = 'subscription-status ' + (daysRemaining < 0 ? 'expired' : 'active');
         dateEl.textContent = `Scadenza: ${expDate.toLocaleDateString('it-IT')}`;
       } else {
@@ -435,6 +536,10 @@
         dateEl.textContent = '';
       }
     }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // NAVIGATION HANDLERS
+    // ═══════════════════════════════════════════════════════════════════════════
     
     window.handleTrainingClick = function() {
       if (userPlans.length === 0) { alert('Nessun piano assegnato'); return; }
@@ -450,6 +555,10 @@
       if (!userData.nutritionPdfUrl) { alert('Piano nutrizionale non disponibile'); return; }
       window.location.href = 'nutrition.html';
     };
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PLAN MODAL
+    // ═══════════════════════════════════════════════════════════════════════════
     
     window.openPlanModal = function() {
       const list = document.getElementById('plan-list');
@@ -481,6 +590,10 @@
       document.getElementById('plan-modal').classList.remove('active');
     };
     
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PROFILE MODAL
+    // ═══════════════════════════════════════════════════════════════════════════
+    
     window.openProfileModal = function() {
       document.getElementById('profile-modal').classList.add('active');
     };
@@ -489,17 +602,291 @@
       document.getElementById('profile-modal').classList.remove('active');
     };
     
-    window.handleLogout = function() {
-      localStorage.removeItem('loggedUser');
-      localStorage.removeItem('userName');
-      sessionStorage.clear();
-      window.location.href = '../index.html';
+    // ═══════════════════════════════════════════════════════════════════════════
+    // USERNAME MODAL
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    window.openUsernameModal = function() {
+      closeProfileModal();
+      const currentUsername = localStorage.getItem('userName') || '';
+      document.getElementById('new-username').value = currentUsername;
+      document.getElementById('username-modal').classList.add('active');
     };
     
-    document.addEventListener('DOMContentLoaded', init);
+    window.closeUsernameModal = function() {
+      document.getElementById('username-modal').classList.remove('active');
+      document.getElementById('new-username').value = '';
+      document.getElementById('username-message').style.display = 'none';
+    };
     
-    // V8: Preload progress is now handled by GlobalPreloadBar
-    // The global bar listens for 'preloadProgress' and 'preloadComplete' events automatically
+    window.saveUsername = async function() {
+      const newUsername = document.getElementById('new-username').value.trim();
+      const message = document.getElementById('username-message');
+
+      if (!newUsername || newUsername.length < 2) {
+        message.textContent = 'Username deve essere di almeno 2 caratteri';
+        message.className = 'message error';
+        message.style.display = 'block';
+        return;
+      }
+
+      message.textContent = 'Aggiornamento...';
+      message.className = 'message';
+      message.style.display = 'block';
+
+      try {
+        // Update localStorage
+        localStorage.setItem('userName', newUsername);
+        
+        // Update Supabase user metadata
+        const { error } = await supabase.auth.updateUser({
+          data: { username: newUsername }
+        });
+
+        if (error) {
+          console.error('Supabase update error:', error);
+          message.textContent = '✅ Username aggiornato localmente!';
+          message.className = 'message success';
+        } else {
+          message.textContent = '✅ Username aggiornato!';
+          message.className = 'message success';
+        }
+        
+        // Update welcome text
+        document.getElementById('welcome-text').textContent = `BENVENUTO, ${newUsername.toUpperCase()}`;
+        
+        setTimeout(() => {
+          closeUsernameModal();
+        }, 2000);
+      } catch (error) {
+        console.error('Username update error:', error);
+        message.textContent = 'Errore durante aggiornamento';
+        message.className = 'message error';
+      }
+
+      message.style.display = 'block';
+    };
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EMAIL MODAL
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    window.openEmailModal = function() {
+      closeProfileModal();
+      const currentEmail = localStorage.getItem('loggedUser') || '';
+      document.getElementById('new-email').value = currentEmail;
+      document.getElementById('email-modal').classList.add('active');
+    };
+    
+    window.closeEmailModal = function() {
+      document.getElementById('email-modal').classList.remove('active');
+      document.getElementById('new-email').value = '';
+      document.getElementById('email-password').value = '';
+      document.getElementById('email-message').style.display = 'none';
+    };
+    
+    window.saveEmail = async function() {
+      const newEmail = document.getElementById('new-email').value.trim().toLowerCase();
+      const password = document.getElementById('email-password').value;
+      const message = document.getElementById('email-message');
+
+      if (!newEmail || !newEmail.includes('@')) {
+        message.textContent = 'Inserisci un\'email valida';
+        message.className = 'message error';
+        message.style.display = 'block';
+        return;
+      }
+
+      if (!password || password.length < 6) {
+        message.textContent = 'Inserisci la password attuale';
+        message.className = 'message error';
+        message.style.display = 'block';
+        return;
+      }
+
+      message.textContent = 'Verifico password...';
+      message.className = 'message';
+      message.style.display = 'block';
+
+      try {
+        // Verify password first
+        const currentEmail = localStorage.getItem('loggedUser');
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: currentEmail,
+          password: password
+        });
+
+        if (signInError) {
+          message.textContent = '❌ Password non corretta';
+          message.className = 'message error';
+          message.style.display = 'block';
+          return;
+        }
+
+        // Update email
+        message.textContent = 'Aggiornamento email...';
+        const { error } = await supabase.auth.updateUser({
+          email: newEmail
+        });
+
+        if (error) {
+          message.textContent = '❌ ' + error.message;
+          message.className = 'message error';
+        } else {
+          // Update localStorage
+          localStorage.setItem('loggedUser', newEmail);
+          
+          message.textContent = '✅ Email aggiornata! Controlla la tua casella per confermare.';
+          message.className = 'message success';
+          
+          setTimeout(() => {
+            closeEmailModal();
+          }, 3000);
+        }
+      } catch (error) {
+        console.error('Email update error:', error);
+        message.textContent = 'Errore durante aggiornamento';
+        message.className = 'message error';
+      }
+
+      message.style.display = 'block';
+    };
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PASSWORD MODAL
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    window.openPasswordModal = function() {
+      closeProfileModal();
+      document.getElementById('password-modal').classList.add('active');
+    };
+    
+    window.closePasswordModal = function() {
+      document.getElementById('password-modal').classList.remove('active');
+      document.getElementById('new-password').value = '';
+      document.getElementById('new-password-confirm').value = '';
+      document.getElementById('password-message').style.display = 'none';
+    };
+    
+    window.savePassword = async function() {
+      const newPassword = document.getElementById('new-password').value.trim();
+      const confirmPassword = document.getElementById('new-password-confirm').value.trim();
+      const message = document.getElementById('password-message');
+
+      if (!newPassword || !confirmPassword) {
+        message.textContent = 'Compila tutti i campi';
+        message.className = 'message error';
+        message.style.display = 'block';
+        return;
+      }
+
+      if (newPassword.length < 6) {
+        message.textContent = 'Password deve essere di almeno 6 caratteri';
+        message.className = 'message error';
+        message.style.display = 'block';
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        message.textContent = 'Le password non corrispondono';
+        message.className = 'message error';
+        message.style.display = 'block';
+        return;
+      }
+
+      message.textContent = 'Aggiornamento...';
+      message.className = 'message';
+      message.style.display = 'block';
+
+      try {
+        const { error } = await supabase.auth.updateUser({
+          password: newPassword
+        });
+
+        if (error) {
+          message.textContent = error.message;
+          message.className = 'message error';
+        } else {
+          message.textContent = '✅ Password aggiornata!';
+          message.className = 'message success';
+          setTimeout(() => {
+            closePasswordModal();
+          }, 2000);
+        }
+      } catch (error) {
+        message.textContent = 'Errore durante aggiornamento';
+        message.className = 'message error';
+      }
+
+      message.style.display = 'block';
+    };
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // LOGOUT
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    window.handleLogout = async function() {
+      if (confirm('Sei sicuro di voler uscire?')) {
+        try {
+          await supabase.auth.signOut();
+          console.log('[Logout] Signed out from Supabase');
+        } catch (error) {
+          console.error('[Logout] Error:', error);
+        }
+        
+        // Clear all localStorage
+        localStorage.removeItem('loggedUser');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('userFullName');
+        localStorage.removeItem('viltrum_user_settings');
+        localStorage.removeItem('viltrum_last_workout_index');
+        localStorage.removeItem('viltrum_exercise_weights');
+        localStorage.removeItem('viltrum_total_workouts');
+        
+        // Clear sessionStorage
+        sessionStorage.clear();
+        
+        // Clear DataPreloader cache
+        DataPreloader.clear();
+        
+        window.location.href = '../index.html';
+      }
+    };
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EVENT LISTENERS
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    // Close modals on outside click
+    document.getElementById('profile-modal').addEventListener('click', function(e) {
+      if (e.target === this) closeProfileModal();
+    });
+    document.getElementById('plan-modal').addEventListener('click', function(e) {
+      if (e.target === this) closePlanModal();
+    });
+    document.getElementById('username-modal').addEventListener('click', function(e) {
+      if (e.target === this) closeUsernameModal();
+    });
+    document.getElementById('email-modal').addEventListener('click', function(e) {
+      if (e.target === this) closeEmailModal();
+    });
+    document.getElementById('password-modal').addEventListener('click', function(e) {
+      if (e.target === this) closePasswordModal();
+    });
+    
+    // Enter key handlers
+    document.getElementById('new-username').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') saveUsername();
+    });
+    document.getElementById('email-password').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') saveEmail();
+    });
+    document.getElementById('new-password-confirm').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') savePassword();
+    });
+    
+    // Initialize on DOM ready
+    document.addEventListener('DOMContentLoaded', init);
   </script>
 </body>
 </html>
