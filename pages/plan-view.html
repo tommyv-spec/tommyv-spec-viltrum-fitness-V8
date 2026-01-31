@@ -48,10 +48,6 @@
       padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     }
 
-    /* ═══════════════════════════════════════════════════════════════════════════
-       HEADER - Usa il sistema unificato da main.css
-       ═══════════════════════════════════════════════════════════════════════════ */
-    /* Gli stili base vengono da main.css */
     .plan-title {
       font-size: 2.2vh;
       letter-spacing: 2px;
@@ -332,7 +328,108 @@
       text-overflow: ellipsis;
     }
 
-    /* Run workout preview */
+    /* ═══════════════════════════════════════════════════════════════════════════
+       RUN WORKOUT PREVIEW - PHASES V2
+       ═══════════════════════════════════════════════════════════════════════════ */
+    .run-summary {
+      display: flex;
+      gap: 3vw;
+      margin-bottom: 2vh;
+      padding: 1.5vh 3vw;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 8px;
+    }
+
+    .run-summary-item {
+      text-align: center;
+      flex: 1;
+    }
+
+    .run-summary-value {
+      font-size: 2.5vh;
+      color: #FFF;
+      font-weight: bold;
+    }
+
+    .run-summary-label {
+      font-size: 1.2vh;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .phases-container {
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .phase-item {
+      display: flex;
+      align-items: center;
+      padding: 1.5vh 3vw;
+      border-bottom: 1px solid #222;
+      gap: 3vw;
+    }
+
+    .phase-item:last-child {
+      border-bottom: none;
+    }
+
+    .phase-zone {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6vh;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    .phase-zone.z1 { background: rgba(52,152,219,0.2); color: #3498db; border: 2px solid #3498db; }
+    .phase-zone.z2 { background: rgba(39,174,96,0.2); color: #27ae60; border: 2px solid #27ae60; }
+    .phase-zone.z3 { background: rgba(241,196,15,0.2); color: #f1c40f; border: 2px solid #f1c40f; }
+    .phase-zone.z4 { background: rgba(230,126,34,0.2); color: #e67e22; border: 2px solid #e67e22; }
+    .phase-zone.z5 { background: rgba(231,76,60,0.2); color: #e74c3c; border: 2px solid #e74c3c; }
+
+    .phase-info {
+      flex: 1;
+    }
+
+    .phase-value {
+      font-size: 1.8vh;
+      color: #FFF;
+    }
+
+    .phase-description {
+      font-size: 1.3vh;
+      color: #888;
+      margin-top: 0.3vh;
+    }
+
+    .phase-section {
+      font-size: 1.2vh;
+      color: #555;
+      text-transform: uppercase;
+      padding: 0.4vh 1.5vw;
+      background: #1a1a1a;
+      border-radius: 4px;
+    }
+
+    .phase-loop-badge {
+      font-size: 1.2vh;
+      color: #f1c40f;
+      padding: 0.4vh 1.5vw;
+      background: rgba(241,196,15,0.15);
+      border: 1px solid rgba(241,196,15,0.3);
+      border-radius: 4px;
+    }
+
+    /* Old run-lines styles (fallback) */
     .run-lines {
       background: #111;
       border: 1px solid #333;
@@ -513,8 +610,6 @@
   <script src="../js/offline-preloader.js"></script>
   <script src="../js/global-preload-bar.js"></script>
   
-  <!-- Global Preload Progress Bar (injected by js/global-preload-bar.js) -->
-  
   <script type="module">
     import DataPreloader from '../js/data-preloader.js';
     import { GOOGLE_SCRIPT_URL } from '../js/config.js';
@@ -542,28 +637,21 @@
       try {
         const email = localStorage.getItem('loggedUser');
         
-        // 🚀 V7: Usa DataPreloader - dati già pronti in memoria!
-        // Se non sono stati precaricati, li carica ora
         await DataPreloader.loadAll(email);
         
-        // Ottieni piano con tutti i dettagli workout (ISTANTANEO)
         planData = DataPreloader.getPlanWithDetails(planName);
         
         if (!planData) {
           throw new Error(`Plan "${planName}" not found`);
         }
         
-        // Carica progresso (già in memoria/localStorage)
         planProgress = DataPreloader.getPlanProgress(planName);
         
-        // Set selected to next workout
         selectedWorkoutIndex = Math.min(planProgress.lastWorkoutIndex + 1, planData.workouts.length - 1);
         if (selectedWorkoutIndex < 0) selectedWorkoutIndex = 0;
         
-        // Render UI
         renderUI();
         
-        // Show main content
         document.getElementById('loading-container').style.display = 'none';
         document.getElementById('main-content').style.display = 'flex';
         
@@ -578,10 +666,8 @@
     // RENDER
     // ═══════════════════════════════════════════════════════════════════════════
     function renderUI() {
-      // Title
       document.getElementById('plan-title').textContent = planData.name.toUpperCase();
       
-      // Progress
       const completed = planProgress.lastWorkoutIndex + 1;
       const total = planData.totalWorkouts;
       const percentage = total > 0 ? (completed / total) * 100 : 0;
@@ -589,18 +675,12 @@
       document.getElementById('progress-count').textContent = `${completed}/${total}`;
       document.getElementById('progress-fill').style.width = `${percentage}%`;
       
-      // Current workout label
       const nextWorkout = planData.workouts[selectedWorkoutIndex];
       document.getElementById('current-workout-name').textContent = 
         nextWorkout ? `${selectedWorkoutIndex + 1}. ${nextWorkout.name}` : 'Completato!';
       
-      // Workout list
       renderWorkoutList();
-      
-      // Preview
       renderPreview();
-      
-      // Start button state
       updateStartButton();
     }
     
@@ -627,7 +707,6 @@
           <span class="workout-type">${workout.type === 'muscle' ? 'FORZA' : 'CORSA'}</span>
         `;
         
-        // Click to select (for preview)
         item.addEventListener('click', () => {
           if (!isLocked) {
             selectedWorkoutIndex = index;
@@ -635,15 +714,12 @@
           }
         });
         
-        // Click checkbox to toggle completion (manual)
         const checkbox = item.querySelector('.workout-checkbox');
         checkbox.addEventListener('click', (e) => {
           e.stopPropagation();
           if (isCompleted) {
-            // Unmark as completed
             markWorkoutIncomplete(index);
           } else if (index === planProgress.lastWorkoutIndex + 1) {
-            // Mark as completed
             markWorkoutComplete(index);
           }
         });
@@ -692,13 +768,88 @@
           html += '</div>';
         }
         
-        content.innerHTML = html;
+        content.innerHTML = html || '<p style="text-align:center;color:#666;padding:4vh 0;">Nessun dettaglio disponibile</p>';
         
       } else if (workout.type === 'run' && workout.details) {
-        // Run workout preview
-        let html = '<div class="run-lines">';
+        // ═══════════════════════════════════════════════════════════════════════
+        // RUN WORKOUT PREVIEW V2 - PHASES
+        // ═══════════════════════════════════════════════════════════════════════
+        let html = '';
         
-        if (workout.details.lines && workout.details.lines.length > 0) {
+        // Check for new phases structure
+        if (workout.details.phases && workout.details.phases.length > 0) {
+          // Summary bar
+          html += '<div class="run-summary">';
+          if (workout.details.estimatedDistance) {
+            html += `
+              <div class="run-summary-item">
+                <div class="run-summary-value">${workout.details.estimatedDistance}</div>
+                <div class="run-summary-label">Distanza</div>
+              </div>
+            `;
+          }
+          html += `
+            <div class="run-summary-item">
+              <div class="run-summary-value">${workout.details.phases.length}</div>
+              <div class="run-summary-label">Fasi</div>
+            </div>
+          `;
+          if (workout.details.estimatedTime) {
+            html += `
+              <div class="run-summary-item">
+                <div class="run-summary-value">${workout.details.estimatedTime}</div>
+                <div class="run-summary-label">Tempo</div>
+              </div>
+            `;
+          }
+          html += '</div>';
+          
+          // Phases list
+          html += '<div class="phases-container">';
+          
+          let lastLoopGroup = null;
+          
+          workout.details.phases.forEach((phase, idx) => {
+            // Loop indicator
+            if (phase.loopGroup && phase.loopGroup !== lastLoopGroup) {
+              html += `
+                <div class="phase-item" style="background: rgba(241,196,15,0.05); border-left: 3px solid #f1c40f;">
+                  <div class="phase-zone" style="background: rgba(241,196,15,0.2); border-color: #f1c40f; color: #f1c40f;">🔄</div>
+                  <div class="phase-info">
+                    <div class="phase-value">Ripeti ${phase.loopCount}x</div>
+                    <div class="phase-description">Le seguenti fasi in loop</div>
+                  </div>
+                </div>
+              `;
+              lastLoopGroup = phase.loopGroup;
+            }
+            
+            const unitLabels = { km: 'km', m: 'm', min: 'min', sec: 'sec' };
+            const zoneClass = `z${phase.zone}`;
+            const inLoop = phase.loopGroup ? 'padding-left: 8vw;' : '';
+            
+            html += `
+              <div class="phase-item" style="${inLoop}">
+                <div class="phase-zone ${zoneClass}">Z${phase.zone}</div>
+                <div class="phase-info">
+                  <div class="phase-value">${phase.value} ${unitLabels[phase.unit] || phase.unit}</div>
+                  ${phase.description ? `<div class="phase-description">${phase.description}</div>` : ''}
+                </div>
+                <span class="phase-section">${phase.section || 'main'}</span>
+              </div>
+            `;
+            
+            // Reset loop group when it changes
+            if (!phase.loopGroup) {
+              lastLoopGroup = null;
+            }
+          });
+          
+          html += '</div>';
+          
+        } else if (workout.details.lines && workout.details.lines.length > 0) {
+          // Fallback: Old lines structure
+          html = '<div class="run-lines">';
           workout.details.lines.forEach(line => {
             html += `
               <div class="run-line">
@@ -707,15 +858,16 @@
               </div>
             `;
           });
+          html += '</div>';
+          
         } else {
-          html += '<p style="color:#666;">Nessun dettaglio disponibile</p>';
+          html = '<p style="text-align:center;color:#666;padding:4vh 0;">Nessun dettaglio disponibile</p>';
         }
         
-        html += '</div>';
         content.innerHTML = html;
         
       } else {
-        content.innerHTML = '<p style="text-align:center;color:#666;padding:4vh 0;">Dettagli non disponibili</p>';
+        content.innerHTML = '<p style="text-align:center;color:#666;padding:4vh 0;">Nessun dettaglio disponibile</p>';
       }
     }
     
@@ -752,7 +904,6 @@
       const workout = planData.workouts[selectedWorkoutIndex];
       if (!workout) return;
       
-      // Store workout info for player
       sessionStorage.setItem('currentWorkout', JSON.stringify({
         planName: planData.name,
         workoutIndex: selectedWorkoutIndex,
@@ -761,7 +912,6 @@
         totalWorkouts: planData.totalWorkouts
       }));
       
-      // Navigate to appropriate player
       if (workout.type === 'muscle') {
         window.location.href = 'workout.html';
       } else {
@@ -771,25 +921,15 @@
     
     async function markWorkoutComplete(index) {
       planProgress.lastWorkoutIndex = index;
-      
-      // 🚀 V7: Usa DataPreloader per salvare
       await DataPreloader.savePlanProgress(planData.name, index, planData.totalWorkouts);
-      
-      // Move selection to next
       selectedWorkoutIndex = Math.min(index + 1, planData.workouts.length - 1);
-      
       renderUI();
     }
     
     async function markWorkoutIncomplete(index) {
-      // Can only unmark if it's the last completed one
       if (index !== planProgress.lastWorkoutIndex) return;
-      
       planProgress.lastWorkoutIndex = index - 1;
-      
-      // 🚀 V7: Usa DataPreloader per salvare
       await DataPreloader.savePlanProgress(planData.name, planProgress.lastWorkoutIndex, planData.totalWorkouts);
-      
       renderUI();
     }
     
@@ -797,9 +937,6 @@
     // INIT
     // ═══════════════════════════════════════════════════════════════════════════
     document.addEventListener('DOMContentLoaded', init);
-    
-    // V8: Preload progress is now handled by GlobalPreloadBar
-    // The global bar listens for 'preloadProgress' and 'preloadComplete' events automatically
   </script>
 </body>
 </html>
