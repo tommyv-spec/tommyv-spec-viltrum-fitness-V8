@@ -1,12 +1,10 @@
 /**
- * Viltrum Fitness - Data Preloader V8
+ * Viltrum Fitness - Data Preloader V8.1
  * 
- * OTTIMIZZAZIONI V8:
- * 1. Usa endpoint veloce getUserData (carica solo dati dell'utente)
- * 2. Mostra UI subito da cache localStorage
- * 3. Aggiorna in background senza bloccare
- * 4. Precarica anche food-database.json per nutrizione
- * 5. Coordinato con OfflinePreloader per download completo
+ * AGGIORNAMENTI V8.1:
+ * - Supporto RunWorkouts V2 con struttura 'phases' invece di 'lines'
+ * - Auto-tracking per distanza e tempo
+ * - Loop groups expansion
  */
 
 import { GOOGLE_SCRIPT_URL } from './config.js';
@@ -28,7 +26,6 @@ const DataPreloader = {
   
   /**
    * Carica dati ISTANTANEAMENTE da cache, poi aggiorna in background.
-   * Non blocca mai l'UI.
    */
   async loadAll(email) {
     const userEmail = email.toLowerCase();
@@ -43,7 +40,7 @@ const DataPreloader = {
       return this._cache;
     }
     
-    console.log('🚀 DataPreloader V8: caricamento per', userEmail);
+    console.log('🚀 DataPreloader V8.1: caricamento per', userEmail);
     
     // STEP 1: Carica SUBITO da localStorage (instant)
     const cachedData = this._loadFromLocalStorage(userEmail);
@@ -52,7 +49,7 @@ const DataPreloader = {
       console.log('⚡ DataPreloader: dati da cache locale (instant)');
     }
     
-    // STEP 2: Preload food database in parallel (for nutrition section)
+    // STEP 2: Preload food database in parallel
     this._preloadFoodDatabase();
     
     // STEP 3: Fetch in background dal server (non blocca)
@@ -84,19 +81,14 @@ const DataPreloader = {
   },
   
   /**
-   * V8: Preload food database for nutrition section
+   * Preload food database for nutrition section
    */
   async _preloadFoodDatabase() {
-    // Check if already cached
-    if (sessionStorage.getItem('viltrum_food_database')) {
-      return;
-    }
+    if (sessionStorage.getItem('viltrum_food_database')) return;
     
     try {
-      // Try root path first (for index.html context)
       let response = await fetch('./food-database.json');
       if (!response.ok) {
-        // Try pages path (for pages/*.html context)
         response = await fetch('../food-database.json');
       }
       
@@ -104,8 +96,6 @@ const DataPreloader = {
         const data = await response.json();
         sessionStorage.setItem('viltrum_food_database', JSON.stringify(data));
         console.log('✅ Food database preloaded');
-        
-        // Dispatch event for nutrition section
         window.dispatchEvent(new CustomEvent('foodDatabaseReady'));
       }
     } catch (e) {
@@ -223,39 +213,62 @@ const DataPreloader = {
   
   /**
    * Restituisce un piano con tutti i dettagli dei workout espansi.
-   * Usato da plan-view.html per mostrare la lista workout.
+   * V8.1: Supporta sia 'exercises' (muscle) che 'phases' (run)
    */
   getPlanWithDetails(planName) {
     const plan = this._cache.plans?.[planName];
     if (!plan) return null;
     
-    // Espandi i workout con i loro dettagli
     const workoutsWithDetails = plan.workouts.map(w => {
       let workoutData = null;
+      let workoutType = w.type;
       
-      if (w.type === 'muscle' || w.type === 'unknown') {
+      // Try muscle workouts first
+      if (workoutType === 'muscle' || workoutType === 'unknown') {
         workoutData = this._cache.workouts?.[w.name];
+        if (workoutData) workoutType = 'muscle';
       }
-      if (!workoutData && (w.type === 'run' || w.type === 'unknown')) {
+      
+      // Try run workouts
+      if (!workoutData && (workoutType === 'run' || workoutType === 'unknown')) {
         workoutData = this._cache.runWorkouts?.[w.name];
-        if (workoutData) w.type = 'run';
-      }
-      if (workoutData && w.type === 'unknown') {
-        w.type = 'muscle';
+        if (workoutData) workoutType = 'run';
       }
       
       // Build details object for preview rendering
-      const details = workoutData ? {
-        exercises: workoutData.exercises || [],
-        instructions: workoutData.instructions || '',
-        lines: workoutData.lines || [],  // for run workouts
-        materiale: workoutData.materiale || []
-      } : null;
+      let details = null;
+      let previewInfo = '';
+      
+      if (workoutData) {
+        if (workoutType === 'muscle') {
+          details = {
+            exercises: workoutData.exercises || [],
+            instructions: workoutData.instructions || '',
+            materiale: workoutData.materiale || []
+          };
+          previewInfo = `${workoutData.exercises?.length || 0} esercizi`;
+        } else if (workoutType === 'run') {
+          // V8.1: Run workouts now use 'phases' structure
+          details = {
+            phases: workoutData.phases || [],
+            totalPhases: workoutData.totalPhases || workoutData.phases?.length || 0,
+            estimatedDistance: workoutData.estimatedDistance,
+            estimatedTime: workoutData.estimatedTime
+          };
+          previewInfo = workoutData.estimatedDistance || 
+                        workoutData.estimatedTime || 
+                        `${workoutData.phases?.length || 0} fasi`;
+        }
+      }
       
       return {
         ...w,
-        details,  // Add details object for renderPreview
-        exercises: workoutData?.exercises || workoutData?.lines || [],
+        type: workoutType,
+        details,
+        previewInfo,
+        // Legacy support
+        exercises: workoutData?.exercises || [],
+        phases: workoutData?.phases || [],
         instructions: workoutData?.instructions || '',
         data: workoutData
       };
@@ -268,12 +281,82 @@ const DataPreloader = {
     };
   },
   
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MUSCLE WORKOUTS
+  // ═══════════════════════════════════════════════════════════════════════════
   getAllMuscleWorkouts() { return this._cache.workouts || {}; },
   getMuscleWorkout(name) { return this._cache.workouts?.[name] || null; },
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RUN WORKOUTS V2 (Phase-based)
+  // ═══════════════════════════════════════════════════════════════════════════
   getAllRunWorkouts() { return this._cache.runWorkouts || {}; },
   getRunWorkout(name) { return this._cache.runWorkouts?.[name] || null; },
+  
+  /**
+   * V8.1: Get run workout with expanded phases (loops unrolled)
+   */
+  getRunWorkoutExpanded(name) {
+    const workout = this._cache.runWorkouts?.[name];
+    if (!workout?.phases) return null;
+    
+    const expanded = this._expandPhases(workout.phases);
+    
+    return {
+      ...workout,
+      expandedPhases: expanded,
+      totalExpandedPhases: expanded.length
+    };
+  },
+  
+  /**
+   * Expand phases by unrolling loops
+   */
+  _expandPhases(phases) {
+    const expanded = [];
+    let i = 0;
+    
+    while (i < phases.length) {
+      const phase = phases[i];
+      
+      if (phase.loopGroup) {
+        // Collect all phases in this loop group
+        const loopPhases = [];
+        const loopGroup = phase.loopGroup;
+        const loopCount = phase.loopCount || 1;
+        
+        while (i < phases.length && phases[i].loopGroup === loopGroup) {
+          loopPhases.push(phases[i]);
+          i++;
+        }
+        
+        // Expand the loop
+        for (let rep = 1; rep <= loopCount; rep++) {
+          loopPhases.forEach(lp => {
+            expanded.push({
+              ...lp,
+              _loopRep: rep,
+              _loopTotal: loopCount,
+              _loopSize: loopPhases.length
+            });
+          });
+        }
+      } else {
+        expanded.push({ ...phase, _loopRep: null, _loopTotal: null });
+        i++;
+      }
+    }
+    
+    return expanded;
+  },
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PROGRESS TRACKING
+  // ═══════════════════════════════════════════════════════════════════════════
   getAllProgress() { return this._cache.userProgress || {}; },
-  getPlanProgress(planName) { return this._cache.userProgress?.[planName] || { lastWorkoutIndex: -1, totalWorkouts: 0 }; },
+  getPlanProgress(planName) { 
+    return this._cache.userProgress?.[planName] || { lastWorkoutIndex: -1, totalWorkouts: 0 }; 
+  },
   
   updateLocalProgress(planName, lastWorkoutIndex, totalWorkouts) {
     if (!this._cache.userProgress) this._cache.userProgress = {};
@@ -305,13 +388,10 @@ const DataPreloader = {
   
   /**
    * Save plan progress locally and sync to cloud
-   * Used by plan-view.html when marking workouts complete
    */
   async savePlanProgress(planName, lastWorkoutIndex, totalWorkouts) {
-    // Update local cache first
     this.updateLocalProgress(planName, lastWorkoutIndex, totalWorkouts);
     
-    // Sync to cloud in background
     const email = this._cache.userData?.email || localStorage.getItem('loggedUser');
     if (email) {
       try {

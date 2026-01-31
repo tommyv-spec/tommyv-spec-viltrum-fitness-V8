@@ -7,14 +7,6 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Endurance - Viltrum Fitness</title>
   
-  <style id="fouc-prevention">
-    select, input:not([type="checkbox"]):not([type="radio"]), button { 
-      -webkit-appearance: none !important; 
-      appearance: none !important;
-    }
-    html, body { background: #000000 !important; }
-  </style>
-  
   <link href="https://fonts.googleapis.com/css2?family=Staatliches&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/main.css" />
   <link rel="manifest" href="../manifest.json" />
@@ -24,220 +16,354 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
-      height: 100vh; height: var(--dvh-px, 100vh);
+      height: 100vh; height: 100dvh;
       width: 100%; font-family: 'Staatliches', sans-serif;
       background: #000; color: #FFF; overflow: hidden;
+      -webkit-user-select: none; user-select: none;
     }
-    .endurance-container {
-      height: 100vh; height: var(--dvh-px, 100vh);
+    
+    .container {
+      height: 100vh; height: 100dvh;
       display: flex; flex-direction: column;
       padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     }
-    /* Header usa stili globali da main.css */
-    .endurance-title { font-size: 2.2vh; letter-spacing: 2px; margin: 0; }
 
-    .selector-view { flex: 1; display: flex; flex-direction: column; padding: 2vh 4vw; overflow: hidden; }
-    .selector-view.hidden { display: none; }
-    .selector-title { text-align: center; margin-bottom: 2vh; }
-    .selector-title h2 { font-size: 2.8vh; letter-spacing: 1.5px; margin-bottom: 0.5vh; }
-    .selector-title p { color: #B0B0B0; font-size: 1.6vh; }
-
-    .workout-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 1.5vh; padding: 1vh 0; -webkit-overflow-scrolling: touch; }
-    .workout-card {
-      background: linear-gradient(135deg, rgba(77,77,77,0.6), rgba(50,50,50,0.4));
-      border: 2px solid #5D5D5D; border-radius: 15px; padding: 2vh 3vw;
-      cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 3vw;
+    /* Header */
+    header {
+      flex-shrink: 0; height: 7vh; min-height: 50px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 4vw; background: rgba(20,20,20,0.95);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
     }
-    .workout-card:hover { border-color: #FFF; transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.5); }
+    .header-title { font-size: 2.2vh; letter-spacing: 2px; }
+    .header-btn {
+      padding: 1vh 2vw; background: transparent; border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 8px; color: #FFF; font-family: inherit; font-size: 1.6vh;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .header-btn:active { background: rgba(255,255,255,0.1); }
+
+    /* Zone Colors */
+    .zone-1 { --zone-color: #3498db; --zone-bg: rgba(52,152,219,0.15); }
+    .zone-2 { --zone-color: #27ae60; --zone-bg: rgba(39,174,96,0.15); }
+    .zone-3 { --zone-color: #f1c40f; --zone-bg: rgba(241,196,15,0.15); }
+    .zone-4 { --zone-color: #e67e22; --zone-bg: rgba(230,126,34,0.15); }
+    .zone-5 { --zone-color: #e74c3c; --zone-bg: rgba(231,76,60,0.15); }
+
+    /* Views */
+    .view { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+    .view.active { display: flex; }
+
+    /* ═══════════════════════════════════════════════════════════════════════════ */
+    /* SELECTOR VIEW */
+    /* ═══════════════════════════════════════════════════════════════════════════ */
+    .selector-view { padding: 2vh 4vw; }
+    .selector-title { text-align: center; margin-bottom: 2vh; }
+    .selector-title h2 { font-size: 2.8vh; letter-spacing: 1.5px; }
+    .selector-title p { color: #888; font-size: 1.5vh; }
+
+    .workout-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 1.5vh; -webkit-overflow-scrolling: touch; }
+    .workout-card {
+      background: linear-gradient(135deg, rgba(60,60,60,0.5), rgba(40,40,40,0.3));
+      border: 2px solid #444; border-radius: 15px; padding: 2vh 3vw;
+      display: flex; align-items: center; gap: 3vw;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .workout-card:active { transform: scale(0.98); border-color: #FFF; }
     .workout-icon {
-      width: 6vh; height: 6vh; background: rgba(255,255,255,0.1);
-      border: 2px solid rgba(255,255,255,0.2); border-radius: 12px;
+      width: 7vh; height: 7vh; background: rgba(255,255,255,0.08);
+      border: 2px solid rgba(255,255,255,0.15); border-radius: 12px;
       display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
-    .workout-icon svg { width: 3.5vh; height: 3.5vh; color: #FFF; }
+    .workout-icon svg { width: 4vh; height: 4vh; stroke: #FFF; fill: none; stroke-width: 1.5; }
     .workout-info { flex: 1; }
-    .workout-info h3 { font-size: 2.2vh; letter-spacing: 1px; margin-bottom: 0.3vh; }
-    .workout-info p { color: #B0B0B0; font-size: 1.4vh; }
-    .workout-arrow { color: #B0B0B0; font-size: 2vh; }
+    .workout-info h3 { font-size: 2vh; letter-spacing: 0.5px; margin-bottom: 0.3vh; }
+    .workout-info p { color: #888; font-size: 1.4vh; }
+    .workout-arrow { color: #666; font-size: 2.5vh; }
 
-    .workout-view { display: none; flex: 1; flex-direction: column; overflow: hidden; }
-    .workout-view.active { display: flex; }
+    .no-workouts { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #666; }
+    .no-workouts svg { width: 10vh; height: 10vh; margin-bottom: 2vh; stroke: #444; }
+
+    /* ═══════════════════════════════════════════════════════════════════════════ */
+    /* WORKOUT VIEW */
+    /* ═══════════════════════════════════════════════════════════════════════════ */
+    
+    /* Top Progress Bar */
+    .workout-progress-bar {
+      flex-shrink: 0; height: 4px; background: rgba(255,255,255,0.1);
+    }
+    .workout-progress-bar .fill {
+      height: 100%; background: #4CAF50; transition: width 0.3s ease;
+    }
+
+    /* Workout Header */
     .workout-header {
-      flex-shrink: 0; padding: 1.5vh 4vw; background: rgba(30,30,30,0.95);
-      border-bottom: 1px solid rgba(255,255,255,0.1);
+      flex-shrink: 0; padding: 1.5vh 4vw;
+      background: rgba(25,25,25,0.98); border-bottom: 1px solid rgba(255,255,255,0.08);
       display: flex; align-items: center; justify-content: space-between;
     }
-    .workout-header h2 { font-size: 2.2vh; letter-spacing: 1.5px; }
-    .workout-progress-badge {
-      padding: 0.8vh 2vw; background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.2); border-radius: 20px;
-      font-size: 1.4vh; letter-spacing: 1px;
-    }
+    .workout-name { font-size: 1.8vh; letter-spacing: 1px; opacity: 0.9; }
+    .phase-counter { font-size: 1.5vh; color: #888; }
 
-    /* GPS Tracker */
-    .gps-tracker {
-      background: linear-gradient(135deg, rgba(30,30,30,0.95), rgba(20,20,20,0.98));
-      border-bottom: 2px solid rgba(76,175,80,0.4); padding: 1.5vh 4vw;
-      display: none; flex-shrink: 0;
+    /* GPS Stats Bar */
+    .gps-bar {
+      flex-shrink: 0; padding: 1.2vh 4vw;
+      background: rgba(30,30,30,0.95); border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2vw;
     }
-    .gps-tracker.active { display: block; }
-    .gps-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.2vh; }
-    .gps-status { display: flex; align-items: center; gap: 1.5vw; font-size: 1.3vh; color: #888; text-transform: uppercase; letter-spacing: 1px; }
-    .gps-dot { width: 10px; height: 10px; border-radius: 50%; background: #666; transition: all 0.3s ease; }
-    .gps-dot.searching { background: #FFC107; animation: pulse 1.5s infinite; }
-    .gps-dot.active { background: #4CAF50; box-shadow: 0 0 10px rgba(76,175,80,0.5); }
-    .gps-dot.error { background: #F44336; }
-    @keyframes pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.5; transform:scale(1.2); } }
-    .gps-toggle {
-      padding: 0.8vh 2.5vw; background: rgba(76,175,80,0.2);
-      border: 1px solid rgba(76,175,80,0.5); border-radius: 8px; color: #4CAF50;
-      font-family: 'Staatliches', sans-serif; font-size: 1.3vh; cursor: pointer; transition: all 0.3s ease;
-    }
-    .gps-toggle:hover { background: rgba(76,175,80,0.3); }
-    .gps-toggle.tracking { background: rgba(244,67,54,0.2); border-color: rgba(244,67,54,0.5); color: #F44336; }
-    .gps-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2vw; }
-    .gps-stat { text-align: center; padding: 0.8vh 0; }
-    .gps-stat-value { font-size: 4vh; font-weight: bold; color: #FFF; line-height: 1; margin-bottom: 0.3vh; }
+    .gps-stat { text-align: center; }
+    .gps-stat-value { font-size: 2.8vh; font-weight: bold; line-height: 1.2; }
     .gps-stat-value.highlight { color: #4CAF50; }
-    .gps-stat-label { font-size: 1.1vh; color: #888; text-transform: uppercase; letter-spacing: 1px; }
-    .gps-accuracy { text-align: center; font-size: 1vh; color: #555; margin-top: 0.8vh; padding-top: 0.8vh; border-top: 1px solid rgba(255,255,255,0.08); }
+    .gps-stat-label { font-size: 1.1vh; color: #666; text-transform: uppercase; letter-spacing: 1px; }
 
-    .line-list-container { flex: 1; overflow-y: auto; padding: 2vh 4vw; -webkit-overflow-scrolling: touch; }
-    .line-item {
-      background: rgba(40,40,40,0.6); border: 2px solid rgba(100,100,100,0.4);
-      border-radius: 12px; padding: 2vh 3vw; margin-bottom: 1.5vh;
-      transition: all 0.3s ease; position: relative;
+    /* Phase Display - Main Area */
+    .phase-display {
+      flex: 1; display: flex; flex-direction: column;
+      padding: 3vh 4vw; overflow: hidden;
     }
-    .line-item.current { background: rgba(76,175,80,0.15); border-color: #4CAF50; box-shadow: 0 0 20px rgba(76,175,80,0.3); }
-    .line-item.completed { background: rgba(50,50,50,0.4); border-color: rgba(76,175,80,0.5); opacity: 0.7; }
-    .line-item.completed::after { content: '✓'; position: absolute; right: 3vw; top: 50%; transform: translateY(-50%); color: #4CAF50; font-size: 2.5vh; }
-    .line-section { font-size: 1.2vh; color: #888; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 0.5vh; }
-    .line-text { font-size: 2vh; line-height: 1.4; color: #FFF; }
-    .line-item.current .line-text { font-size: 2.2vh; font-weight: bold; }
 
-    .workout-controls {
-      flex-shrink: 0; padding: 2vh 4vw 3vh; background: rgba(20,20,20,0.98);
-      border-top: 1px solid rgba(255,255,255,0.1); display: flex; gap: 3vw;
+    /* Section Label */
+    .section-label {
+      text-align: center; font-size: 1.4vh; letter-spacing: 2px;
+      text-transform: uppercase; color: #888; margin-bottom: 1vh;
     }
-    .control-btn {
-      flex: 1; padding: 2vh; border-radius: 12px; font-family: 'Staatliches', sans-serif;
-      font-size: 2vh; letter-spacing: 1.5px; cursor: pointer; transition: all 0.3s ease;
-      display: flex; align-items: center; justify-content: center; gap: 1vw;
+
+    /* Phase Card */
+    .phase-card {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: var(--zone-bg, rgba(50,50,50,0.3));
+      border: 3px solid var(--zone-color, #555);
+      border-radius: 20px; padding: 3vh 4vw;
+      position: relative; overflow: hidden;
     }
-    .control-btn.primary { background: #FFF; color: #000; border: none; }
-    .control-btn.primary:hover { background: #E0E0E0; transform: scale(1.02); }
-    .control-btn.secondary { background: transparent; color: #FFF; border: 2px solid #FFF; }
-    .control-btn.secondary:hover { background: rgba(255,255,255,0.1); }
-    .control-btn.complete { background: #4CAF50; color: #FFF; border: none; }
 
-    .no-workouts { flex: 1; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 4vh; text-align: center; }
-    .no-workouts svg { width: 10vh; height: 10vh; color: #555; margin-bottom: 2vh; }
-    .no-workouts h3 { font-size: 2.5vh; margin-bottom: 1vh; color: #888; }
-    .no-workouts p { color: #666; font-size: 1.6vh; max-width: 80%; }
+    .zone-badge {
+      position: absolute; top: 2vh; right: 3vw;
+      padding: 0.8vh 2vw; background: var(--zone-color);
+      border-radius: 20px; font-size: 1.4vh; font-weight: bold;
+      color: #000; letter-spacing: 1px;
+    }
 
+    .phase-value {
+      font-size: 12vh; font-weight: bold; line-height: 1;
+      color: var(--zone-color, #FFF);
+    }
+    .phase-unit { font-size: 3vh; color: #888; margin-top: 0.5vh; }
+    .phase-description { font-size: 2vh; color: #CCC; margin-top: 1.5vh; text-align: center; }
+
+    /* Loop Indicator */
+    .loop-indicator {
+      position: absolute; bottom: 2vh; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 1vw;
+      padding: 0.8vh 3vw; background: rgba(0,0,0,0.4);
+      border-radius: 20px; font-size: 1.4vh; color: #888;
+    }
+    .loop-dots { display: flex; gap: 0.8vw; }
+    .loop-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: rgba(255,255,255,0.2); transition: all 0.3s;
+    }
+    .loop-dot.active { background: var(--zone-color, #4CAF50); }
+    .loop-dot.completed { background: rgba(76,175,80,0.6); }
+
+    /* Phase Progress Bar */
+    .phase-progress {
+      width: 100%; margin-top: 2vh;
+    }
+    .phase-progress-track {
+      width: 100%; height: 12px; background: rgba(255,255,255,0.1);
+      border-radius: 6px; overflow: hidden;
+    }
+    .phase-progress-fill {
+      height: 100%; background: var(--zone-color, #4CAF50);
+      border-radius: 6px; transition: width 0.3s ease;
+      box-shadow: 0 0 10px var(--zone-color, #4CAF50);
+    }
+    .phase-progress-text {
+      display: flex; justify-content: space-between;
+      margin-top: 0.8vh; font-size: 1.4vh; color: #888;
+    }
+
+    /* Next Phase Preview */
+    .next-preview {
+      flex-shrink: 0; padding: 1.5vh 4vw;
+      background: rgba(20,20,20,0.95); border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .next-preview-label { font-size: 1.2vh; color: #555; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5vh; }
+    .next-preview-content { font-size: 1.6vh; color: #888; }
+
+    /* Controls */
+    .controls {
+      flex-shrink: 0; padding: 2vh 4vw 3vh;
+      background: rgba(15,15,15,0.98); border-top: 1px solid rgba(255,255,255,0.08);
+      display: flex; gap: 3vw;
+    }
+    .ctrl-btn {
+      flex: 1; padding: 2.2vh; border-radius: 12px;
+      font-family: inherit; font-size: 1.8vh; letter-spacing: 1px;
+      cursor: pointer; transition: all 0.2s; border: none;
+      display: flex; align-items: center; justify-content: center; gap: 1.5vw;
+    }
+    .ctrl-btn.primary { background: #FFF; color: #000; }
+    .ctrl-btn.primary:active { background: #DDD; }
+    .ctrl-btn.secondary { background: transparent; color: #FFF; border: 2px solid #555; }
+    .ctrl-btn.secondary:active { background: rgba(255,255,255,0.05); }
+    .ctrl-btn.complete { background: #4CAF50; color: #FFF; }
+    .ctrl-btn.pause { background: #FF9800; color: #000; }
+
+    /* ═══════════════════════════════════════════════════════════════════════════ */
+    /* COMPLETION VIEW */
+    /* ═══════════════════════════════════════════════════════════════════════════ */
+    .completion-view {
+      align-items: center; justify-content: center; padding: 4vh; text-align: center;
+    }
+    .completion-icon {
+      width: 15vh; height: 15vh; background: rgba(76,175,80,0.15);
+      border: 3px solid #4CAF50; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; margin-bottom: 3vh;
+    }
+    .completion-icon svg { width: 8vh; height: 8vh; stroke: #4CAF50; fill: none; stroke-width: 2; }
+    .completion-view h2 { font-size: 3.5vh; letter-spacing: 2px; margin-bottom: 1vh; }
+    .completion-view p { color: #888; font-size: 1.8vh; margin-bottom: 3vh; }
+    .completion-stats {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 3vw;
+      padding: 2vh 4vw; background: rgba(255,255,255,0.03);
+      border-radius: 12px; margin-bottom: 3vh; width: 80%; max-width: 300px;
+    }
+    .completion-stat { text-align: center; }
+    .completion-stat-value { font-size: 3vh; color: #4CAF50; }
+    .completion-stat-label { font-size: 1.3vh; color: #666; text-transform: uppercase; }
+    .completion-btn {
+      padding: 2vh 8vw; background: #FFF; color: #000;
+      border: none; border-radius: 12px; font-family: inherit;
+      font-size: 2vh; letter-spacing: 1px; cursor: pointer;
+    }
+
+    /* Loading */
     .loading { flex: 1; display: flex; align-items: center; justify-content: center; }
-    .loading-spinner { width: 5vh; height: 5vh; border: 3px solid rgba(255,255,255,0.2); border-top-color: #FFF; border-radius: 50%; animation: spin 1s linear infinite; }
+    .spinner { width: 5vh; height: 5vh; border: 3px solid rgba(255,255,255,0.1); border-top-color: #FFF; border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .completion-screen { display: none; flex: 1; flex-direction: column; align-items: center; justify-content: center; padding: 4vh; text-align: center; }
-    .completion-screen.active { display: flex; }
-    .completion-icon { width: 15vh; height: 15vh; background: rgba(76,175,80,0.2); border: 3px solid #4CAF50; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 3vh; }
-    .completion-icon svg { width: 8vh; height: 8vh; color: #4CAF50; }
-    .completion-screen h2 { font-size: 3.5vh; letter-spacing: 2px; margin-bottom: 1vh; }
-    .completion-screen p { color: #B0B0B0; font-size: 1.8vh; margin-bottom: 3vh; }
-    .completion-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 3vw; margin-bottom: 3vh; padding: 2vh 4vw; background: rgba(255,255,255,0.05); border-radius: 12px; width: 80%; max-width: 300px; }
-    .completion-stat { text-align: center; }
-    .completion-stat-value { font-size: 3vh; font-weight: bold; color: #4CAF50; }
-    .completion-stat-label { font-size: 1.4vh; color: #888; text-transform: uppercase; }
-    .completion-btn { padding: 2vh 6vw; background: #FFF; color: #000; border: none; border-radius: 12px; font-family: 'Staatliches', sans-serif; font-size: 2vh; letter-spacing: 1.5px; cursor: pointer; transition: all 0.3s ease; }
-    .completion-btn:hover { background: #E0E0E0; transform: scale(1.02); }
-
-    @media (max-width: 768px) {
-      header { padding: 0 3vw; }
-      .back-btn { padding: 1vh 2.5vw; font-size: 1.6vh; }
-      .workout-controls { padding: 1.5vh 3vw 2.5vh; gap: 2vw; }
-      .control-btn { padding: 1.8vh; font-size: 1.8vh; }
+    /* GPS Status Indicator */
+    .gps-status {
+      position: absolute; top: 2vh; left: 3vw;
+      display: flex; align-items: center; gap: 1vw;
+      font-size: 1.2vh; color: #666;
     }
+    .gps-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #666; transition: all 0.3s;
+    }
+    .gps-dot.searching { background: #f1c40f; animation: pulse 1s infinite; }
+    .gps-dot.active { background: #4CAF50; }
+    .gps-dot.error { background: #e74c3c; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
   </style>
 </head>
 <body>
-  <div class="endurance-container">
+  <div class="container">
     <header>
-      <div class="header-left">
-        <button class="header-back-btn" onclick="goBack()">← INDIETRO</button>
-      </div>
-      <div class="header-center">
-        <h1 class="endurance-title">ENDURANCE</h1>
-      </div>
-      <div class="header-right"></div>
+      <button class="header-btn" onclick="goBack()">← INDIETRO</button>
+      <h1 class="header-title">ENDURANCE</h1>
+      <div style="width: 80px;"></div>
     </header>
 
-    <div id="loading-view" class="loading"><div class="loading-spinner"></div></div>
+    <!-- Loading View -->
+    <div id="loading-view" class="view active">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
 
-    <div id="selector-view" class="selector-view hidden">
+    <!-- Selector View -->
+    <div id="selector-view" class="view selector-view">
       <div class="selector-title">
         <h2>🏃 RUNNING WORKOUTS</h2>
         <p>Seleziona il tuo allenamento</p>
       </div>
       <div id="workout-list" class="workout-list"></div>
+      <div id="no-workouts" class="no-workouts" style="display: none;">
+        <svg viewBox="0 0 24 24" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <h3>NESSUN WORKOUT</h3>
+        <p>I workout di running saranno disponibili presto.</p>
+      </div>
     </div>
 
-    <div id="no-workouts" class="no-workouts">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
-      </svg>
-      <h3>NESSUN WORKOUT DISPONIBILE</h3>
-      <p>I workout di running saranno disponibili presto.</p>
-    </div>
-
-    <div id="workout-view" class="workout-view">
+    <!-- Workout View -->
+    <div id="workout-view" class="view">
+      <div class="workout-progress-bar"><div id="total-progress-fill" class="fill" style="width: 0%;"></div></div>
+      
       <div class="workout-header">
-        <h2 id="current-workout-name">-</h2>
-        <span id="progress-badge" class="workout-progress-badge">0 / 0</span>
+        <span id="workout-name" class="workout-name">-</span>
+        <span id="phase-counter" class="phase-counter">1 / 1</span>
       </div>
 
-      <div id="gps-tracker" class="gps-tracker">
-        <div class="gps-header">
+      <div class="gps-bar">
+        <div class="gps-stat">
+          <div id="gps-distance" class="gps-stat-value highlight">0.00</div>
+          <div class="gps-stat-label">KM Totali</div>
+        </div>
+        <div class="gps-stat">
+          <div id="gps-time" class="gps-stat-value">00:00</div>
+          <div class="gps-stat-label">Tempo</div>
+        </div>
+        <div class="gps-stat">
+          <div id="gps-pace" class="gps-stat-value">--:--</div>
+          <div class="gps-stat-label">Passo</div>
+        </div>
+      </div>
+
+      <div class="phase-display">
+        <div id="section-label" class="section-label">WARMUP</div>
+        
+        <div id="phase-card" class="phase-card zone-2">
           <div class="gps-status">
             <div id="gps-dot" class="gps-dot"></div>
             <span id="gps-status-text">GPS OFF</span>
           </div>
-          <button id="gps-toggle" class="gps-toggle" onclick="toggleGPS()">🛰️ ATTIVA GPS</button>
+          
+          <div id="zone-badge" class="zone-badge">ZONA 2</div>
+          
+          <div id="phase-value" class="phase-value">4</div>
+          <div id="phase-unit" class="phase-unit">chilometri</div>
+          <div id="phase-description" class="phase-description">Corsa lenta</div>
+          
+          <div id="loop-indicator" class="loop-indicator" style="display: none;">
+            <span id="loop-text">Ripetizione 1/3</span>
+            <div id="loop-dots" class="loop-dots"></div>
+          </div>
+          
+          <div class="phase-progress">
+            <div class="phase-progress-track">
+              <div id="phase-progress-fill" class="phase-progress-fill" style="width: 0%;"></div>
+            </div>
+            <div class="phase-progress-text">
+              <span id="phase-current">0</span>
+              <span id="phase-target">4 km</span>
+            </div>
+          </div>
         </div>
-        <div class="gps-stats">
-          <div class="gps-stat">
-            <div id="gps-distance" class="gps-stat-value highlight">0.00</div>
-            <div class="gps-stat-label">KM</div>
-          </div>
-          <div class="gps-stat">
-            <div id="gps-pace" class="gps-stat-value">--:--</div>
-            <div class="gps-stat-label">MIN/KM</div>
-          </div>
-          <div class="gps-stat">
-            <div id="gps-time" class="gps-stat-value">00:00</div>
-            <div class="gps-stat-label">TEMPO</div>
-          </div>
-        </div>
-        <div id="gps-accuracy" class="gps-accuracy">Precisione: --</div>
       </div>
 
-      <div id="line-list" class="line-list-container"></div>
+      <div class="next-preview">
+        <div class="next-preview-label">Prossimo</div>
+        <div id="next-preview-content" class="next-preview-content">3x (100m Z4 + 100m Z1)</div>
+      </div>
 
-      <div class="workout-controls">
-        <button class="control-btn secondary" onclick="previousLine()">← PREV</button>
-        <button id="next-btn" class="control-btn primary" onclick="nextLine()">NEXT →</button>
+      <div class="controls">
+        <button class="ctrl-btn secondary" onclick="prevPhase()">← PREV</button>
+        <button id="pause-btn" class="ctrl-btn pause" onclick="togglePause()">⏸️ PAUSA</button>
+        <button id="next-btn" class="ctrl-btn primary" onclick="nextPhase()">NEXT →</button>
       </div>
     </div>
 
-    <div id="completion-screen" class="completion-screen">
+    <!-- Completion View -->
+    <div id="completion-view" class="view completion-view">
       <div class="completion-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
+        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
       </div>
       <h2>OTTIMO LAVORO! 🎉</h2>
-      <p>Hai completato il workout di running</p>
-      <div id="completion-stats" class="completion-stats" style="display: none;">
+      <p>Hai completato il workout</p>
+      <div id="completion-stats" class="completion-stats">
         <div class="completion-stat">
           <div id="final-distance" class="completion-stat-value">0.00 km</div>
           <div class="completion-stat-label">Distanza</div>
@@ -252,272 +378,637 @@
   </div>
 
   <script src="../viewport.js"></script>
-  <script src="../js/offline-preloader.js"></script>
-  <script src="../js/global-preload-bar.js"></script>
   <script type="module">
     import DataPreloader from '../js/data-preloader.js';
+    import { GOOGLE_SCRIPT_URL } from '../js/config.js';
 
-    let runWorkouts = {}, userRunWorkouts = [], currentWorkout = null, currentLineIndex = 0;
-    let gpsWatchId = null, gpsPositions = [], totalDistance = 0, gpsStartTime = null, gpsTimerInterval = null, isGPSTracking = false, wakeLock = null;
-    
-    // V7: Track plan info if coming from plan-view
+    // ═══════════════════════════════════════════════════════════════════════════
+    // STATE
+    // ═══════════════════════════════════════════════════════════════════════════
+    let runWorkouts = {};
+    let currentWorkout = null;
+    let currentWorkoutName = '';
+    let expandedPhases = [];      // Flattened phases with loops expanded
+    let currentPhaseIndex = 0;
+    let isPaused = false;
     let v7PlanInfo = null;
 
+    // GPS State
+    let gpsWatchId = null;
+    let gpsPositions = [];
+    let totalDistance = 0;        // meters
+    let phaseDistance = 0;        // meters for current phase
+    let startTime = null;
+    let phaseStartTime = null;
+    let timerInterval = null;
+    let countdownInterval = null;
+    let phaseTimeRemaining = 0;   // seconds for time-based phases
+    let wakeLock = null;
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // INITIALIZATION
+    // ═══════════════════════════════════════════════════════════════════════════
     async function init() {
-      console.log('🏃 Initializing Endurance...');
+      console.log('🏃 Endurance V2 Initializing...');
+      
       try {
         const loggedUser = localStorage.getItem('loggedUser');
-        if (!loggedUser) { window.location.href = '../index.html'; return; }
+        if (!loggedUser) {
+          window.location.href = '../index.html';
+          return;
+        }
 
-        // V8: Use DataPreloader - data already loaded at login
-        console.log('🚀 V8: Loading run workouts from DataPreloader...');
         await DataPreloader.loadAll(loggedUser);
         runWorkouts = DataPreloader.getAllRunWorkouts();
-        userRunWorkouts = Object.keys(runWorkouts);
-        document.getElementById('loading-view').style.display = 'none';
-
-        // ═══════════════════════════════════════════════════════════════════════
-        // V7: CHECK IF COMING FROM PLAN-VIEW WITH SPECIFIC WORKOUT
-        // ═══════════════════════════════════════════════════════════════════════
+        
+        // Check if coming from plan-view
         const planWorkout = sessionStorage.getItem('currentWorkout');
         if (planWorkout) {
           try {
-            const workoutInfo = JSON.parse(planWorkout);
-            if (workoutInfo.workoutType === 'run') {
-              console.log('🎯 V7: Loading specific run workout from plan-view:', workoutInfo);
-              v7PlanInfo = workoutInfo;
-              
-              // Start the specific workout directly
-              startWorkout(workoutInfo.workoutName);
+            const info = JSON.parse(planWorkout);
+            if (info.workoutType === 'run') {
+              console.log('🎯 Loading from plan-view:', info.workoutName);
+              v7PlanInfo = info;
+              showView('loading-view');
+              startWorkout(info.workoutName);
               return;
             }
           } catch (e) {
-            console.warn('Failed to parse plan workout info:', e);
+            console.warn('Failed to parse plan workout:', e);
           }
         }
-        // ═══════════════════════════════════════════════════════════════════════
 
-        if (userRunWorkouts.length === 0) {
-          document.getElementById('no-workouts').style.display = 'flex';
-        } else {
-          document.getElementById('selector-view').classList.remove('hidden');
-          renderWorkoutList();
-        }
+        // Show selector
+        showView('selector-view');
+        renderWorkoutList();
+        
       } catch (error) {
-        console.error('❌ Failed:', error);
-        document.getElementById('loading-view').style.display = 'none';
+        console.error('❌ Init failed:', error);
+        showView('selector-view');
         document.getElementById('no-workouts').style.display = 'flex';
       }
     }
 
-    // GPS Functions
-    window.toggleGPS = function() { isGPSTracking ? stopGPSTracking() : startGPSTracking(); };
-
-    async function startGPSTracking() {
-      if (!navigator.geolocation) { alert('GPS non disponibile'); return; }
-      console.log('🛰️ Starting GPS...');
-      updateGPSStatus('searching', 'RICERCA GPS...');
-      document.getElementById('gps-toggle').textContent = '⏹️ STOP GPS';
-      document.getElementById('gps-toggle').classList.add('tracking');
-      gpsPositions = []; totalDistance = 0; gpsStartTime = Date.now();
-      gpsTimerInterval = setInterval(updateElapsedTime, 1000);
-      gpsWatchId = navigator.geolocation.watchPosition(handleGPSSuccess, handleGPSError, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
-      isGPSTracking = true;
-      if ('wakeLock' in navigator) { try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {} }
+    // ═══════════════════════════════════════════════════════════════════════════
+    // VIEW MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════════════════
+    function showView(viewId) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.getElementById(viewId)?.classList.add('active');
     }
 
-    function stopGPSTracking() {
-      if (gpsWatchId !== null) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
-      if (gpsTimerInterval) { clearInterval(gpsTimerInterval); gpsTimerInterval = null; }
-      updateGPSStatus('off', 'GPS OFF');
-      document.getElementById('gps-toggle').textContent = '🛰️ ATTIVA GPS';
-      document.getElementById('gps-toggle').classList.remove('tracking');
-      isGPSTracking = false;
-      if (wakeLock) { wakeLock.release(); wakeLock = null; }
+    function renderWorkoutList() {
+      const list = document.getElementById('workout-list');
+      const workoutNames = Object.keys(runWorkouts);
+      
+      if (workoutNames.length === 0) {
+        document.getElementById('no-workouts').style.display = 'flex';
+        return;
+      }
+
+      list.innerHTML = workoutNames.map(name => {
+        const w = runWorkouts[name];
+        const est = w.estimatedDistance || w.estimatedTime || `${w.phases?.length || 0} fasi`;
+        return `
+          <div class="workout-card" onclick="window.startWorkout('${name.replace(/'/g, "\\'")}')">
+            <div class="workout-icon">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="3"/><path d="M12 8v8"/><path d="M8 21l4-5 4 5"/></svg>
+            </div>
+            <div class="workout-info">
+              <h3>${name}</h3>
+              <p>${est}</p>
+            </div>
+            <span class="workout-arrow">→</span>
+          </div>
+        `;
+      }).join('');
     }
 
-    function handleGPSSuccess(position) {
-      const { latitude, longitude, accuracy, speed } = position.coords;
-      console.log(`📍 ${latitude.toFixed(5)}, ${longitude.toFixed(5)} (±${accuracy.toFixed(0)}m)`);
-      updateGPSStatus('active', 'GPS ATTIVO');
-      document.getElementById('gps-accuracy').textContent = `Precisione: ±${accuracy.toFixed(0)}m`;
-      if (accuracy > 50) return;
+    // ═══════════════════════════════════════════════════════════════════════════
+    // START WORKOUT
+    // ═══════════════════════════════════════════════════════════════════════════
+    window.startWorkout = function(name) {
+      currentWorkout = runWorkouts[name];
+      currentWorkoutName = name;
+      
+      if (!currentWorkout?.phases?.length) {
+        alert('Workout non valido');
+        return;
+      }
+
+      // Expand phases (handle loops)
+      expandedPhases = expandPhases(currentWorkout.phases);
+      currentPhaseIndex = 0;
+      
+      // Reset stats
+      totalDistance = 0;
+      phaseDistance = 0;
+      startTime = Date.now();
+      phaseStartTime = Date.now();
+      isPaused = false;
+
+      // Update UI
+      document.getElementById('workout-name').textContent = name;
+      showView('workout-view');
+      
+      // Start GPS tracking
+      startGPS();
+      
+      // Start global timer
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(updateGlobalTimer, 1000);
+      
+      // Render first phase
+      renderCurrentPhase();
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EXPAND PHASES (Handle Loops)
+    // ═══════════════════════════════════════════════════════════════════════════
+    function expandPhases(phases) {
+      const expanded = [];
+      let i = 0;
+      
+      while (i < phases.length) {
+        const phase = phases[i];
+        
+        if (phase.loopGroup) {
+          // Collect all phases in this loop group
+          const loopPhases = [];
+          const loopGroup = phase.loopGroup;
+          const loopCount = phase.loopCount || 1;
+          
+          while (i < phases.length && phases[i].loopGroup === loopGroup) {
+            loopPhases.push(phases[i]);
+            i++;
+          }
+          
+          // Expand the loop
+          for (let rep = 1; rep <= loopCount; rep++) {
+            loopPhases.forEach(lp => {
+              expanded.push({
+                ...lp,
+                _loopRep: rep,
+                _loopTotal: loopCount,
+                _loopSize: loopPhases.length
+              });
+            });
+          }
+        } else {
+          // Single phase, no loop
+          expanded.push({ ...phase, _loopRep: null, _loopTotal: null });
+          i++;
+        }
+      }
+      
+      return expanded;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // RENDER CURRENT PHASE
+    // ═══════════════════════════════════════════════════════════════════════════
+    function renderCurrentPhase() {
+      const phase = expandedPhases[currentPhaseIndex];
+      if (!phase) return;
+
+      // Update phase counter
+      document.getElementById('phase-counter').textContent = `${currentPhaseIndex + 1} / ${expandedPhases.length}`;
+      
+      // Update total progress bar
+      const totalProgress = ((currentPhaseIndex) / expandedPhases.length) * 100;
+      document.getElementById('total-progress-fill').style.width = `${totalProgress}%`;
+
+      // Update section label
+      const sectionLabels = { warmup: '🔥 WARMUP', main: '💪 MAIN', cooldown: '❄️ COOLDOWN' };
+      document.getElementById('section-label').textContent = sectionLabels[phase.section] || phase.section?.toUpperCase() || 'MAIN';
+
+      // Update zone styling
+      const card = document.getElementById('phase-card');
+      card.className = `phase-card zone-${phase.zone}`;
+      document.getElementById('zone-badge').textContent = `ZONA ${phase.zone}`;
+
+      // Update phase value and unit
+      const unitLabels = { km: 'chilometri', m: 'metri', min: 'minuti', sec: 'secondi' };
+      document.getElementById('phase-value').textContent = phase.value;
+      document.getElementById('phase-unit').textContent = unitLabels[phase.unit] || phase.unit;
+      document.getElementById('phase-description').textContent = phase.description || getZoneDescription(phase.zone);
+
+      // Update loop indicator
+      const loopIndicator = document.getElementById('loop-indicator');
+      if (phase._loopRep) {
+        loopIndicator.style.display = 'flex';
+        document.getElementById('loop-text').textContent = `Ripetizione ${phase._loopRep}/${phase._loopTotal}`;
+        
+        // Render loop dots
+        const dotsContainer = document.getElementById('loop-dots');
+        dotsContainer.innerHTML = '';
+        for (let d = 1; d <= phase._loopTotal; d++) {
+          const dot = document.createElement('div');
+          dot.className = 'loop-dot' + (d < phase._loopRep ? ' completed' : d === phase._loopRep ? ' active' : '');
+          dotsContainer.appendChild(dot);
+        }
+      } else {
+        loopIndicator.style.display = 'none';
+      }
+
+      // Reset phase progress
+      phaseDistance = 0;
+      document.getElementById('phase-progress-fill').style.width = '0%';
+      document.getElementById('phase-current').textContent = '0';
+      
+      // Set target display
+      const targetText = phase.unit === 'km' ? `${phase.value} km` : 
+                         phase.unit === 'm' ? `${phase.value} m` :
+                         phase.unit === 'min' ? `${phase.value}:00` :
+                         `${phase.value} sec`;
+      document.getElementById('phase-target').textContent = targetText;
+
+      // Handle time-based phases (start countdown)
+      if (countdownInterval) clearInterval(countdownInterval);
+      
+      if (phase.unit === 'min' || phase.unit === 'sec') {
+        phaseTimeRemaining = phase.unit === 'min' ? phase.value * 60 : phase.value;
+        phaseStartTime = Date.now();
+        countdownInterval = setInterval(updatePhaseCountdown, 1000);
+        updatePhaseCountdown(); // Initial update
+      }
+
+      // Update next preview
+      updateNextPreview();
+      
+      // Update button state
+      updateNextButton();
+    }
+
+    function getZoneDescription(zone) {
+      const descriptions = {
+        1: 'Recupero / Camminata',
+        2: 'Corsa lenta - Aerobico',
+        3: 'Ritmo moderato',
+        4: 'Ritmo sostenuto - Soglia',
+        5: 'Molto forte - VO2max'
+      };
+      return descriptions[zone] || '';
+    }
+
+    function updateNextPreview() {
+      const nextIndex = currentPhaseIndex + 1;
+      const previewEl = document.getElementById('next-preview-content');
+      
+      if (nextIndex >= expandedPhases.length) {
+        previewEl.textContent = '🏁 Fine workout';
+        return;
+      }
+
+      const next = expandedPhases[nextIndex];
+      let preview = `${next.value} ${next.unit} Z${next.zone}`;
+      if (next.description) preview += ` - ${next.description}`;
+      if (next._loopRep === 1) preview = `🔄 Loop: ${preview}`;
+      
+      previewEl.textContent = preview;
+    }
+
+    function updateNextButton() {
+      const btn = document.getElementById('next-btn');
+      if (currentPhaseIndex >= expandedPhases.length - 1) {
+        btn.textContent = 'COMPLETA ✓';
+        btn.className = 'ctrl-btn complete';
+      } else {
+        btn.textContent = 'NEXT →';
+        btn.className = 'ctrl-btn primary';
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PHASE NAVIGATION
+    // ═══════════════════════════════════════════════════════════════════════════
+    window.nextPhase = function() {
+      if (currentPhaseIndex >= expandedPhases.length - 1) {
+        completeWorkout();
+        return;
+      }
+      
+      currentPhaseIndex++;
+      phaseStartTime = Date.now();
+      renderCurrentPhase();
+      vibrate();
+    };
+
+    window.prevPhase = function() {
+      if (currentPhaseIndex > 0) {
+        currentPhaseIndex--;
+        phaseStartTime = Date.now();
+        renderCurrentPhase();
+      }
+    };
+
+    window.togglePause = function() {
+      isPaused = !isPaused;
+      const btn = document.getElementById('pause-btn');
+      btn.textContent = isPaused ? '▶️ RIPRENDI' : '⏸️ PAUSA';
+      btn.className = isPaused ? 'ctrl-btn primary' : 'ctrl-btn pause';
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GPS TRACKING
+    // ═══════════════════════════════════════════════════════════════════════════
+    function startGPS() {
+      if (!navigator.geolocation) {
+        console.warn('GPS not available');
+        return;
+      }
+
+      updateGPSStatus('searching');
+      
+      gpsWatchId = navigator.geolocation.watchPosition(
+        handleGPSPosition,
+        handleGPSError,
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+
+      // Request wake lock
+      requestWakeLock();
+    }
+
+    function handleGPSPosition(position) {
+      if (isPaused) return;
+      
+      const { latitude, longitude, accuracy } = position.coords;
+      updateGPSStatus('active');
+
+      if (accuracy > 50) return; // Skip inaccurate readings
+
       if (gpsPositions.length > 0) {
         const last = gpsPositions[gpsPositions.length - 1];
-        const dist = calcDist(last.latitude, last.longitude, latitude, longitude);
-        if (dist < 100 && dist > 1) { totalDistance += dist; updateDistanceDisplay(); }
+        const dist = calcDistance(last.latitude, last.longitude, latitude, longitude);
+        
+        if (dist > 1 && dist < 100) { // Reasonable distance change
+          totalDistance += dist;
+          phaseDistance += dist;
+          updateDistanceDisplays();
+          checkPhaseCompletion();
+        }
       }
-      gpsPositions.push({ latitude, longitude, accuracy, speed });
-      if (speed > 0.5) updatePaceFromSpeed(speed); else updatePaceFromDistance();
+
+      gpsPositions.push({ latitude, longitude, accuracy, timestamp: Date.now() });
+      updatePace();
     }
 
     function handleGPSError(error) {
-      console.error('GPS Error:', error.message);
-      if (error.code === error.PERMISSION_DENIED) { alert('Abilita i permessi GPS'); stopGPSTracking(); }
-      updateGPSStatus('error', 'ERRORE GPS');
+      console.warn('GPS Error:', error.message);
+      updateGPSStatus('error');
     }
 
-    function updateGPSStatus(state, text) {
+    function updateGPSStatus(status) {
       const dot = document.getElementById('gps-dot');
-      dot.className = 'gps-dot' + (state === 'searching' ? ' searching' : state === 'active' ? ' active' : state === 'error' ? ' error' : '');
-      document.getElementById('gps-status-text').textContent = text;
+      const text = document.getElementById('gps-status-text');
+      
+      dot.className = 'gps-dot ' + status;
+      text.textContent = status === 'active' ? 'GPS ATTIVO' : 
+                         status === 'searching' ? 'RICERCA...' : 
+                         status === 'error' ? 'ERRORE GPS' : 'GPS OFF';
     }
 
-    function calcDist(lat1, lon1, lat2, lon2) {
-      const R = 6371000, φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180;
-      const Δφ = (lat2 - lat1) * Math.PI / 180, Δλ = (lon2 - lon1) * Math.PI / 180;
+    function calcDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371000; // Earth radius in meters
+      const φ1 = lat1 * Math.PI / 180;
+      const φ2 = lat2 * Math.PI / 180;
+      const Δφ = (lat2 - lat1) * Math.PI / 180;
+      const Δλ = (lon2 - lon1) * Math.PI / 180;
       const a = Math.sin(Δφ/2)**2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2)**2;
       return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
 
-    function updateDistanceDisplay() { document.getElementById('gps-distance').textContent = (totalDistance / 1000).toFixed(2); }
-    function updateElapsedTime() {
-      if (!gpsStartTime) return;
-      const elapsed = Date.now() - gpsStartTime, min = Math.floor(elapsed / 60000), sec = Math.floor((elapsed % 60000) / 1000);
-      document.getElementById('gps-time').textContent = `${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
-    }
-    function updatePaceFromSpeed(speed) {
-      if (speed <= 0) { document.getElementById('gps-pace').textContent = '--:--'; return; }
-      const pace = 1000 / speed, min = Math.floor(pace / 60), sec = Math.floor(pace % 60);
-      if (min < 20) document.getElementById('gps-pace').textContent = `${min}:${sec.toString().padStart(2,'0')}`;
-    }
-    function updatePaceFromDistance() {
-      if (!gpsStartTime || totalDistance < 50) return;
-      const elapsedMin = (Date.now() - gpsStartTime) / 60000, distKm = totalDistance / 1000;
-      if (distKm > 0) { const pace = elapsedMin / distKm, min = Math.floor(pace), sec = Math.floor((pace % 1) * 60); if (min < 20) document.getElementById('gps-pace').textContent = `${min}:${sec.toString().padStart(2,'0')}`; }
-    }
-
-    function renderWorkoutList() {
-      const container = document.getElementById('workout-list');
-      container.innerHTML = '';
-      userRunWorkouts.forEach(name => {
-        const workout = runWorkouts[name], lineCount = workout?.lines?.length || 0;
-        const card = document.createElement('div');
-        card.className = 'workout-card';
-        card.onclick = () => startWorkout(name);
-        card.innerHTML = `<div class="workout-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="3"/><path d="M12 8v8"/><path d="M8 21l4-5 4 5"/><path d="M6 12l6-2 6 2"/></svg></div><div class="workout-info"><h3>${name}</h3><p>${lineCount} passaggi</p></div><span class="workout-arrow">→</span>`;
-        container.appendChild(card);
-      });
+    function updateDistanceDisplays() {
+      // Total distance
+      document.getElementById('gps-distance').textContent = (totalDistance / 1000).toFixed(2);
+      
+      // Phase progress for distance-based phases
+      const phase = expandedPhases[currentPhaseIndex];
+      if (phase && (phase.unit === 'km' || phase.unit === 'm')) {
+        const targetMeters = phase.unit === 'km' ? phase.value * 1000 : phase.value;
+        const progress = Math.min((phaseDistance / targetMeters) * 100, 100);
+        
+        document.getElementById('phase-progress-fill').style.width = `${progress}%`;
+        document.getElementById('phase-current').textContent = 
+          phase.unit === 'km' ? (phaseDistance / 1000).toFixed(2) + ' km' : Math.round(phaseDistance) + ' m';
+      }
     }
 
-    function startWorkout(workoutName) {
-      currentWorkout = runWorkouts[workoutName]; currentLineIndex = 0;
-      if (!currentWorkout?.lines?.length) { alert('Workout non valido'); return; }
-      document.getElementById('current-workout-name').textContent = workoutName;
-      document.getElementById('selector-view').classList.add('hidden');
-      document.getElementById('workout-view').classList.add('active');
-      document.getElementById('gps-tracker').classList.add('active');
-      renderLines(); updateProgress(); scrollToCurrentLine();
+    function updatePace() {
+      if (!startTime || totalDistance < 100) return;
+      
+      const elapsedMin = (Date.now() - startTime) / 60000;
+      const distKm = totalDistance / 1000;
+      
+      if (distKm > 0) {
+        const pace = elapsedMin / distKm;
+        const min = Math.floor(pace);
+        const sec = Math.floor((pace % 1) * 60);
+        if (min < 30) {
+          document.getElementById('gps-pace').textContent = `${min}:${sec.toString().padStart(2, '0')}`;
+        }
+      }
     }
 
-    function renderLines() {
-      const container = document.getElementById('line-list');
-      container.innerHTML = '';
-      currentWorkout.lines.forEach((line, i) => {
-        const div = document.createElement('div');
-        div.className = 'line-item' + (i === currentLineIndex ? ' current' : i < currentLineIndex ? ' completed' : '');
-        div.id = `line-${i}`;
-        div.innerHTML = (line.section ? `<div class="line-section">${line.section}</div>` : '') + `<div class="line-text">${line.text}</div>`;
-        div.onclick = () => jumpToLine(i);
-        container.appendChild(div);
-      });
+    // ═══════════════════════════════════════════════════════════════════════════
+    // TIMERS
+    // ═══════════════════════════════════════════════════════════════════════════
+    function updateGlobalTimer() {
+      if (isPaused || !startTime) return;
+      
+      const elapsed = Date.now() - startTime;
+      const min = Math.floor(elapsed / 60000);
+      const sec = Math.floor((elapsed % 60000) / 1000);
+      document.getElementById('gps-time').textContent = 
+        `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
     }
 
-    window.nextLine = function() { if (currentLineIndex < currentWorkout.lines.length - 1) { currentLineIndex++; updateLineStates(); updateProgress(); scrollToCurrentLine(); } else completeWorkout(); };
-    window.previousLine = function() { if (currentLineIndex > 0) { currentLineIndex--; updateLineStates(); updateProgress(); scrollToCurrentLine(); } };
-    function jumpToLine(i) { currentLineIndex = i; updateLineStates(); updateProgress(); scrollToCurrentLine(); }
-    function updateLineStates() {
-      currentWorkout.lines.forEach((_, i) => {
-        const el = document.getElementById(`line-${i}`);
-        if (!el) return;
-        el.classList.remove('current', 'completed');
-        if (i === currentLineIndex) el.classList.add('current');
-        else if (i < currentLineIndex) el.classList.add('completed');
-      });
-      const btn = document.getElementById('next-btn');
-      if (currentLineIndex >= currentWorkout.lines.length - 1) { btn.textContent = 'COMPLETA ✓'; btn.classList.remove('primary'); btn.classList.add('complete'); }
-      else { btn.textContent = 'NEXT →'; btn.classList.remove('complete'); btn.classList.add('primary'); }
-    }
-    function updateProgress() { document.getElementById('progress-badge').textContent = `${currentLineIndex + 1} / ${currentWorkout.lines.length}`; }
-    function scrollToCurrentLine() { document.getElementById(`line-${currentLineIndex}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    function updatePhaseCountdown() {
+      if (isPaused) return;
+      
+      const phase = expandedPhases[currentPhaseIndex];
+      if (!phase || (phase.unit !== 'min' && phase.unit !== 'sec')) return;
 
+      const elapsed = Math.floor((Date.now() - phaseStartTime) / 1000);
+      const totalSec = phase.unit === 'min' ? phase.value * 60 : phase.value;
+      const remaining = Math.max(0, totalSec - elapsed);
+      
+      // Update display
+      const min = Math.floor(remaining / 60);
+      const sec = remaining % 60;
+      document.getElementById('phase-current').textContent = 
+        `${min}:${sec.toString().padStart(2, '0')}`;
+      
+      // Update progress
+      const progress = ((totalSec - remaining) / totalSec) * 100;
+      document.getElementById('phase-progress-fill').style.width = `${progress}%`;
+      
+      // Check completion
+      if (remaining <= 0) {
+        clearInterval(countdownInterval);
+        vibrate();
+        
+        // Auto-advance after short delay
+        setTimeout(() => {
+          if (!isPaused && currentPhaseIndex < expandedPhases.length - 1) {
+            nextPhase();
+          } else if (currentPhaseIndex >= expandedPhases.length - 1) {
+            completeWorkout();
+          }
+        }, 500);
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PHASE COMPLETION CHECK
+    // ═══════════════════════════════════════════════════════════════════════════
+    function checkPhaseCompletion() {
+      const phase = expandedPhases[currentPhaseIndex];
+      if (!phase || isPaused) return;
+
+      // Only auto-advance for distance-based phases
+      if (phase.unit === 'km' || phase.unit === 'm') {
+        const targetMeters = phase.unit === 'km' ? phase.value * 1000 : phase.value;
+        
+        if (phaseDistance >= targetMeters) {
+          vibrate();
+          
+          // Auto-advance
+          setTimeout(() => {
+            if (!isPaused && currentPhaseIndex < expandedPhases.length - 1) {
+              nextPhase();
+            } else if (currentPhaseIndex >= expandedPhases.length - 1) {
+              completeWorkout();
+            }
+          }, 500);
+        }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // WORKOUT COMPLETION
+    // ═══════════════════════════════════════════════════════════════════════════
     function completeWorkout() {
-      if (isGPSTracking) stopGPSTracking();
-      if (totalDistance > 0 || gpsStartTime) {
-        document.getElementById('completion-stats').style.display = 'grid';
-        document.getElementById('final-distance').textContent = (totalDistance / 1000).toFixed(2) + ' km';
-        if (gpsStartTime) { const elapsed = Date.now() - gpsStartTime, min = Math.floor(elapsed / 60000), sec = Math.floor((elapsed % 60000) / 1000); document.getElementById('final-time').textContent = `${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
+      // Stop tracking
+      if (gpsWatchId) {
+        navigator.geolocation.clearWatch(gpsWatchId);
+        gpsWatchId = null;
       }
+      if (timerInterval) clearInterval(timerInterval);
+      if (countdownInterval) clearInterval(countdownInterval);
+      if (wakeLock) { wakeLock.release(); wakeLock = null; }
+
+      // Update completion stats
+      document.getElementById('final-distance').textContent = (totalDistance / 1000).toFixed(2) + ' km';
       
-      // ═══════════════════════════════════════════════════════════════════════
-      // V7: SAVE PLAN PROGRESS IF COMING FROM PLAN-VIEW
-      // ═══════════════════════════════════════════════════════════════════════
+      if (startTime) {
+        const elapsed = Date.now() - startTime;
+        const min = Math.floor(elapsed / 60000);
+        const sec = Math.floor((elapsed % 60000) / 1000);
+        document.getElementById('final-time').textContent = 
+          `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+      }
+
+      // Save progress if coming from plan
       if (v7PlanInfo) {
-        console.log('📋 V7: Saving plan progress for:', v7PlanInfo.planName);
-        
-        // Save to localStorage
-        const progressKey = `viltrum_plan_progress_${v7PlanInfo.planName}`;
-        const progress = {
-          lastWorkoutIndex: v7PlanInfo.workoutIndex,
-          totalWorkouts: v7PlanInfo.totalWorkouts,
-          lastUpdated: new Date().toISOString()
-        };
-        localStorage.setItem(progressKey, JSON.stringify(progress));
-        
-        // Sync to cloud (non-blocking)
-        const email = localStorage.getItem('loggedUser');
-        if (email) {
-          const url = `${GOOGLE_SCRIPT_URL}?action=saveLastWorkout&email=${encodeURIComponent(email)}&planName=${encodeURIComponent(v7PlanInfo.planName)}&lastWorkoutIndex=${v7PlanInfo.workoutIndex}&totalWorkouts=${v7PlanInfo.totalWorkouts}`;
-          fetch(url).catch(e => console.warn('V7 cloud sync failed:', e));
-        }
-        
-        // Clear the currentWorkout so we don't reload it
-        sessionStorage.removeItem('currentWorkout');
+        savePlanProgress();
       }
-      // ═══════════════════════════════════════════════════════════════════════
-      
-      document.getElementById('workout-view').classList.remove('active');
-      document.getElementById('completion-screen').classList.add('active');
+
+      showView('completion-view');
+      vibrate([200, 100, 200]);
     }
 
+    function savePlanProgress() {
+      const progressKey = `viltrum_plan_progress_${v7PlanInfo.planName}`;
+      const progress = {
+        lastWorkoutIndex: v7PlanInfo.workoutIndex,
+        totalWorkouts: v7PlanInfo.totalWorkouts,
+        lastUpdated: new Date().toISOString()
+      };
+      localStorage.setItem(progressKey, JSON.stringify(progress));
+
+      // Sync to cloud
+      const email = localStorage.getItem('loggedUser');
+      if (email) {
+        const url = `${GOOGLE_SCRIPT_URL}?action=saveLastWorkout&email=${encodeURIComponent(email)}&planName=${encodeURIComponent(v7PlanInfo.planName)}&lastWorkoutIndex=${v7PlanInfo.workoutIndex}&totalWorkouts=${v7PlanInfo.totalWorkouts}`;
+        fetch(url).catch(e => console.warn('Cloud sync failed:', e));
+      }
+
+      sessionStorage.removeItem('currentWorkout');
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // NAVIGATION
+    // ═══════════════════════════════════════════════════════════════════════════
     window.goBack = function() {
-      if (document.getElementById('workout-view').classList.contains('active')) {
-        if (isGPSTracking) stopGPSTracking();
-        document.getElementById('workout-view').classList.remove('active');
-        document.getElementById('completion-screen').classList.remove('active');
-        document.getElementById('selector-view').classList.remove('hidden');
-        document.getElementById('gps-tracker').classList.remove('active');
-        currentWorkout = null; currentLineIndex = 0; totalDistance = 0; gpsStartTime = null;
-        document.getElementById('gps-distance').textContent = '0.00';
-        document.getElementById('gps-pace').textContent = '--:--';
-        document.getElementById('gps-time').textContent = '00:00';
-        
-        // V7: If coming from plan-view, go back there
-        if (v7PlanInfo) {
-          sessionStorage.removeItem('currentWorkout');
-          window.location.href = 'plan-view.html';
-          return;
+      const workoutView = document.getElementById('workout-view');
+      
+      if (workoutView.classList.contains('active')) {
+        if (confirm('Vuoi uscire dal workout?')) {
+          cleanup();
+          if (v7PlanInfo) {
+            sessionStorage.removeItem('currentWorkout');
+            window.location.href = 'plan-view.html';
+          } else {
+            showView('selector-view');
+          }
         }
-      } else window.location.href = 'dashboard-v7.html';
+      } else {
+        window.location.href = 'dashboard-v7.html';
+      }
     };
+
     window.goBackToDashboard = function() {
-      // V7: If coming from plan-view, go back there instead
+      cleanup();
       if (v7PlanInfo) {
-        sessionStorage.removeItem('currentWorkout');
         window.location.href = 'plan-view.html';
       } else {
         window.location.href = 'dashboard-v7.html';
       }
     };
 
+    function cleanup() {
+      if (gpsWatchId) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
+      if (timerInterval) clearInterval(timerInterval);
+      if (countdownInterval) clearInterval(countdownInterval);
+      if (wakeLock) { wakeLock.release(); wakeLock = null; }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // UTILITIES
+    // ═══════════════════════════════════════════════════════════════════════════
+    function vibrate(pattern = 200) {
+      if (navigator.vibrate) navigator.vibrate(pattern);
+    }
+
+    async function requestWakeLock() {
+      if ('wakeLock' in navigator) {
+        try {
+          wakeLock = await navigator.wakeLock.request('screen');
+        } catch (e) {
+          console.warn('Wake lock failed:', e);
+        }
+      }
+    }
+
+    // Keyboard controls
     document.addEventListener('keydown', (e) => {
       if (!currentWorkout) return;
-      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') { e.preventDefault(); nextLine(); }
-      else if (e.key === 'ArrowLeft') { e.preventDefault(); previousLine(); }
-      else if (e.key === 'Escape') goBack();
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') { e.preventDefault(); nextPhase(); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); prevPhase(); }
+      else if (e.key === 'p') { togglePause(); }
+      else if (e.key === 'Escape') { goBack(); }
     });
 
-    document.addEventListener('visibilitychange', async () => { if (document.visibilityState === 'visible' && isGPSTracking && 'wakeLock' in navigator) { try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {} } });
+    // Handle visibility changes (re-request wake lock)
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState === 'visible' && currentWorkout && !isPaused) {
+        requestWakeLock();
+      }
+    });
+
+    // Initialize
     document.addEventListener('DOMContentLoaded', init);
   </script>
 </body>
