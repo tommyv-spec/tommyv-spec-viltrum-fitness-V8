@@ -42,6 +42,7 @@
       cursor: pointer; transition: all 0.2s;
     }
     .header-btn:active { background: rgba(255,255,255,0.1); }
+    .header-btn.settings { font-size: 2vh; padding: 0.8vh 1.5vw; }
 
     /* Zone Colors */
     .zone-1 { --zone-color: #3498db; --zone-bg: rgba(52,152,219,0.15); }
@@ -61,6 +62,19 @@
     .selector-title { text-align: center; margin-bottom: 2vh; }
     .selector-title h2 { font-size: 2.8vh; letter-spacing: 1.5px; }
     .selector-title p { color: #888; font-size: 1.5vh; }
+
+    /* Sound Mode Selector */
+    .sound-mode-bar {
+      display: flex; align-items: center; justify-content: center; gap: 2vw;
+      padding: 1.5vh 0; margin-bottom: 1.5vh;
+      background: rgba(255,255,255,0.03); border-radius: 10px;
+    }
+    .sound-mode-bar label { font-size: 1.4vh; color: #888; }
+    .sound-mode-bar select {
+      background: #222; color: #FFF; border: 1px solid #444;
+      padding: 0.8vh 2vw; border-radius: 6px; font-family: inherit;
+      font-size: 1.4vh; cursor: pointer;
+    }
 
     .workout-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 1.5vh; -webkit-overflow-scrolling: touch; }
     .workout-card {
@@ -262,11 +276,16 @@
   </style>
 </head>
 <body>
+  <!-- Audio Elements -->
+  <audio id="tts-audio" preload="auto" playsinline webkit-playsinline></audio>
+  <audio id="beep-sound" preload="auto" src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleQAAT6Xp8axVABJAlsnH1YRYIi9qoc7g0J1pNixfhaW3q5FZMzJYd5artJBgNzRch5atxZNnOzNbiZytw5JmOjZbiZytwpJlOjdbiZytwJJlOjdbiZytvpJlOjdbiZytu5JlOjdbiZytuJJlOjdbiZyttpJlOjdb"></audio>
+  <audio id="transition-sound" preload="auto" src="data:audio/wav;base64,UklGRl9vT19teleQAAT6Xp8axVABJAlsnH1YRYIi9qoc7g0J1pNixfhaW3q5FZMzJYd5artJBgNzRch5atxZNnOzNbiZytw5JmOjZbiZytwpJlOjdbiZytwJJlOjdbiZytvpJlOjdbiZytu5JlOjdbiZytuJJlOjdbiZyttpJlOjdb"></audio>
+
   <div class="container">
     <header>
       <button class="header-btn" onclick="goBack()">← INDIETRO</button>
       <h1 class="header-title">ENDURANCE</h1>
-      <div style="width: 80px;"></div>
+      <button class="header-btn settings" id="settings-btn" onclick="toggleSettings()">⚙️</button>
     </header>
 
     <!-- Loading View -->
@@ -280,6 +299,18 @@
         <h2>🏃 RUNNING WORKOUTS</h2>
         <p>Seleziona il tuo allenamento</p>
       </div>
+      
+      <!-- Sound Mode Selector -->
+      <div class="sound-mode-bar">
+        <label for="soundMode">🔊 Audio:</label>
+        <select id="soundMode">
+          <option value="voice">Voice (Cloud)</option>
+          <option value="synth">Synth (Device)</option>
+          <option value="bip">Solo Beep</option>
+          <option value="none">Nessun suono</option>
+        </select>
+      </div>
+      
       <div id="workout-list" class="workout-list"></div>
       <div id="no-workouts" class="no-workouts" style="display: none;">
         <svg viewBox="0 0 24 24" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
@@ -383,12 +414,17 @@
     import { GOOGLE_SCRIPT_URL } from '../js/config.js';
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // CONSTANTS
+    // ═══════════════════════════════════════════════════════════════════════════
+    const TTS_SERVER_URL = 'https://google-tts-server.onrender.com/speak';
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // STATE
     // ═══════════════════════════════════════════════════════════════════════════
     let runWorkouts = {};
     let currentWorkout = null;
     let currentWorkoutName = '';
-    let expandedPhases = [];      // Flattened phases with loops expanded
+    let expandedPhases = [];
     let currentPhaseIndex = 0;
     let isPaused = false;
     let v7PlanInfo = null;
@@ -396,20 +432,335 @@
     // GPS State
     let gpsWatchId = null;
     let gpsPositions = [];
-    let totalDistance = 0;        // meters
-    let phaseDistance = 0;        // meters for current phase
+    let totalDistance = 0;
+    let phaseDistance = 0;
     let startTime = null;
     let phaseStartTime = null;
     let timerInterval = null;
     let countdownInterval = null;
-    let phaseTimeRemaining = 0;   // seconds for time-based phases
+    let phaseTimeRemaining = 0;
     let wakeLock = null;
+
+    // Audio State
+    let audioUnlocked = false;
+    let lastAnnouncedWarning = {};  // Track announced warnings per phase
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // AUDIO SYSTEM
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    function getSoundMode() {
+      return document.getElementById('soundMode')?.value || 'none';
+    }
+
+    async function ensureAudioUnlocked() {
+      if (audioUnlocked) return;
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) { audioUnlocked = true; return; }
+        const ctx = new AC();
+        if (ctx.state === 'suspended') await ctx.resume();
+        const src = ctx.createBufferSource();
+        src.buffer = ctx.createBuffer(1, 1, 22050);
+        src.connect(ctx.destination);
+        src.start(0);
+        audioUnlocked = true;
+        console.log('🔊 Audio unlocked');
+      } catch (e) {
+        console.warn('Unable to unlock audio:', e);
+      }
+    }
+
+    async function playAudioUrl(url) {
+      const el = document.getElementById('tts-audio');
+      if (!el) return;
+      
+      return new Promise((resolve, reject) => {
+        el.src = url;
+        el.onended = () => { URL.revokeObjectURL(url); resolve(); };
+        el.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+        el.play().catch(reject);
+      });
+    }
+
+    // Cloud TTS
+    async function speakCloud(text, lang = 'it-IT') {
+      try {
+        await ensureAudioUnlocked();
+        
+        const voice = lang === 'it-IT' ? 'it-IT-Wavenet-C' : 'en-US-Wavenet-D';
+        console.log(`🗣️ Cloud TTS: "${text}"`);
+        
+        const res = await fetch(TTS_SERVER_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, lang, voice })
+        });
+        
+        if (!res.ok) throw new Error(`TTS Error ${res.status}`);
+        
+        const blob = await res.blob();
+        if (blob.size < 100) throw new Error('Empty audio');
+        
+        const audioUrl = URL.createObjectURL(blob);
+        await playAudioUrl(audioUrl);
+        
+      } catch (err) {
+        console.warn('❌ Cloud TTS failed:', err.message);
+        throw err;
+      }
+    }
+
+    // Synth TTS (Web Speech API)
+    async function speakSynth(text, lang = 'it-IT') {
+      await ensureAudioUnlocked();
+      
+      return new Promise((resolve, reject) => {
+        try { speechSynthesis.cancel(); } catch {}
+        try { speechSynthesis.resume(); } catch {}
+        
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = lang;
+        utter.rate = 1.0;
+        utter.pitch = 1.0;
+        utter.volume = 1.0;
+        
+        const timeout = setTimeout(() => resolve(), 5000);
+        
+        utter.onend = () => { clearTimeout(timeout); resolve(); };
+        utter.onerror = (e) => { 
+          clearTimeout(timeout); 
+          if (e.error === 'interrupted') resolve();
+          else reject(e);
+        };
+        
+        speechSynthesis.speak(utter);
+      });
+    }
+
+    // Main speak function with fallback
+    async function speak(text, lang = 'it-IT') {
+      const mode = getSoundMode();
+      if (mode === 'none' || mode === 'bip') return;
+      
+      if (mode === 'voice') {
+        try {
+          return await speakCloud(text, lang);
+        } catch (err) {
+          console.warn('⚠️ Voice failed, fallback to synth');
+          try {
+            return await speakSynth(text, lang);
+          } catch (synthErr) {
+            console.error('❌ Synth also failed:', synthErr);
+          }
+        }
+      }
+      
+      if (mode === 'synth') {
+        return speakSynth(text, lang);
+      }
+    }
+
+    function playBeep() {
+      const mode = getSoundMode();
+      if (mode === 'none') return;
+      
+      try {
+        const beep = document.getElementById('beep-sound');
+        if (beep) {
+          beep.currentTime = 0;
+          beep.play().catch(() => {});
+        }
+      } catch (e) {}
+    }
+
+    function playTransition() {
+      const mode = getSoundMode();
+      if (mode === 'none') return;
+      
+      try {
+        const trans = document.getElementById('transition-sound');
+        if (trans) {
+          trans.currentTime = 0;
+          trans.play().catch(() => {});
+        }
+      } catch (e) {}
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // RUNWORKOUT ANNOUNCEMENTS
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    function getZoneName(zone) {
+      const names = { 1: 'recupero', 2: 'aerobico', 3: 'moderato', 4: 'soglia', 5: 'massimo' };
+      return names[zone] || '';
+    }
+
+    function getUnitName(unit, value) {
+      if (unit === 'km') return value === 1 ? 'chilometro' : 'chilometri';
+      if (unit === 'm') return 'metri';
+      if (unit === 'min') return value === 1 ? 'minuto' : 'minuti';
+      if (unit === 'sec') return 'secondi';
+      return unit;
+    }
+
+    function isShortPhase(phase) {
+      if (phase.unit === 'sec') return phase.value < 30;
+      if (phase.unit === 'min') return phase.value < 0.5;
+      if (phase.unit === 'm') return phase.value < 500;
+      if (phase.unit === 'km') return phase.value < 0.5;
+      return false;
+    }
+
+    // Announce phase start
+    async function announcePhaseStart(phase) {
+      const mode = getSoundMode();
+      if (mode === 'none') return;
+      
+      playBeep();
+      vibrate();
+      
+      if (mode === 'bip') return;
+      
+      // Reset warnings for new phase
+      lastAnnouncedWarning = {};
+      
+      const short = isShortPhase(phase);
+      
+      // Build announcement
+      let text = `Zona ${phase.zone}`;
+      
+      if (!short) {
+        text += `, ${phase.value} ${getUnitName(phase.unit, phase.value)}`;
+        if (phase.description) {
+          text += `, ${phase.description}`;
+        }
+      } else {
+        // Short phase: just zone and value
+        text += `, ${phase.value} ${getUnitName(phase.unit, phase.value)}`;
+      }
+      
+      await speak(text);
+    }
+
+    // Announce loop repetition
+    async function announceLoopRep(rep, total) {
+      const mode = getSoundMode();
+      if (mode === 'none' || mode === 'bip') return;
+      
+      if (rep > 1) {
+        await speak(`Ripetizione ${rep} di ${total}`);
+      }
+    }
+
+    // Announce time warning (for time-based phases)
+    async function announceTimeWarning(remaining, phase) {
+      const mode = getSoundMode();
+      if (mode === 'none') return;
+      
+      const short = isShortPhase(phase);
+      const key = `time_${remaining}`;
+      
+      if (lastAnnouncedWarning[key]) return;
+      lastAnnouncedWarning[key] = true;
+      
+      // Long phases: warn at 30s, 10s, 5s countdown
+      // Short phases: only 5s countdown
+      
+      if (!short && remaining === 30) {
+        if (mode === 'bip') { playBeep(); return; }
+        await speak('mancano trenta secondi');
+      }
+      
+      if (!short && remaining === 10) {
+        if (mode === 'bip') { playBeep(); return; }
+        // Announce next phase
+        const nextPhase = expandedPhases[currentPhaseIndex + 1];
+        if (nextPhase) {
+          await speak(`Prossima fase: Zona ${nextPhase.zone}, ${nextPhase.value} ${getUnitName(nextPhase.unit, nextPhase.value)}`);
+        }
+      }
+      
+      if (remaining === 5) {
+        if (mode === 'bip') { playBeep(); return; }
+        await speak('cinque, quattro, tre, due, uno');
+      }
+    }
+
+    // Announce distance warning (for distance-based phases)
+    async function announceDistanceWarning(remainingMeters, phase) {
+      const mode = getSoundMode();
+      if (mode === 'none') return;
+      
+      const short = isShortPhase(phase);
+      
+      // Long phases: warn at 500m, 200m, 100m
+      // Short phases: only at 50m (as beep)
+      
+      if (!short) {
+        if (remainingMeters <= 500 && remainingMeters > 450 && !lastAnnouncedWarning['dist_500']) {
+          lastAnnouncedWarning['dist_500'] = true;
+          if (mode === 'bip') { playBeep(); return; }
+          await speak('mancano 500 metri');
+        }
+        
+        if (remainingMeters <= 200 && remainingMeters > 150 && !lastAnnouncedWarning['dist_200']) {
+          lastAnnouncedWarning['dist_200'] = true;
+          if (mode === 'bip') { playBeep(); return; }
+          await speak('mancano 200 metri');
+          // Announce next phase
+          const nextPhase = expandedPhases[currentPhaseIndex + 1];
+          if (nextPhase) {
+            await speak(`Prossima: Zona ${nextPhase.zone}, ${nextPhase.value} ${getUnitName(nextPhase.unit, nextPhase.value)}`);
+          }
+        }
+        
+        if (remainingMeters <= 100 && remainingMeters > 50 && !lastAnnouncedWarning['dist_100']) {
+          lastAnnouncedWarning['dist_100'] = true;
+          if (mode === 'bip') { playBeep(); return; }
+          await speak('mancano 100 metri');
+        }
+      } else {
+        // Short phase: just beep at 50m
+        if (remainingMeters <= 50 && !lastAnnouncedWarning['dist_50']) {
+          lastAnnouncedWarning['dist_50'] = true;
+          playBeep();
+        }
+      }
+    }
+
+    // Announce workout completion
+    async function announceCompletion() {
+      const mode = getSoundMode();
+      playBeep();
+      vibrate([200, 100, 200]);
+      
+      if (mode === 'none' || mode === 'bip') return;
+      
+      await speak('Ottimo lavoro! Workout completato.');
+    }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // INITIALIZATION
     // ═══════════════════════════════════════════════════════════════════════════
     async function init() {
-      console.log('🏃 Endurance V2 Initializing...');
+      console.log('🏃 Endurance V2.1 (Audio) Initializing...');
+      
+      // Load saved sound mode
+      const savedMode = localStorage.getItem('viltrum_run_soundMode');
+      if (savedMode) {
+        document.getElementById('soundMode').value = savedMode;
+      }
+      
+      // Save sound mode on change
+      document.getElementById('soundMode').addEventListener('change', (e) => {
+        localStorage.setItem('viltrum_run_soundMode', e.target.value);
+        // Test audio on mode change
+        if (e.target.value !== 'none') {
+          ensureAudioUnlocked();
+          playBeep();
+        }
+      });
       
       try {
         const loggedUser = localStorage.getItem('loggedUser');
@@ -438,7 +789,6 @@
           }
         }
 
-        // Show selector
         showView('selector-view');
         renderWorkoutList();
         
@@ -487,7 +837,7 @@
     // ═══════════════════════════════════════════════════════════════════════════
     // START WORKOUT
     // ═══════════════════════════════════════════════════════════════════════════
-    window.startWorkout = function(name) {
+    window.startWorkout = async function(name) {
       currentWorkout = runWorkouts[name];
       currentWorkoutName = name;
       
@@ -495,6 +845,9 @@
         alert('Workout non valido');
         return;
       }
+
+      // Unlock audio on user interaction
+      await ensureAudioUnlocked();
 
       // Expand phases (handle loops)
       expandedPhases = expandPhases(currentWorkout.phases);
@@ -506,6 +859,7 @@
       startTime = Date.now();
       phaseStartTime = Date.now();
       isPaused = false;
+      lastAnnouncedWarning = {};
 
       // Update UI
       document.getElementById('workout-name').textContent = name;
@@ -520,6 +874,13 @@
       
       // Render first phase
       renderCurrentPhase();
+      
+      // Announce first phase
+      const firstPhase = expandedPhases[0];
+      if (firstPhase._loopRep) {
+        await announceLoopRep(firstPhase._loopRep, firstPhase._loopTotal);
+      }
+      await announcePhaseStart(firstPhase);
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -533,7 +894,6 @@
         const phase = phases[i];
         
         if (phase.loopGroup) {
-          // Collect all phases in this loop group
           const loopPhases = [];
           const loopGroup = phase.loopGroup;
           const loopCount = phase.loopCount || 1;
@@ -543,7 +903,6 @@
             i++;
           }
           
-          // Expand the loop
           for (let rep = 1; rep <= loopCount; rep++) {
             loopPhases.forEach(lp => {
               expanded.push({
@@ -555,7 +914,6 @@
             });
           }
         } else {
-          // Single phase, no loop
           expanded.push({ ...phase, _loopRep: null, _loopTotal: null });
           i++;
         }
@@ -571,35 +929,28 @@
       const phase = expandedPhases[currentPhaseIndex];
       if (!phase) return;
 
-      // Update phase counter
       document.getElementById('phase-counter').textContent = `${currentPhaseIndex + 1} / ${expandedPhases.length}`;
       
-      // Update total progress bar
       const totalProgress = ((currentPhaseIndex) / expandedPhases.length) * 100;
       document.getElementById('total-progress-fill').style.width = `${totalProgress}%`;
 
-      // Update section label
       const sectionLabels = { warmup: '🔥 WARMUP', main: '💪 MAIN', cooldown: '❄️ COOLDOWN' };
       document.getElementById('section-label').textContent = sectionLabels[phase.section] || phase.section?.toUpperCase() || 'MAIN';
 
-      // Update zone styling
       const card = document.getElementById('phase-card');
       card.className = `phase-card zone-${phase.zone}`;
       document.getElementById('zone-badge').textContent = `ZONA ${phase.zone}`;
 
-      // Update phase value and unit
       const unitLabels = { km: 'chilometri', m: 'metri', min: 'minuti', sec: 'secondi' };
       document.getElementById('phase-value').textContent = phase.value;
       document.getElementById('phase-unit').textContent = unitLabels[phase.unit] || phase.unit;
       document.getElementById('phase-description').textContent = phase.description || getZoneDescription(phase.zone);
 
-      // Update loop indicator
       const loopIndicator = document.getElementById('loop-indicator');
       if (phase._loopRep) {
         loopIndicator.style.display = 'flex';
         document.getElementById('loop-text').textContent = `Ripetizione ${phase._loopRep}/${phase._loopTotal}`;
         
-        // Render loop dots
         const dotsContainer = document.getElementById('loop-dots');
         dotsContainer.innerHTML = '';
         for (let d = 1; d <= phase._loopTotal; d++) {
@@ -611,32 +962,26 @@
         loopIndicator.style.display = 'none';
       }
 
-      // Reset phase progress
       phaseDistance = 0;
       document.getElementById('phase-progress-fill').style.width = '0%';
       document.getElementById('phase-current').textContent = '0';
       
-      // Set target display
       const targetText = phase.unit === 'km' ? `${phase.value} km` : 
                          phase.unit === 'm' ? `${phase.value} m` :
                          phase.unit === 'min' ? `${phase.value}:00` :
                          `${phase.value} sec`;
       document.getElementById('phase-target').textContent = targetText;
 
-      // Handle time-based phases (start countdown)
       if (countdownInterval) clearInterval(countdownInterval);
       
       if (phase.unit === 'min' || phase.unit === 'sec') {
         phaseTimeRemaining = phase.unit === 'min' ? phase.value * 60 : phase.value;
         phaseStartTime = Date.now();
         countdownInterval = setInterval(updatePhaseCountdown, 1000);
-        updatePhaseCountdown(); // Initial update
+        updatePhaseCountdown();
       }
 
-      // Update next preview
       updateNextPreview();
-      
-      // Update button state
       updateNextButton();
     }
 
@@ -682,7 +1027,7 @@
     // ═══════════════════════════════════════════════════════════════════════════
     // PHASE NAVIGATION
     // ═══════════════════════════════════════════════════════════════════════════
-    window.nextPhase = function() {
+    window.nextPhase = async function() {
       if (currentPhaseIndex >= expandedPhases.length - 1) {
         completeWorkout();
         return;
@@ -690,15 +1035,25 @@
       
       currentPhaseIndex++;
       phaseStartTime = Date.now();
+      lastAnnouncedWarning = {};
+      
       renderCurrentPhase();
-      vibrate();
+      
+      // Announce new phase
+      const phase = expandedPhases[currentPhaseIndex];
+      if (phase._loopRep && phase._loopRep > 1) {
+        await announceLoopRep(phase._loopRep, phase._loopTotal);
+      }
+      await announcePhaseStart(phase);
     };
 
     window.prevPhase = function() {
       if (currentPhaseIndex > 0) {
         currentPhaseIndex--;
         phaseStartTime = Date.now();
+        lastAnnouncedWarning = {};
         renderCurrentPhase();
+        playBeep();
       }
     };
 
@@ -707,6 +1062,18 @@
       const btn = document.getElementById('pause-btn');
       btn.textContent = isPaused ? '▶️ RIPRENDI' : '⏸️ PAUSA';
       btn.className = isPaused ? 'ctrl-btn primary' : 'ctrl-btn pause';
+      
+      if (!isPaused) {
+        // Resume: adjust phaseStartTime
+        phaseStartTime = Date.now() - ((expandedPhases[currentPhaseIndex]?.unit === 'min' ? 
+          expandedPhases[currentPhaseIndex].value * 60 : 
+          expandedPhases[currentPhaseIndex]?.value || 0) - phaseTimeRemaining) * 1000;
+      }
+    };
+
+    window.toggleSettings = function() {
+      // Future: settings modal
+      alert(`Modalità audio: ${getSoundMode()}`);
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -726,7 +1093,6 @@
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       );
 
-      // Request wake lock
       requestWakeLock();
     }
 
@@ -736,13 +1102,13 @@
       const { latitude, longitude, accuracy } = position.coords;
       updateGPSStatus('active');
 
-      if (accuracy > 50) return; // Skip inaccurate readings
+      if (accuracy > 50) return;
 
       if (gpsPositions.length > 0) {
         const last = gpsPositions[gpsPositions.length - 1];
         const dist = calcDistance(last.latitude, last.longitude, latitude, longitude);
         
-        if (dist > 1 && dist < 100) { // Reasonable distance change
+        if (dist > 1 && dist < 100) {
           totalDistance += dist;
           phaseDistance += dist;
           updateDistanceDisplays();
@@ -770,7 +1136,7 @@
     }
 
     function calcDistance(lat1, lon1, lat2, lon2) {
-      const R = 6371000; // Earth radius in meters
+      const R = 6371000;
       const φ1 = lat1 * Math.PI / 180;
       const φ2 = lat2 * Math.PI / 180;
       const Δφ = (lat2 - lat1) * Math.PI / 180;
@@ -780,18 +1146,20 @@
     }
 
     function updateDistanceDisplays() {
-      // Total distance
       document.getElementById('gps-distance').textContent = (totalDistance / 1000).toFixed(2);
       
-      // Phase progress for distance-based phases
       const phase = expandedPhases[currentPhaseIndex];
       if (phase && (phase.unit === 'km' || phase.unit === 'm')) {
         const targetMeters = phase.unit === 'km' ? phase.value * 1000 : phase.value;
         const progress = Math.min((phaseDistance / targetMeters) * 100, 100);
+        const remaining = Math.max(0, targetMeters - phaseDistance);
         
         document.getElementById('phase-progress-fill').style.width = `${progress}%`;
         document.getElementById('phase-current').textContent = 
           phase.unit === 'km' ? (phaseDistance / 1000).toFixed(2) + ' km' : Math.round(phaseDistance) + ' m';
+        
+        // Announce distance warnings
+        announceDistanceWarning(remaining, phase);
       }
     }
 
@@ -834,22 +1202,24 @@
       const totalSec = phase.unit === 'min' ? phase.value * 60 : phase.value;
       const remaining = Math.max(0, totalSec - elapsed);
       
-      // Update display
+      phaseTimeRemaining = remaining;
+      
       const min = Math.floor(remaining / 60);
       const sec = remaining % 60;
       document.getElementById('phase-current').textContent = 
         `${min}:${sec.toString().padStart(2, '0')}`;
       
-      // Update progress
       const progress = ((totalSec - remaining) / totalSec) * 100;
       document.getElementById('phase-progress-fill').style.width = `${progress}%`;
       
-      // Check completion
+      // Announce time warnings
+      announceTimeWarning(remaining, phase);
+      
       if (remaining <= 0) {
         clearInterval(countdownInterval);
+        playTransition();
         vibrate();
         
-        // Auto-advance after short delay
         setTimeout(() => {
           if (!isPaused && currentPhaseIndex < expandedPhases.length - 1) {
             nextPhase();
@@ -867,14 +1237,13 @@
       const phase = expandedPhases[currentPhaseIndex];
       if (!phase || isPaused) return;
 
-      // Only auto-advance for distance-based phases
       if (phase.unit === 'km' || phase.unit === 'm') {
         const targetMeters = phase.unit === 'km' ? phase.value * 1000 : phase.value;
         
         if (phaseDistance >= targetMeters) {
+          playTransition();
           vibrate();
           
-          // Auto-advance
           setTimeout(() => {
             if (!isPaused && currentPhaseIndex < expandedPhases.length - 1) {
               nextPhase();
@@ -889,8 +1258,7 @@
     // ═══════════════════════════════════════════════════════════════════════════
     // WORKOUT COMPLETION
     // ═══════════════════════════════════════════════════════════════════════════
-    function completeWorkout() {
-      // Stop tracking
+    async function completeWorkout() {
       if (gpsWatchId) {
         navigator.geolocation.clearWatch(gpsWatchId);
         gpsWatchId = null;
@@ -899,7 +1267,6 @@
       if (countdownInterval) clearInterval(countdownInterval);
       if (wakeLock) { wakeLock.release(); wakeLock = null; }
 
-      // Update completion stats
       document.getElementById('final-distance').textContent = (totalDistance / 1000).toFixed(2) + ' km';
       
       if (startTime) {
@@ -910,13 +1277,12 @@
           `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
       }
 
-      // Save progress if coming from plan
       if (v7PlanInfo) {
         savePlanProgress();
       }
 
       showView('completion-view');
-      vibrate([200, 100, 200]);
+      await announceCompletion();
     }
 
     function savePlanProgress() {
@@ -928,7 +1294,6 @@
       };
       localStorage.setItem(progressKey, JSON.stringify(progress));
 
-      // Sync to cloud
       const email = localStorage.getItem('loggedUser');
       if (email) {
         const url = `${GOOGLE_SCRIPT_URL}?action=saveLastWorkout&email=${encodeURIComponent(email)}&planName=${encodeURIComponent(v7PlanInfo.planName)}&lastWorkoutIndex=${v7PlanInfo.workoutIndex}&totalWorkouts=${v7PlanInfo.totalWorkouts}`;
@@ -1001,7 +1366,6 @@
       else if (e.key === 'Escape') { goBack(); }
     });
 
-    // Handle visibility changes (re-request wake lock)
     document.addEventListener('visibilitychange', async () => {
       if (document.visibilityState === 'visible' && currentWorkout && !isPaused) {
         requestWakeLock();
