@@ -309,7 +309,7 @@ const ELEVEN_EXERCISE_MAP = {
 };
 
 /**
- * Play ElevenLabs pre-recorded audio
+ * Play ElevenLabs pre-recorded audio (simple method without CORS restrictions)
  * @param {string} audioKey - Key for the audio file (without extension)
  * @returns {Promise<boolean>} - True if played successfully
  */
@@ -317,9 +317,28 @@ async function playElevenAudio(audioKey) {
   const url = `${ELEVEN_BASE_URL}/${audioKey}.mp3`;
   try {
     await ensureAudioUnlocked();
-    await playAudioUrl(url);
-    console.log(`🎙️ ElevenLabs audio played: ${audioKey}`);
-    return true;
+    
+    // Use simple Audio element WITHOUT crossOrigin to avoid CORS issues
+    const audio = new Audio();
+    audio.preload = "auto";
+    audio.volume = currentVolume;
+    // NO crossOrigin = "anonymous" here!
+    
+    return new Promise((resolve, reject) => {
+      audio.onended = () => {
+        console.log(`🎙️ ElevenLabs audio played: ${audioKey}`);
+        resolve(true);
+      };
+      audio.onerror = (e) => {
+        console.warn(`⚠️ ElevenLabs audio failed for ${audioKey}:`, e);
+        reject(e);
+      };
+      audio.oncanplaythrough = () => {
+        audio.play().catch(reject);
+      };
+      audio.src = url;
+      audio.load();
+    });
   } catch (err) {
     console.warn(`⚠️ ElevenLabs audio failed for ${audioKey}:`, err);
     return false;
