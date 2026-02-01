@@ -55,13 +55,25 @@ const ELEVEN_AUDIO_MAP = {
   'good job': 'good-job',
   'are you ready?': 'are-you-ready',
   
-  // Time warnings (reuse from run audio)
+  // Time warnings - numeric and text variants
   'mancano 60 secondi': 'mancano-60-secondi',
+  'mancano sessanta secondi': 'mancano-60-secondi',
   'mancano 30 secondi': 'mancano-30-secondi',
+  'mancano trenta secondi': 'mancano-30-secondi',
   'mancano 10 secondi': 'mancano-10-secondi',
+  'mancano dieci secondi': 'mancano-10-secondi',
   'mancano 5 secondi': 'mancano-5-secondi',
+  'mancano cinque secondi': 'mancano-5-secondi',
   
-  // Numbers
+  // Countdown numbers (Italian words)
+  'cinque': 'num-5',
+  'quattro': 'num-4',
+  'tre': 'num-3',
+  'due': 'num-2',
+  'uno': 'num-1',
+  'cinque, quattro, tre, due, uno': 'countdown-5',
+  
+  // Numbers (digits)
   '1': 'num-1', '2': 'num-2', '3': 'num-3', '4': 'num-4', '5': 'num-5',
   '6': 'num-6', '7': 'num-7', '8': 'num-8', '9': 'num-9', '10': 'num-10',
   '11': 'num-11', '12': 'num-12', '13': 'num-13', '14': 'num-14', '15': 'num-15',
@@ -1251,28 +1263,39 @@ async function speak(text, lang = "it-IT") {
             || document.getElementById("soundMode-setup")?.value
             || "none";
   
-  // ElevenLabs HD mode (with Cloud TTS fallback)
-  if (mode === "eleven") {
-    return await speakEleven(text, lang);
-  }
-  
-  if (mode === "voice") {
-    try {
-      return await speakCloud(text, lang);
-    } catch (err) {
-      console.warn("⚠️ Voice mode failed, falling back to synth...");
-      console.error("Voice error details:", err);
-      // Automatic fallback to synth
+  // For both "eleven" and "voice" modes, try ElevenLabs pre-recorded audio first
+  if (mode === "eleven" || mode === "voice") {
+    const normalizedText = text.toLowerCase().trim();
+    
+    // Check if we have pre-recorded ElevenLabs audio for this phrase
+    const audioKey = ELEVEN_AUDIO_MAP[normalizedText] || ELEVEN_EXERCISE_MAP[normalizedText];
+    
+    if (audioKey) {
       try {
-        return await speakSynth(text, lang);
-      } catch (synthErr) {
-        console.error("❌ Synth fallback also failed:", synthErr);
+        const played = await playElevenAudio(audioKey);
+        if (played) return; // Success! Audio played
+      } catch (err) {
+        console.warn(`⚠️ ElevenLabs failed for "${text}", trying fallback...`);
+      }
+    }
+    
+    // Fallback to Cloud TTS for dynamic content or if ElevenLabs failed
+    if (mode === "eleven" || mode === "voice") {
+      try {
+        return await speakCloud(text, lang);
+      } catch (err) {
+        console.warn("⚠️ Cloud TTS failed, falling back to synth...");
+        try {
+          return await speakSynth(text, lang);
+        } catch (synthErr) {
+          console.error("❌ All audio methods failed for:", text);
+        }
       }
     }
   }
   
   if (mode === "synth") return speakSynth(text, lang);
-  // other modes: no-op
+  // other modes (bip, none): no-op
 }
 
 /* Helper sequences */
@@ -1811,14 +1834,14 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
       lastSecond = remaining;
 
       once(60, () => {
-        if (mode === "voice" || mode === "synth") {
+        if (mode === "eleven" || mode === "voice" || mode === "synth") {
           speak("mancano sessanta secondi", "it-IT").catch(() => {});
         }
         if (mode === "beppe") playBeppeAudio(beppeSounds.s60);
       });
 
       once(30, () => {
-        if (mode === "voice" || mode === "synth") {
+        if (mode === "eleven" || mode === "voice" || mode === "synth") {
           speak("mancano trenta secondi", "it-IT").catch(() => {});
         }
         if (mode === "beppe") playBeppeAudio(beppeSounds.s30);
@@ -1859,7 +1882,7 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
             const urls = [beppeSounds.prossimo];
             if (nextExercise.audio) urls.push(nextExercise.audio);
             playBeppeAudioSequence(urls);
-          } else if (mode === "voice" || mode === "synth") {
+          } else if (mode === "eleven" || mode === "voice" || mode === "synth") {
             // Use speak() with automatic fallback
             try {
               await speak("prossimo esercizio:", "it-IT");
@@ -1887,7 +1910,7 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
 
       // 5s countdown — runs once (no more stutter)
       once(5, () => {
-        if (mode === "voice" || mode === "synth") {
+        if (mode === "eleven" || mode === "voice" || mode === "synth") {
           speak("cinque, quattro, tre, due, uno", "it-IT").catch(() => {});
         }
         if (mode === "beppe") playBeppeAudio(beppeSounds.countdown5);
