@@ -282,7 +282,7 @@ function getDefaultSettings() {
   return {
     audioVolume: 1.0,
     extraTime: 0, // Extra seconds to add to exercises
-    soundMode: 'voice', // voice, synth, bip, none
+    soundMode: 'eleven', // eleven, voice, synth, bip, none
     notifications: true,
     darkMode: true
   };

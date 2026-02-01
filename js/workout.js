@@ -19,6 +19,347 @@ import { getExerciseWeight, syncLastWorkoutToCloud, setLastWorkoutIndexLocal } f
 // V7.1: Import DataPreloader for plan-based workout loading
 import DataPreloader from './data-preloader.js';
 
+/* -------------------- ElevenLabs HD Audio Configuration -------------------- */
+const ELEVEN_BASE_URL = 'https://github.com/tommyv-spec/workout-audio/raw/main/docs/elevenlabs_muscle';
+
+// Map of fixed phrases to pre-recorded ElevenLabs audio files
+const ELEVEN_AUDIO_MAP = {
+  // Transitions
+  'prossimo esercizio': 'prossimo-esercizio',
+  'prossimo esercizio:': 'prossimo-esercizio',
+  'ultimo esercizio': 'ultimo-esercizio',
+  'preparati': 'preparati',
+  'inizia': 'inizia',
+  'cambio': 'cambio',
+  
+  // Blocks
+  'riscaldamento': 'riscaldamento',
+  'primo blocco': 'primo-blocco',
+  'secondo blocco': 'secondo-blocco',
+  'terzo blocco': 'terzo-blocco',
+  'quarto blocco': 'quarto-blocco',
+  
+  // Completion
+  'ottimo lavoro': 'ottimo-lavoro',
+  'ottimo lavoro!': 'ottimo-lavoro',
+  'complimenti': 'complimenti',
+  'workout completato': 'workout-completato',
+  'workout completato!': 'workout-completato',
+  
+  // Pause/Recovery
+  'pausa': 'pausa',
+  'recupero': 'recupero',
+  'rest': 'rest',
+  
+  // English phrases
+  'good job': 'good-job',
+  'are you ready?': 'are-you-ready',
+  
+  // Time warnings (reuse from run audio)
+  'mancano 60 secondi': 'mancano-60-secondi',
+  'mancano 30 secondi': 'mancano-30-secondi',
+  'mancano 10 secondi': 'mancano-10-secondi',
+  'mancano 5 secondi': 'mancano-5-secondi',
+  
+  // Numbers
+  '1': 'num-1', '2': 'num-2', '3': 'num-3', '4': 'num-4', '5': 'num-5',
+  '6': 'num-6', '7': 'num-7', '8': 'num-8', '9': 'num-9', '10': 'num-10',
+  '11': 'num-11', '12': 'num-12', '13': 'num-13', '14': 'num-14', '15': 'num-15',
+  '16': 'num-16', '17': 'num-17', '18': 'num-18', '19': 'num-19', '20': 'num-20',
+  '21': 'num-21', '22': 'num-22', '23': 'num-23', '24': 'num-24', '25': 'num-25',
+  '30': 'num-30', '35': 'num-35', '40': 'num-40', '45': 'num-45',
+  '50': 'num-50', '60': 'num-60', '90': 'num-90', '120': 'num-120',
+  
+  // Rep words
+  'ripetizioni': 'ripetizioni',
+  'ripetizione': 'ripetizione',
+  'serie': 'serie',
+  
+  // Series combinations
+  'serie 1 di 2': 'serie-1-di-2', 'serie 2 di 2': 'serie-2-di-2',
+  'serie 1 di 3': 'serie-1-di-3', 'serie 2 di 3': 'serie-2-di-3', 'serie 3 di 3': 'serie-3-di-3',
+  'serie 1 di 4': 'serie-1-di-4', 'serie 2 di 4': 'serie-2-di-4', 'serie 3 di 4': 'serie-3-di-4', 'serie 4 di 4': 'serie-4-di-4',
+  'serie 1 di 5': 'serie-1-di-5', 'serie 2 di 5': 'serie-2-di-5', 'serie 3 di 5': 'serie-3-di-5', 'serie 4 di 5': 'serie-4-di-5', 'serie 5 di 5': 'serie-5-di-5',
+};
+
+// Map exercise names to audio file keys
+const ELEVEN_EXERCISE_MAP = {
+  'air squat': 'air-squat',
+  'air squat no lockout': 'air-squat-no-lockout',
+  'alternated v up': 'alternated-v-up',
+  'alternating bent over rows': 'alternating-bent-over-rows',
+  'alternating curl and press': 'alternating-curl-and-press',
+  'alternating shoulder press': 'alternating-shoulder-press',
+  'banded bicep curl': 'banded-bicep-curl',
+  'banded external rotation': 'banded-external-rotation',
+  'banded face pull': 'banded-face-pull',
+  'banded pull apart': 'banded-pull-apart',
+  'banded pulley': 'banded-pulley',
+  'banded side walk': 'banded-side-walk',
+  'banded upright rows': 'banded-upright-rows',
+  'bench dips': 'bench-dips',
+  'bench hop over': 'bench-hop-over',
+  'bench press': 'bench-press',
+  'bench press inclined': 'bench-press-inclined',
+  'bench tricep press': 'bench-tricep-press',
+  'weighted step up destra': 'weighted-step-up-destra',
+  'weighted step up sinistra': 'weighted-step-up-sinistra',
+  'bird dog destra': 'bird-dog-destra',
+  'bird dog sinistra': 'bird-dog-sinistra',
+  'bottom up kettlebell arnold press destra': 'bottom-up-kettlebell-arnold-press-destra',
+  'bottom up kettlebell arnold press sinistra': 'bottom-up-kettlebell-arnold-press-sinistra',
+  'bottom up kettlebell hold destra': 'bottom-up-kettlebell-hold-destra',
+  'bottom up kettlebell hold sinistra': 'bottom-up-kettlebell-hold-sinistra',
+  'bottom up kettlebell press destra': 'bottom-up-kettlebell-press-destra',
+  'bottom up kettlebell press sinistra': 'bottom-up-kettlebell-press-sinistra',
+  'bulgarian split squat destra': 'bulgarian-split-squat-destra',
+  'bulgarian split squat sinistra': 'bulgarian-split-squat-sinistra',
+  'burpees': 'burpees',
+  'cheater curl': 'cheater-curl',
+  'chest opener': 'chest-opener',
+  'clamshell': 'clamshell',
+  'crush grip bent over hold': 'crush-grip-bent-over-hold',
+  'crush grip bent over rows': 'crush-grip-bent-over-rows',
+  'crush grip bicep curl': 'crush-grip-bicep-curl',
+  'crush grip standing shoulder press': 'crush-grip-standing-shoulder-press',
+  'crush grip thruster': 'crush-grip-thruster',
+  'cuban press': 'cuban-press',
+  'cyclist crunch': 'cyclist-crunch',
+  'deadbug pulse': 'deadbug-pulse',
+  'diamond push up': 'diamond-push-up',
+  'doppio dumbbell alternating shoulder press': 'doppio-dumbbell-alternating-shoulder-press',
+  'doppio dumbbell bent over rows': 'doppio-dumbbell-bent-over-rows',
+  'doppio dumbbell curl': 'doppio-dumbbell-curl',
+  'doppio dumbbell curl & press': 'doppio-dumbbell-curl-and-press',
+  'doppio dumbbell curl hold': 'doppio-dumbbell-curl-hold',
+  'doppio dumbbell deadlift': 'doppio-dumbbell-deadlift',
+  'doppio dumbbell hang muscle clean': 'doppio-dumbbell-hang-muscle-clean',
+  'doppio dumbbell overhead lunges': 'doppio-dumbbell-overhead-lunges',
+  'doppio dumbbell push press': 'doppio-dumbbell-push-press',
+  'doppio dumbbell reverse lunges': 'doppio-dumbbell-reverse-lunges',
+  'doppio dumbbell shoulder press': 'doppio-dumbbell-shoulder-press',
+  'doppio dumbbell sumo deadlift': 'doppio-dumbbell-sumo-deadlift',
+  'doppio dumbbell thruster': 'doppio-dumbbell-thruster',
+  'doppio kettlebell deadlift': 'doppio-kettlebell-deadlift',
+  'doppio kettlebell sumo deadlift': 'doppio-kettlebell-sumo-deadlift',
+  'doppio kettlebell swing': 'doppio-kettlebell-swing',
+  'due push up burpees': 'due-push-up-burpees',
+  'dumbbell clean': 'dumbbell-clean',
+  'dumbbell hang snatch': 'dumbbell-hang-snatch',
+  'dumbbell mufasa hold': 'dumbbell-mufasa-hold',
+  'dumbbell rows destra': 'dumbbell-rows-destra',
+  'dumbbell rows sinistra': 'dumbbell-rows-sinistra',
+  'dumbbell snatch': 'dumbbell-snatch',
+  'external rotation': 'external-rotation',
+  'flutterkicks': 'flutterkicks',
+  'frontal raises': 'frontal-raises',
+  'front rack dumbbell curtsy squat': 'front-rack-dumbbell-curtsy-squat',
+  'front rack lunges': 'front-rack-lunges',
+  'goblet squat pulse': 'goblet-squat-pulse',
+  'gorilla rows': 'gorilla-rows',
+  'halo': 'halo',
+  'hang clean': 'hang-clean',
+  'hip thrust': 'hip-thrust',
+  'incline bench reverse fly': 'incline-bench-reverse-fly',
+  'istruzioni': 'istruzioni',
+  'jm press': 'jm-press',
+  'jumping lunges': 'jumping-lunges',
+  'kettlebell deadlift': 'kettlebell-deadlift',
+  'kettlebell goblet squat': 'kettlebell-goblet-squat',
+  'kettlebell horn curl': 'kettlebell-horn-curl',
+  'kettlebell muscle clean': 'kettlebell-muscle-clean',
+  'kettlebell one leg deadlift': 'kettlebell-one-leg-deadlift',
+  'kettlebell sumo squat': 'kettlebell-sumo-squat',
+  'kettlebell swing': 'kettlebell-swing',
+  'lateral heel touch': 'lateral-heel-touch',
+  'lateral raises': 'lateral-raises',
+  'lento avanti': 'lento-avanti',
+  'monster twist': 'monster-twist',
+  'mountain climber': 'mountain-climber',
+  'mufasa con dumbbell': 'mufasa-con-dumbbell',
+  'one arm bench press destra': 'one-arm-bench-press-destra',
+  'one arm bench press sinistra': 'one-arm-bench-press-sinistra',
+  'plank hold': 'plank-hold',
+  'plank pull through': 'plank-pull-through',
+  'plank push through': 'plank-push-through',
+  'plank shoulder tap': 'plank-shoulder-tap',
+  'pullover': 'pullover',
+  'push up': 'push-up',
+  'quad push up': 'quad-push-up',
+  'rear delt swing': 'rear-delt-swing',
+  'reverse fly': 'reverse-fly',
+  'reverse lunges': 'reverse-lunges',
+  'romanian deadlift': 'romanian-deadlift',
+  'rowing snatch destra': 'rowing-snatch-destra',
+  'rowing snatch sinistra': 'rowing-snatch-sinistra',
+  'russian sit up': 'russian-sit-up',
+  'russian twist': 'russian-twist',
+  'seated arnold press': 'seated-arnold-press',
+  'seated bicep curl': 'seated-bicep-curl',
+  'seated crush grip shoulder press': 'seated-crush-grip-shoulder-press',
+  'seated lateral raises': 'seated-lateral-raises',
+  'seated overhead tricep extension': 'seated-overhead-tricep-extension',
+  'seated snatch': 'seated-snatch',
+  'side plank reach destra': 'side-plank-reach-destra',
+  'side plank reach sinistra': 'side-plank-reach-sinistra',
+  'sigsaw rows': 'sigsaw-rows',
+  'single dumbbell overhead lunges destra': 'single-dumbbell-overhead-lunges-destra',
+  'single dumbbell overhead lunges sinistra': 'single-dumbbell-overhead-lunges-sinistra',
+  'single dumbbell thruster destra': 'single-dumbbell-thruster-destra',
+  'single dumbbell thruster sinistra': 'single-dumbbell-thruster-sinistra',
+  'sit up on bench': 'sit-up-on-bench',
+  'squat jump': 'squat-jump',
+  'squat pulse': 'squat-pulse',
+  'staggered stance deadlift destra': 'staggered-stance-deadlift-destra',
+  'staggered stance deadlift sinistra': 'staggered-stance-deadlift-sinistra',
+  'standing alternated arnold press': 'standing-alternated-arnold-press',
+  'standing alternated bicep curl': 'standing-alternated-bicep-curl',
+  'standing overhead tricep extension': 'standing-overhead-tricep-extension',
+  'step up': 'step-up',
+  'straight leg deadlift': 'straight-leg-deadlift',
+  'suitcase reverse lunges': 'suitcase-reverse-lunges',
+  'supine delt raise': 'supine-delt-raise',
+  'tate press': 'tate-press',
+  'tricep kick back destra': 'tricep-kick-back-destra',
+  'tricep kick back sinistra': 'tricep-kick-back-sinistra',
+  'tricep push up': 'tricep-push-up',
+  'tuck up': 'tuck-up',
+  'turkish sit up': 'turkish-sit-up',
+  'v up': 'v-up',
+  'viltrum complex': 'viltrum-complex',
+  'weighted deadbug pulse': 'weighted-deadbug-pulse',
+  'weighted v up': 'weighted-v-up',
+  'windmill destra': 'windmill-destra',
+  'windmill sinistra': 'windmill-sinistra',
+  'bottom squat hold': 'bottom-squat-hold',
+  'dumbbell front squat': 'dumbbell-front-squat',
+  'cossack squat': 'cossack-squat',
+  'cossack switch': 'cossack-switch',
+  'goblet cossack squat': 'goblet-cossack-squat',
+  'tricep extension pulse': 'tricep-extension-pulse',
+  'man maker': 'man-maker',
+  'renegade rows': 'renegade-rows',
+  'kot lunges destra': 'kot-lunges-destra',
+  'kot lunges sinistra': 'kot-lunges-sinistra',
+  'walkout': 'walkout',
+  'reverse walkout': 'reverse-walkout',
+  'hamstring plank': 'hamstring-plank',
+  'down dog to updog': 'down-dog-to-updog',
+  'pinwheel': 'pinwheel',
+  'pvc prone btn flow': 'pvc-prone-btn-flow',
+  'prone snowangel': 'prone-snowangel',
+  'banded kettlebell press destra': 'banded-kettlebell-press-destra',
+  'banded kettlebell press sinistra': 'banded-kettlebell-press-sinistra',
+  'banded kettlebell oh hold destra': 'banded-kettlebell-oh-hold-destra',
+  'banded kettlebell oh hold sinistra': 'banded-kettlebell-oh-hold-sinistra',
+  'banded goodmorning': 'banded-goodmorning',
+  'kettlebell gorilla rows': 'kettlebell-gorilla-rows',
+  'kettlebell shot through': 'kettlebell-shot-through',
+  'crush grip bench': 'crush-grip-bench',
+  'crush grip skull crush': 'crush-grip-skull-crush',
+  'crush grip tricep extension': 'crush-grip-tricep-extension',
+  'hip extension on bench': 'hip-extension-on-bench',
+  'hip extension hold on bench': 'hip-extension-hold-on-bench',
+  'banded one hamstring hold destra': 'banded-one-hamstring-hold-destra',
+  'banded one hamstring hold sinistra': 'banded-one-hamstring-hold-sinistra',
+  'banded one hamstring curl destra': 'banded-one-hamstring-curl-destra',
+  'banded one hamstring curl sinistra': 'banded-one-hamstring-curl-sinistra',
+  'banded one hamstring pump destra': 'banded-one-hamstring-pump-destra',
+  'banded one hamstring pump sinistra': 'banded-one-hamstring-pump-sinistra',
+  'doppio dumbbell lunges destra': 'doppio-dumbbell-lunges-destra',
+  'doppio dumbbell lunges sinistra': 'doppio-dumbbell-lunges-sinistra',
+  'lateral swing destra': 'lateral-swing-destra',
+  'lateral swing sinistra': 'lateral-swing-sinistra',
+  'doppio dumbbell clean & press': 'doppio-dumbbell-clean-and-press',
+  'wood chop destra': 'wood-chop-destra',
+  'wood chop sinistra': 'wood-chop-sinistra',
+  'tall kneeling around the world orario': 'tall-kneeling-around-the-world-orario',
+  'tall kneeling around the world antiorario': 'tall-kneeling-around-the-world-antiorario',
+  'goblet squat no lockout': 'goblet-squat-no-lockout',
+  'bench back extension': 'bench-back-extension',
+  'bench back extension hold': 'bench-back-extension-hold',
+  'suitcase march dx': 'suitcase-march-dx',
+  'suitcase march sx': 'suitcase-march-sx',
+  'crush grip frontal raise': 'crush-grip-frontal-raise',
+  'crush grip overhead hold': 'crush-grip-overhead-hold',
+  'crossbody march destra su': 'crossbody-march-destra-su',
+  'crossbody march sinistra su': 'crossbody-march-sinistra-su',
+  'crush grip press': 'crush-grip-press',
+  'one arm swing & pull destra': 'one-arm-swing-and-pull-destra',
+  'one arm swing & pull sinistra': 'one-arm-swing-and-pull-sinistra',
+  'farmer march': 'farmer-march',
+  'elevated hip tilt destra': 'elevated-hip-tilt-destra',
+  'elevated hip tilt sinistra': 'elevated-hip-tilt-sinistra',
+  'standing upright rows': 'standing-upright-rows',
+  'single leg elevated hip extension destra': 'single-leg-elevated-hip-extension-destra',
+  'single leg elevated hip extension sinistra': 'single-leg-elevated-hip-extension-sinistra',
+  'alternate bench press': 'alternate-bench-press',
+  'tall kneeling alt twist & press': 'tall-kneeling-alt-twist-and-press',
+  'rnt reverse lunges destra': 'rnt-reverse-lunges-destra',
+  'rnt reverse lunges sinistra': 'rnt-reverse-lunges-sinistra',
+  'one arm kettlebell swing destra': 'one-arm-kettlebell-swing-destra',
+  'one arm kettlebell swing sinistra': 'one-arm-kettlebell-swing-sinistra',
+  'filly march destra su': 'filly-march-destra-su',
+  'filly march sinistra su': 'filly-march-sinistra-su',
+  'copenaghen side plank destra': 'copenaghen-side-plank-destra',
+  'copenaghen side plank sinistra': 'copenaghen-side-plank-sinistra',
+  'curl & press destra': 'curl-and-press-destra',
+  'curl & press sinistra': 'curl-and-press-sinistra',
+  'crush grip curl hold': 'crush-grip-curl-hold',
+};
+
+/**
+ * Play ElevenLabs pre-recorded audio
+ * @param {string} audioKey - Key for the audio file (without extension)
+ * @returns {Promise<boolean>} - True if played successfully
+ */
+async function playElevenAudio(audioKey) {
+  const url = `${ELEVEN_BASE_URL}/${audioKey}.mp3`;
+  try {
+    await ensureAudioUnlocked();
+    await playAudioUrl(url);
+    console.log(`🎙️ ElevenLabs audio played: ${audioKey}`);
+    return true;
+  } catch (err) {
+    console.warn(`⚠️ ElevenLabs audio failed for ${audioKey}:`, err);
+    return false;
+  }
+}
+
+/**
+ * Speak using ElevenLabs HD audio with Cloud TTS fallback
+ * @param {string} text - Text to speak
+ * @param {string} lang - Language code
+ */
+async function speakEleven(text, lang = "it-IT") {
+  const normalizedText = text.toLowerCase().trim();
+  
+  // Check fixed phrases first
+  if (ELEVEN_AUDIO_MAP[normalizedText]) {
+    const played = await playElevenAudio(ELEVEN_AUDIO_MAP[normalizedText]);
+    if (played) return;
+  }
+  
+  // Check exercise names
+  if (ELEVEN_EXERCISE_MAP[normalizedText]) {
+    const played = await playElevenAudio(ELEVEN_EXERCISE_MAP[normalizedText]);
+    if (played) return;
+  }
+  
+  // Fallback to Cloud TTS for dynamic content
+  console.log(`🔄 ElevenLabs fallback to Cloud TTS for: "${text}"`);
+  try {
+    await speakCloud(text, lang);
+  } catch (err) {
+    console.warn(`⚠️ Cloud TTS fallback failed, trying synth...`);
+    try {
+      await speakSynth(text, lang);
+    } catch (synthErr) {
+      console.error(`❌ All audio methods failed for: "${text}"`);
+    }
+  }
+}
+
 /* -------------------- Cached Image Loading -------------------- */
 /**
  * Load image from offline cache if available, otherwise use network
@@ -890,6 +1231,11 @@ async function speak(text, lang = "it-IT") {
   const mode = document.getElementById("soundMode")?.value
             || document.getElementById("soundMode-setup")?.value
             || "none";
+  
+  // ElevenLabs HD mode (with Cloud TTS fallback)
+  if (mode === "eleven") {
+    return await speakEleven(text, lang);
+  }
   
   if (mode === "voice") {
     try {

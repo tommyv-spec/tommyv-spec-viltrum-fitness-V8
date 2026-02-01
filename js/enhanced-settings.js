@@ -50,6 +50,7 @@ function createSettingsModal() {
             Modalità Audio
           </label>
           <select id="soundMode-enhanced" class="setting-select" onchange="updateSoundMode(this.value)">
+            <option value="eleven">🎙️ ElevenLabs (HD)</option>
             <option value="voice">Voice (Cloud TTS)</option>
             <option value="synth">Synth (Browser)</option>
             <option value="bip">Solo Beep</option>
