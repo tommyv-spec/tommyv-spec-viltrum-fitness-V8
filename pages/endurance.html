@@ -304,6 +304,7 @@
       <div class="sound-mode-bar">
         <label for="soundMode">🔊 Audio:</label>
         <select id="soundMode">
+          <option value="eleven">🎙️ ElevenLabs (HD)</option>
           <option value="voice">Voice (Cloud)</option>
           <option value="synth">Synth (Device)</option>
           <option value="bip">Solo Beep</option>
@@ -417,6 +418,60 @@
     // CONSTANTS
     // ═══════════════════════════════════════════════════════════════════════════
     const TTS_SERVER_URL = 'https://google-tts-server.onrender.com/speak';
+    
+    // ElevenLabs Audio (pre-generated, hosted on GitHub)
+    const ELEVEN_BASE_URL = 'https://github.com/tommyv-spec/workout-audio/raw/main/docs/elevenlabs';
+    const ELEVEN_AUDIO = {
+      // Zone
+      'zona-1': 'zona-1.mp3', 'zona-2': 'zona-2.mp3', 'zona-3': 'zona-3.mp3',
+      'zona-4': 'zona-4.mp3', 'zona-5': 'zona-5.mp3',
+      // Numeri
+      'num-1': 'num-1.mp3', 'num-2': 'num-2.mp3', 'num-3': 'num-3.mp3',
+      'num-4': 'num-4.mp3', 'num-5': 'num-5.mp3', 'num-6': 'num-6.mp3',
+      'num-7': 'num-7.mp3', 'num-8': 'num-8.mp3', 'num-9': 'num-9.mp3',
+      'num-10': 'num-10.mp3', 'num-15': 'num-15.mp3', 'num-20': 'num-20.mp3',
+      'num-30': 'num-30.mp3', 'num-45': 'num-45.mp3', 'num-50': 'num-50.mp3',
+      'num-60': 'num-60.mp3', 'num-100': 'num-100.mp3', 'num-200': 'num-200.mp3',
+      'num-500': 'num-500.mp3', 'num-800': 'num-800.mp3',
+      // Unità
+      'chilometro': 'chilometro.mp3', 'chilometri': 'chilometri.mp3',
+      'metro': 'metro.mp3', 'metri': 'metri.mp3',
+      'minuto': 'minuto.mp3', 'minuti': 'minuti.mp3',
+      'secondo': 'secondo.mp3', 'secondi': 'secondi.mp3',
+      // Warning distanza
+      'mancano-500-metri': 'mancano-500-metri.mp3',
+      'mancano-200-metri': 'mancano-200-metri.mp3',
+      'mancano-100-metri': 'mancano-100-metri.mp3',
+      'mancano-50-metri': 'mancano-50-metri.mp3',
+      // Warning tempo
+      'mancano-60-secondi': 'mancano-60-secondi.mp3',
+      'mancano-30-secondi': 'mancano-30-secondi.mp3',
+      'mancano-10-secondi': 'mancano-10-secondi.mp3',
+      'mancano-5-secondi': 'mancano-5-secondi.mp3',
+      // Countdown & frasi
+      'countdown-5': 'countdown-5.mp3',
+      'prossima-fase': 'prossima-fase.mp3', 'preparati': 'preparati.mp3',
+      'ottimo-lavoro': 'ottimo-lavoro.mp3', 'workout-completato': 'workout-completato.mp3',
+      'ultima-fase': 'ultima-fase.mp3',
+      // Descrizioni
+      'recupero': 'recupero.mp3', 'corsa-lenta': 'corsa-lenta.mp3',
+      'ritmo-moderato': 'ritmo-moderato.mp3', 'ritmo-sostenuto': 'ritmo-sostenuto.mp3',
+      'ritmo-veloce': 'ritmo-veloce.mp3', 'massimo-sforzo': 'massimo-sforzo.mp3',
+      'camminata': 'camminata.mp3', 'aerobico': 'aerobico.mp3',
+      'soglia': 'soglia.mp3', 'vo2-max': 'vo2-max.mp3', 'sprint': 'sprint.mp3',
+      // Prossima zona
+      'prossima-zona-1': 'prossima-zona-1.mp3', 'prossima-zona-2': 'prossima-zona-2.mp3',
+      'prossima-zona-3': 'prossima-zona-3.mp3', 'prossima-zona-4': 'prossima-zona-4.mp3',
+      'prossima-zona-5': 'prossima-zona-5.mp3',
+      // Ripetizioni
+      'ripetizione-1-di-2': 'ripetizione-1-di-2.mp3', 'ripetizione-2-di-2': 'ripetizione-2-di-2.mp3',
+      'ripetizione-1-di-3': 'ripetizione-1-di-3.mp3', 'ripetizione-2-di-3': 'ripetizione-2-di-3.mp3',
+      'ripetizione-3-di-3': 'ripetizione-3-di-3.mp3',
+      'ripetizione-1-di-4': 'ripetizione-1-di-4.mp3', 'ripetizione-2-di-4': 'ripetizione-2-di-4.mp3',
+      'ripetizione-3-di-4': 'ripetizione-3-di-4.mp3', 'ripetizione-4-di-4': 'ripetizione-4-di-4.mp3',
+      'ripetizione-1-di-5': 'ripetizione-1-di-5.mp3', 'ripetizione-2-di-5': 'ripetizione-2-di-5.mp3',
+      'ripetizione-5-di-5': 'ripetizione-5-di-5.mp3',
+    };
 
     // ═══════════════════════════════════════════════════════════════════════════
     // STATE
@@ -588,6 +643,63 @@
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // ELEVENLABS AUDIO PLAYER
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    async function playElevenAudio(key) {
+      if (!ELEVEN_AUDIO[key]) {
+        console.warn(`⚠️ ElevenLabs audio not found: ${key}`);
+        return;
+      }
+      
+      await ensureAudioUnlocked();
+      const url = `${ELEVEN_BASE_URL}/${ELEVEN_AUDIO[key]}`;
+      const audio = document.getElementById('tts-audio');
+      
+      return new Promise((resolve) => {
+        audio.src = url;
+        audio.onended = resolve;
+        audio.onerror = () => { console.warn(`❌ Failed: ${key}`); resolve(); };
+        audio.play().catch(() => resolve());
+      });
+    }
+    
+    async function playElevenSequence(keys) {
+      for (const key of keys) {
+        if (key) await playElevenAudio(key);
+      }
+    }
+    
+    // Helper: get number key for ElevenLabs
+    function getNumKey(num) {
+      const available = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 30, 45, 50, 60, 100, 200, 500, 800];
+      return available.includes(num) ? `num-${num}` : null;
+    }
+    
+    // Helper: get unit key for ElevenLabs
+    function getUnitKey(unit, value) {
+      if (unit === 'km') return value === 1 ? 'chilometro' : 'chilometri';
+      if (unit === 'm') return 'metri';
+      if (unit === 'min') return value === 1 ? 'minuto' : 'minuti';
+      if (unit === 'sec') return 'secondi';
+      return null;
+    }
+    
+    // Helper: get description key for ElevenLabs
+    function getDescKey(desc) {
+      if (!desc) return null;
+      const d = desc.toLowerCase();
+      if (d.includes('camminat')) return 'camminata';
+      if (d.includes('recupero')) return 'recupero';
+      if (d.includes('lenta') || d.includes('aerobic')) return 'corsa-lenta';
+      if (d.includes('moderat')) return 'ritmo-moderato';
+      if (d.includes('sostenut') || d.includes('soglia')) return 'ritmo-sostenuto';
+      if (d.includes('veloce') || d.includes('vo2')) return 'ritmo-veloce';
+      if (d.includes('sprint') || d.includes('massim')) return 'massimo-sforzo';
+      return null;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // RUNWORKOUT ANNOUNCEMENTS
     // ═══════════════════════════════════════════════════════════════════════════
     
@@ -627,20 +739,28 @@
       
       const short = isShortPhase(phase);
       
-      // Build announcement
-      let text = `Zona ${phase.zone}`;
-      
-      if (!short) {
-        text += `, ${phase.value} ${getUnitName(phase.unit, phase.value)}`;
-        if (phase.description) {
-          text += `, ${phase.description}`;
+      if (mode === 'eleven') {
+        // ElevenLabs: play pre-recorded audio sequence
+        const sequence = [`zona-${phase.zone}`];
+        const numKey = getNumKey(phase.value);
+        if (numKey) sequence.push(numKey);
+        sequence.push(getUnitKey(phase.unit, phase.value));
+        if (!short) {
+          const descKey = getDescKey(phase.description);
+          if (descKey) sequence.push(descKey);
         }
+        await playElevenSequence(sequence.filter(k => k));
       } else {
-        // Short phase: just zone and value
-        text += `, ${phase.value} ${getUnitName(phase.unit, phase.value)}`;
+        // Voice/Synth: dynamic TTS
+        let text = `Zona ${phase.zone}`;
+        if (!short) {
+          text += `, ${phase.value} ${getUnitName(phase.unit, phase.value)}`;
+          if (phase.description) text += `, ${phase.description}`;
+        } else {
+          text += `, ${phase.value} ${getUnitName(phase.unit, phase.value)}`;
+        }
+        await speak(text);
       }
-      
-      await speak(text);
     }
 
     // Announce loop repetition
@@ -649,7 +769,12 @@
       if (mode === 'none' || mode === 'bip') return;
       
       if (rep > 1) {
-        await speak(`Ripetizione ${rep} di ${total}`);
+        if (mode === 'eleven') {
+          const key = `ripetizione-${rep}-di-${total}`;
+          if (ELEVEN_AUDIO[key]) await playElevenAudio(key);
+        } else {
+          await speak(`Ripetizione ${rep} di ${total}`);
+        }
       }
     }
 
@@ -669,21 +794,32 @@
       
       if (!short && remaining === 30) {
         if (mode === 'bip') { playBeep(); return; }
-        await speak('mancano trenta secondi');
+        if (mode === 'eleven') {
+          await playElevenAudio('mancano-30-secondi');
+        } else {
+          await speak('mancano trenta secondi');
+        }
       }
       
       if (!short && remaining === 10) {
         if (mode === 'bip') { playBeep(); return; }
-        // Announce next phase
         const nextPhase = expandedPhases[currentPhaseIndex + 1];
         if (nextPhase) {
-          await speak(`Prossima fase: Zona ${nextPhase.zone}, ${nextPhase.value} ${getUnitName(nextPhase.unit, nextPhase.value)}`);
+          if (mode === 'eleven') {
+            await playElevenAudio(`prossima-zona-${nextPhase.zone}`);
+          } else {
+            await speak(`Prossima fase: Zona ${nextPhase.zone}, ${nextPhase.value} ${getUnitName(nextPhase.unit, nextPhase.value)}`);
+          }
         }
       }
       
       if (remaining === 5) {
         if (mode === 'bip') { playBeep(); return; }
-        await speak('cinque, quattro, tre, due, uno');
+        if (mode === 'eleven') {
+          await playElevenAudio('countdown-5');
+        } else {
+          await speak('cinque, quattro, tre, due, uno');
+        }
       }
     }
 
@@ -701,24 +837,37 @@
         if (remainingMeters <= 500 && remainingMeters > 450 && !lastAnnouncedWarning['dist_500']) {
           lastAnnouncedWarning['dist_500'] = true;
           if (mode === 'bip') { playBeep(); return; }
-          await speak('mancano 500 metri');
+          if (mode === 'eleven') {
+            await playElevenAudio('mancano-500-metri');
+          } else {
+            await speak('mancano 500 metri');
+          }
         }
         
         if (remainingMeters <= 200 && remainingMeters > 150 && !lastAnnouncedWarning['dist_200']) {
           lastAnnouncedWarning['dist_200'] = true;
           if (mode === 'bip') { playBeep(); return; }
-          await speak('mancano 200 metri');
-          // Announce next phase
-          const nextPhase = expandedPhases[currentPhaseIndex + 1];
-          if (nextPhase) {
-            await speak(`Prossima: Zona ${nextPhase.zone}, ${nextPhase.value} ${getUnitName(nextPhase.unit, nextPhase.value)}`);
+          if (mode === 'eleven') {
+            await playElevenAudio('mancano-200-metri');
+            const nextPhase = expandedPhases[currentPhaseIndex + 1];
+            if (nextPhase) await playElevenAudio(`prossima-zona-${nextPhase.zone}`);
+          } else {
+            await speak('mancano 200 metri');
+            const nextPhase = expandedPhases[currentPhaseIndex + 1];
+            if (nextPhase) {
+              await speak(`Prossima: Zona ${nextPhase.zone}, ${nextPhase.value} ${getUnitName(nextPhase.unit, nextPhase.value)}`);
+            }
           }
         }
         
         if (remainingMeters <= 100 && remainingMeters > 50 && !lastAnnouncedWarning['dist_100']) {
           lastAnnouncedWarning['dist_100'] = true;
           if (mode === 'bip') { playBeep(); return; }
-          await speak('mancano 100 metri');
+          if (mode === 'eleven') {
+            await playElevenAudio('mancano-100-metri');
+          } else {
+            await speak('mancano 100 metri');
+          }
         }
       } else {
         // Short phase: just beep at 50m
@@ -737,14 +886,18 @@
       
       if (mode === 'none' || mode === 'bip') return;
       
-      await speak('Ottimo lavoro! Workout completato.');
+      if (mode === 'eleven') {
+        await playElevenSequence(['ottimo-lavoro', 'workout-completato']);
+      } else {
+        await speak('Ottimo lavoro! Workout completato.');
+      }
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // INITIALIZATION
     // ═══════════════════════════════════════════════════════════════════════════
     async function init() {
-      console.log('🏃 Endurance V2.1 (Audio) Initializing...');
+      console.log('🏃 Endurance V2.2 (ElevenLabs) Initializing...');
       
       // Load saved sound mode
       const savedMode = localStorage.getItem('viltrum_run_soundMode');
