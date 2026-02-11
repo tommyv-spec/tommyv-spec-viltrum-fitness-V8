@@ -23,10 +23,8 @@ import DataPreloader from './data-preloader.js';
 import { calculateWeightFromMax } from './profile-manager.js';
 
 /**
- * Resolve tipoDiPeso for display: if it's a percentage (e.g. "70% BackSquat"),
- * calculate the actual kg from the user's maxes. Otherwise return as-is.
- * @param {string} tipoDiPeso
- * @returns {string} Display text, e.g. "63 kg (70% Back Squat)" or "2DB Pesanti"
+ * Resolve tipoDiPeso for display during workout (full format).
+ * "70% BackSquat" → "63 kg (70% Back Squat)" or "70% Back Squat" if no max set
  */
 function resolveEquipmentDisplay(tipoDiPeso) {
   if (!tipoDiPeso) return '';
@@ -34,7 +32,7 @@ function resolveEquipmentDisplay(tipoDiPeso) {
   if (calc) {
     return `${calc.kg} kg (${calc.percentage}% ${calc.maxName})`;
   }
-  // If it looks like a percentage but no max is set, show a cleaner fallback
+  // Clean up raw percentage text
   const pctMatch = tipoDiPeso.match(/^(\d+(?:\.\d+)?)\s*%\s*(.+)$/i);
   if (pctMatch) {
     return `${pctMatch[1]}% ${pctMatch[2].trim()}`;
@@ -43,18 +41,33 @@ function resolveEquipmentDisplay(tipoDiPeso) {
 }
 
 /**
- * For materiale section: resolve percentage items to equipment type (e.g. "Bilanciere")
- * or the calculated weight. Different from display because materiale = what to bring.
- * @param {string} tipoDiPeso
- * @returns {string} Equipment text for materiale section
+ * Compact version for card preview - shorter text that fits in badges.
+ * "70% BackSquat" → "63 kg" or "70% BS" if no max set
+ */
+function resolveEquipmentCompact(tipoDiPeso) {
+  if (!tipoDiPeso) return '';
+  const calc = calculateWeightFromMax(tipoDiPeso);
+  if (calc) {
+    return `${calc.kg} kg`;
+  }
+  // Clean up raw percentage text  
+  const pctMatch = tipoDiPeso.match(/^(\d+(?:\.\d+)?)\s*%\s*(.+)$/i);
+  if (pctMatch) {
+    return `${pctMatch[1]}% ${pctMatch[2].trim()}`;
+  }
+  return tipoDiPeso;
+}
+
+/**
+ * For materiale section: show equipment type needed.
+ * Percentage-based exercises need a barbell → "Bilanciere: XX kg"
  */
 function resolveMaterialeDisplay(tipoDiPeso) {
   if (!tipoDiPeso) return '';
   const calc = calculateWeightFromMax(tipoDiPeso);
   if (calc) {
-    return `${calc.kg} kg (${calc.percentage}% ${calc.maxName})`;
+    return `Bilanciere ${calc.kg} kg (${calc.percentage}% ${calc.maxName})`;
   }
-  // If percentage but no max set, show "BILANCIERE" since percentage exercises use a barbell
   const pctMatch = tipoDiPeso.match(/^(\d+(?:\.\d+)?)\s*%\s*(.+)$/i);
   if (pctMatch) {
     return 'BILANCIERE';
@@ -2545,10 +2558,26 @@ function updateWorkoutPreview() {
 
       // WEIGHT/EQUIPMENT (if exists)
       if (ex.tipoDiPeso) {
-        const equipmentDiv = document.createElement("div");
-        equipmentDiv.className = "exercise-info-item";
-        equipmentDiv.textContent = resolveEquipmentDisplay(ex.tipoDiPeso);
-        details.appendChild(equipmentDiv);
+        const calc = calculateWeightFromMax(ex.tipoDiPeso);
+        if (calc) {
+          // Show weight as main badge
+          const weightDiv = document.createElement("div");
+          weightDiv.className = "exercise-info-item";
+          weightDiv.textContent = `${calc.kg} kg`;
+          details.appendChild(weightDiv);
+          // Show percentage reference below
+          const pctDiv = document.createElement("div");
+          pctDiv.className = "exercise-info-item";
+          pctDiv.style.fontSize = "clamp(9px,1.8vw,11px)";
+          pctDiv.style.opacity = "0.7";
+          pctDiv.textContent = `${calc.percentage}% ${calc.maxName}`;
+          details.appendChild(pctDiv);
+        } else {
+          const equipmentDiv = document.createElement("div");
+          equipmentDiv.className = "exercise-info-item";
+          equipmentDiv.textContent = resolveEquipmentDisplay(ex.tipoDiPeso);
+          details.appendChild(equipmentDiv);
+        }
       }
 
       // LAST WEIGHT USED (if exists in history)
