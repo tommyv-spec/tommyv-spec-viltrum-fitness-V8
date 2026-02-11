@@ -19,6 +19,24 @@ import { getExerciseWeight, syncLastWorkoutToCloud, setLastWorkoutIndexLocal } f
 // V7.1: Import DataPreloader for plan-based workout loading
 import DataPreloader from './data-preloader.js';
 
+// V8.1: Import maxes calculator for percentage-based weights
+import { calculateWeightFromMax } from './profile-manager.js';
+
+/**
+ * Resolve tipoDiPeso for display: if it's a percentage (e.g. "70% BackSquat"),
+ * calculate the actual kg from the user's maxes. Otherwise return as-is.
+ * @param {string} tipoDiPeso
+ * @returns {string} Display text, e.g. "63 kg (70% Back Squat)" or "2DB Pesanti"
+ */
+function resolveEquipmentDisplay(tipoDiPeso) {
+  if (!tipoDiPeso) return '';
+  const calc = calculateWeightFromMax(tipoDiPeso);
+  if (calc) {
+    return `${calc.kg} kg (${calc.percentage}% ${calc.maxName})`;
+  }
+  return tipoDiPeso;
+}
+
 /* -------------------- ElevenLabs HD Audio Configuration -------------------- */
 const ELEVEN_BASE_URL = 'https://github.com/tommyv-spec/workout-audio/raw/main/docs/elevenlabs_muscle';
 
@@ -1692,11 +1710,12 @@ async function playExercise(index, exercises, resumeTime = null) {
 
   const hasReps = exercise.reps && !exercise.name.toLowerCase().includes("istruz");
   const hasEquipment = exercise.tipoDiPeso && !exercise.name.toLowerCase().includes("istruz") && !exercise.isLabel;
+  const equipDisplay = hasEquipment ? resolveEquipmentDisplay(exercise.tipoDiPeso) : '';
 
   let infoText = "";
-  if (hasReps && hasEquipment) infoText = `${exercise.reps} reps | ${exercise.tipoDiPeso}`;
+  if (hasReps && hasEquipment) infoText = `${exercise.reps} reps | ${equipDisplay}`;
   else if (hasReps)           infoText = `${exercise.reps} reps`;
-  else if (hasEquipment)      infoText = exercise.tipoDiPeso;
+  else if (hasEquipment)      infoText = equipDisplay;
 
   const currentInfo = infoText
     ? `<div style="font-size:16px;font-weight:600;margin-top:8px;color:#B0B0B0;">${infoText}</div>`
@@ -1706,7 +1725,7 @@ async function playExercise(index, exercises, resumeTime = null) {
   const hasDuration = exercise.duration && !exercise.isLabel;
 
   const parts = [];
-  if (hasEquipment) parts.push(exercise.tipoDiPeso);
+  if (hasEquipment) parts.push(equipDisplay);
   if (hasReps) parts.push(`${exercise.reps} REPS`);
   if (hasDuration) parts.push(`${exercise.duration}S`);
 
@@ -1714,9 +1733,10 @@ async function playExercise(index, exercises, resumeTime = null) {
   const hasNextReps = nextExercise && nextExercise.reps && !nextExercise.name.toLowerCase().includes("istruz");
   const hasNextEquipment = nextExercise && nextExercise.tipoDiPeso && !nextExercise.name.toLowerCase().includes("istruz") && !nextExercise.isLabel;
   const hasNextDuration = nextExercise && nextExercise.duration && !nextExercise.isLabel;
+  const nextEquipDisplay = hasNextEquipment ? resolveEquipmentDisplay(nextExercise.tipoDiPeso) : '';
 
   const partsNext = [];
-  if (hasNextEquipment) partsNext.push(nextExercise.tipoDiPeso);
+  if (hasNextEquipment) partsNext.push(nextEquipDisplay);
   if (hasNextReps) partsNext.push(`${nextExercise.reps} REPS`);
   if (hasNextDuration) partsNext.push(`${nextExercise.duration}S`);
   const infoNext = partsNext.join(" | ");
@@ -1860,9 +1880,10 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
           const nxHasReps = nextExercise.reps && !nextExercise.name.toLowerCase().includes("istruz");
           const nxHasEqp  = nextExercise.tipoDiPeso && !nextExercise.name.toLowerCase().includes("istruz") && !nextExercise.isLabel;
           const nxHasDur  = nextExercise.duration && !nextExercise.isLabel;
+          const nxEquipDisplay = nxHasEqp ? resolveEquipmentDisplay(nextExercise.tipoDiPeso) : '';
 
           const nxParts = [];
-          if (nxHasEqp) nxParts.push(nextExercise.tipoDiPeso);
+          if (nxHasEqp) nxParts.push(nxEquipDisplay);
           if (nxHasReps) nxParts.push(`${nextExercise.reps} REPS`);
           if (nxHasDur) nxParts.push(`${nextExercise.duration}S`);
           const nxInfo = nxParts.join(" | ");
@@ -2400,8 +2421,8 @@ function updateWorkoutPreview() {
         const prev = bestByKey.get(key);
         if (!prev || count > prev.count) bestByKey.set(key, { count, gear, level });
       } else {
-        // non-DB/KB items: keep unique as-is (uppercased for dedupe)
-        otherSet.add(normSpaces(tp));
+        // non-DB/KB items: resolve percentage-based weights or keep as-is
+        otherSet.add(normSpaces(resolveEquipmentDisplay(tp)));
       }
     }
 
@@ -2501,7 +2522,7 @@ function updateWorkoutPreview() {
       if (ex.tipoDiPeso) {
         const equipmentDiv = document.createElement("div");
         equipmentDiv.className = "exercise-info-item";
-        equipmentDiv.textContent = ex.tipoDiPeso;
+        equipmentDiv.textContent = resolveEquipmentDisplay(ex.tipoDiPeso);
         details.appendChild(equipmentDiv);
       }
 

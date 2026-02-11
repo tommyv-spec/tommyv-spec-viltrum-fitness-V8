@@ -255,6 +255,161 @@ export function getSubscriptionMessage(subscription) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// USER MAXES (Massimali)
+// Saved in Supabase user_metadata + localStorage cache
+// ═══════════════════════════════════════════════════════════════════════════
+
+const MAXES_CACHE_KEY = 'viltrum_user_maxes';
+
+// Available maxes definitions
+export const AVAILABLE_MAXES = [
+  { id: 'front_squat', label: 'Front Squat', unit: 'kg' },
+  { id: 'back_squat', label: 'Back Squat', unit: 'kg' },
+  { id: 'deadlift', label: 'Deadlift', unit: 'kg' },
+  { id: 'bench_press', label: 'Panca Piana', unit: 'kg' }
+];
+
+/**
+ * Get user maxes from cache or Supabase
+ * @returns {Promise<Object>} User maxes { front_squat: 100, back_squat: 120, ... }
+ */
+export async function getUserMaxes() {
+  try {
+    // Try localStorage cache first
+    const cached = localStorage.getItem(MAXES_CACHE_KEY);
+    if (cached) {
+      console.log('[Profile Manager] Maxes loaded from cache');
+      return JSON.parse(cached);
+    }
+
+    // Try Supabase
+    if (supabase) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.user_metadata?.maxes) {
+        const maxes = user.user_metadata.maxes;
+        localStorage.setItem(MAXES_CACHE_KEY, JSON.stringify(maxes));
+        console.log('[Profile Manager] Maxes loaded from Supabase');
+        return maxes;
+      }
+    }
+
+    return {};
+  } catch (error) {
+    console.error('[Profile Manager] Error getting maxes:', error);
+    return {};
+  }
+}
+
+/**
+ * Save user maxes to Supabase + localStorage
+ * @param {Object} maxes - { front_squat: 100, back_squat: 120, ... }
+ * @returns {Promise<Object>} Result
+ */
+export async function saveUserMaxes(maxes) {
+  try {
+    console.log('[Profile Manager] Saving maxes:', maxes);
+
+    // Clean values: remove empty/zero, keep only valid numbers
+    const cleanMaxes = {};
+    for (const [key, value] of Object.entries(maxes)) {
+      const num = parseFloat(value);
+      if (!isNaN(num) && num > 0) {
+        cleanMaxes[key] = num;
+      }
+    }
+
+    // Save to localStorage immediately
+    localStorage.setItem(MAXES_CACHE_KEY, JSON.stringify(cleanMaxes));
+    console.log('[Profile Manager] Maxes saved to localStorage');
+
+    // Save to Supabase for cross-device sync
+    if (supabase) {
+      try {
+        const { error } = await supabase.auth.updateUser({
+          data: { maxes: cleanMaxes }
+        });
+
+        if (error) {
+          console.error('[Profile Manager] Supabase error saving maxes:', error);
+          return { success: true, warning: 'Salvato localmente, sync cloud fallito' };
+        }
+
+        console.log('[Profile Manager] Maxes synced to Supabase');
+        return { success: true };
+      } catch (supabaseError) {
+        console.error('[Profile Manager] Supabase save failed:', supabaseError);
+        return { success: true, warning: 'Salvato localmente' };
+      }
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('[Profile Manager] Error saving maxes:', error);
+    return { success: false, error: 'Errore durante il salvataggio' };
+  }
+}
+
+/**
+ * Calculate weight from percentage of a max
+ * Used during workouts when tipoDiPeso is like "70% BackSquat"
+ * @param {string} tipoDiPeso - e.g. "70% BackSquat", "80% Panca"
+ * @returns {Object|null} { kg: 63, percentage: 70, maxName: 'Back Squat', maxValue: 90 } or null
+ */
+export function calculateWeightFromMax(tipoDiPeso) {
+  if (!tipoDiPeso || typeof tipoDiPeso !== 'string') return null;
+
+  // Pattern: "XX% MaxName"
+  const match = tipoDiPeso.match(/^(\d+(?:\.\d+)?)\s*%\s*(.+)$/i);
+  if (!match) return null;
+
+  const percentage = parseFloat(match[1]);
+  const maxRef = match[2].trim().toLowerCase();
+
+  // Map common references to max IDs
+  const maxMapping = {
+    'frontsquat': 'front_squat',
+    'front squat': 'front_squat',
+    'backsquat': 'back_squat',
+    'back squat': 'back_squat',
+    'squat': 'back_squat',
+    'deadlift': 'deadlift',
+    'stacco': 'deadlift',
+    'panca': 'bench_press',
+    'bench': 'bench_press',
+    'bench press': 'bench_press',
+    'benchpress': 'bench_press',
+    'panca piana': 'bench_press'
+  };
+
+  const maxId = maxMapping[maxRef];
+  if (!maxId) return null;
+
+  // Get cached maxes
+  try {
+    const cached = localStorage.getItem(MAXES_CACHE_KEY);
+    if (!cached) return null;
+
+    const maxes = JSON.parse(cached);
+    const maxValue = maxes[maxId];
+    if (!maxValue || maxValue <= 0) return null;
+
+    const calculatedKg = Math.round((percentage / 100) * maxValue * 2) / 2; // Round to nearest 0.5
+
+    const maxLabel = AVAILABLE_MAXES.find(m => m.id === maxId)?.label || maxRef;
+
+    return {
+      kg: calculatedKg,
+      percentage,
+      maxName: maxLabel,
+      maxValue
+    };
+  } catch (error) {
+    console.error('[Profile Manager] Error calculating weight from max:', error);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════════════════════════════════════════════
 

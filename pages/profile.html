@@ -82,6 +82,22 @@
     .success-message { background: rgba(76,175,80,0.2); border: 1px solid rgba(76,175,80,0.5); color: #4CAF50; }
     .error-message { background: rgba(244,67,54,0.2); border: 1px solid rgba(244,67,54,0.5); color: #f44336; }
     .success-message.show, .error-message.show { display: block; }
+
+    /* Maxes Section */
+    .maxes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .max-input-group { position: relative; }
+    .max-input-group label { display: block; color: #999; font-size: 0.8rem; margin-bottom: 0.4rem; }
+    .max-input-wrapper { position: relative; display: flex; align-items: center; }
+    .max-input-wrapper input {
+      width: 100%; padding: 0.75rem; padding-right: 2.5rem;
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px; color: #fff; font-size: 1.1rem; text-align: center;
+      font-family: 'Staatliches', sans-serif;
+    }
+    .max-input-wrapper input:focus { outline: none; border-color: #4CAF50; }
+    .max-input-wrapper input::placeholder { color: rgba(255,255,255,0.3); font-size: 0.9rem; }
+    .max-unit { position: absolute; right: 0.75rem; color: #666; font-size: 0.85rem; pointer-events: none; }
+    .maxes-info { color: #666; font-size: 0.8rem; margin-top: 0.5rem; text-align: center; }
   </style>
 </head>
 <body>
@@ -153,6 +169,48 @@
     </div>
 
     <div class="profile-section">
+      <h2>💪 I Miei Massimali</h2>
+      <div class="success-message" id="maxes-success"></div>
+      <div class="error-message" id="maxes-error"></div>
+      <form id="maxes-form">
+        <div class="maxes-grid">
+          <div class="max-input-group">
+            <label for="max-front_squat">Front Squat</label>
+            <div class="max-input-wrapper">
+              <input type="number" id="max-front_squat" placeholder="—" step="0.5" min="0">
+              <span class="max-unit">kg</span>
+            </div>
+          </div>
+          <div class="max-input-group">
+            <label for="max-back_squat">Back Squat</label>
+            <div class="max-input-wrapper">
+              <input type="number" id="max-back_squat" placeholder="—" step="0.5" min="0">
+              <span class="max-unit">kg</span>
+            </div>
+          </div>
+          <div class="max-input-group">
+            <label for="max-deadlift">Deadlift</label>
+            <div class="max-input-wrapper">
+              <input type="number" id="max-deadlift" placeholder="—" step="0.5" min="0">
+              <span class="max-unit">kg</span>
+            </div>
+          </div>
+          <div class="max-input-group">
+            <label for="max-bench_press">Panca Piana</label>
+            <div class="max-input-wrapper">
+              <input type="number" id="max-bench_press" placeholder="—" step="0.5" min="0">
+              <span class="max-unit">kg</span>
+            </div>
+          </div>
+        </div>
+        <p class="maxes-info">Usati per calcolare i pesi nei workout (es. 70% Back Squat)</p>
+        <div class="button-group">
+          <button type="submit" class="btn btn-primary">Salva Massimali</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="profile-section">
       <h2>Azioni Account</h2>
       <div class="button-group">
         <button class="btn btn-secondary" onclick="window.location.href='../pages/dashboard-v7.html'">Torna alla Dashboard</button>
@@ -163,7 +221,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script type="module">
-    import { getUserProfile, updateUsername, updateEmail, getSubscriptionMessage, formatExpiryDate } from '../js/profile-manager.js';
+    import { getUserProfile, updateUsername, updateEmail, getSubscriptionMessage, formatExpiryDate, getUserMaxes, saveUserMaxes, AVAILABLE_MAXES } from '../js/profile-manager.js';
     import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../js/config.js';
 
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -281,6 +339,46 @@
       }
     });
 
+    // ═══════════════════════════════════════════════════════════════════
+    // MAXES (Massimali)
+    // ═══════════════════════════════════════════════════════════════════
+    async function loadMaxes() {
+      const maxes = await getUserMaxes();
+      for (const max of AVAILABLE_MAXES) {
+        const input = document.getElementById('max-' + max.id);
+        if (input && maxes[max.id]) {
+          input.value = maxes[max.id];
+        }
+      }
+    }
+
+    document.getElementById('maxes-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const successMsg = document.getElementById('maxes-success');
+      const errorMsg = document.getElementById('maxes-error');
+      successMsg.classList.remove('show');
+      errorMsg.classList.remove('show');
+
+      const maxes = {};
+      for (const max of AVAILABLE_MAXES) {
+        const input = document.getElementById('max-' + max.id);
+        if (input && input.value) {
+          maxes[max.id] = parseFloat(input.value);
+        }
+      }
+
+      const result = await saveUserMaxes(maxes);
+
+      if (result.success) {
+        successMsg.textContent = '✅ Massimali salvati!' + (result.warning ? ' (' + result.warning + ')' : '');
+        successMsg.classList.add('show');
+        setTimeout(() => successMsg.classList.remove('show'), 3000);
+      } else {
+        errorMsg.textContent = '❌ ' + (result.error || 'Errore durante il salvataggio');
+        errorMsg.classList.add('show');
+      }
+    });
+
     // Logout
     window.confirmLogout = async function() {
       if (confirm('Sei sicuro di voler uscire?')) {
@@ -300,6 +398,7 @@
         localStorage.removeItem('viltrum_exercise_weights');
         localStorage.removeItem('viltrum_total_workouts');
         localStorage.removeItem('viltrum_user_cache');
+        localStorage.removeItem('viltrum_user_maxes');
         
         // Clear sessionStorage
         sessionStorage.clear();
@@ -310,6 +409,7 @@
 
     // Initialize
     loadProfile();
+    loadMaxes();
   </script>
 </body>
 </html>

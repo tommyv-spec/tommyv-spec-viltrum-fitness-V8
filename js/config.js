@@ -9,7 +9,7 @@ export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 // Google Apps Script URL
 // ⚠️ SINGLE SOURCE OF TRUTH - Change this URL here and it updates everywhere
-export const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw3Rl_nlPPShTOGkHSkBxCWjBEx0zD5qAlftBs7SLH8DEVbyVJXh_7TpW2bQg51OEhNXA/exec';
+export const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxTRdahX5GlIigMfrqIQyxnn198K5-oi69m30aMI6zrCV9yeC70wjHB5x_aqZm4g4L6DA/exec';
 
 // TTS Server Configuration
 export const TTS_SERVER_URL = 'https://google-tts-server.onrender.com';
