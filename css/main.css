@@ -2496,8 +2496,8 @@ main { max-width: min(600px, 95vw); margin: 0 auto; padding-inline: 20px; paddin
 #materiale-section { width:100%; max-width:min(600px,95vw); margin:20px auto; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: clamp(10px,2vw,12px); overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,.25); }
 .materiale-header { padding: clamp(10px,2vw,12px) clamp(12px,2.5vw,16px); display:flex; align-items:center; gap: clamp(8px,1.5vw,10px); background: linear-gradient(135deg,#4D4D4D,#4D4D4D); color:#FFFFFF; }
 .materiale-content { background:#FFFFFF }
-#materiale-list { display:grid; grid-template-columns: repeat(auto-fit, minmax(120px,1fr)); gap: clamp(8px,1.5vw,10px); justify-items:center; }
-.materiale-item { background: #4D4D4D; color: #FFFFFF; padding:10px 16px; border-radius: clamp(16px,3vw,20px); font-size: clamp(12px,2.3vw,14px); font-weight:600; box-shadow: 0 2px 8px rgba(0,0,0,.25); width:100%; max-width:min(160px,75vw); white-space:nowrap; }
+#materiale-list { display:flex; flex-wrap:wrap; gap: clamp(8px,1.5vw,10px); justify-content:center; padding: clamp(10px,2vw,14px); }
+.materiale-item { background: #4D4D4D; color: #FFFFFF; padding:10px 16px; border-radius: clamp(16px,3vw,20px); font-size: clamp(12px,2.3vw,14px); font-weight:600; box-shadow: 0 2px 8px rgba(0,0,0,.25); width:auto; max-width:min(220px,85vw); text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 #exercise-visuals { display:block !important; width:100%; max-width:min(340px,85vw); margin-top: clamp(18px,3.5vw,25px); margin-bottom: clamp(18px,3.5vw,25px); }
 

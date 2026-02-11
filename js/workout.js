@@ -34,6 +34,31 @@ function resolveEquipmentDisplay(tipoDiPeso) {
   if (calc) {
     return `${calc.kg} kg (${calc.percentage}% ${calc.maxName})`;
   }
+  // If it looks like a percentage but no max is set, show a cleaner fallback
+  const pctMatch = tipoDiPeso.match(/^(\d+(?:\.\d+)?)\s*%\s*(.+)$/i);
+  if (pctMatch) {
+    return `${pctMatch[1]}% ${pctMatch[2].trim()}`;
+  }
+  return tipoDiPeso;
+}
+
+/**
+ * For materiale section: resolve percentage items to equipment type (e.g. "Bilanciere")
+ * or the calculated weight. Different from display because materiale = what to bring.
+ * @param {string} tipoDiPeso
+ * @returns {string} Equipment text for materiale section
+ */
+function resolveMaterialeDisplay(tipoDiPeso) {
+  if (!tipoDiPeso) return '';
+  const calc = calculateWeightFromMax(tipoDiPeso);
+  if (calc) {
+    return `${calc.kg} kg (${calc.percentage}% ${calc.maxName})`;
+  }
+  // If percentage but no max set, show "BILANCIERE" since percentage exercises use a barbell
+  const pctMatch = tipoDiPeso.match(/^(\d+(?:\.\d+)?)\s*%\s*(.+)$/i);
+  if (pctMatch) {
+    return 'BILANCIERE';
+  }
   return tipoDiPeso;
 }
 
@@ -2422,7 +2447,7 @@ function updateWorkoutPreview() {
         if (!prev || count > prev.count) bestByKey.set(key, { count, gear, level });
       } else {
         // non-DB/KB items: resolve percentage-based weights or keep as-is
-        otherSet.add(normSpaces(resolveEquipmentDisplay(tp)));
+        otherSet.add(normSpaces(resolveMaterialeDisplay(tp)));
       }
     }
 
