@@ -183,6 +183,13 @@
       padding: 1.5vh; border-radius: 8px; text-align: center;
       font-size: 1.4vh; margin-top: 1vh;
     }
+
+    .maxes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5vh; margin-bottom: 1.5vh; }
+    .max-field {}
+    .max-label { display: block; color: #888; font-size: 1.3vh; margin-bottom: 0.5vh; }
+    .max-input-row { display: flex; align-items: center; gap: 0.5vw; }
+    .max-input-row input { flex: 1; text-align: center; font-size: 1.8vh !important; }
+    .max-kg { color: #666; font-size: 1.4vh; flex-shrink: 0; }
     .message.error {
       background: rgba(244, 67, 54, 0.2); border: 1px solid #F44336; color: #F44336;
     }
@@ -226,7 +233,7 @@
         <img src="https://lh3.googleusercontent.com/d/1va6OkGp9yAHDJBfeDM3npwqlJJoLUh5C" alt="Viltrum Fitness" style="height: 40px !important; max-height: 40px !important; width: auto !important; max-width: 150px !important;" />
       </div>
       <div class="header-right">
-        <button class="header-action-btn" onclick="openProfileModal()">
+        <button class="header-action-btn" onclick="window.location.href='./profile.html'">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
             <circle cx="12" cy="7" r="4"/>
@@ -320,6 +327,7 @@
         <button class="profile-btn" onclick="openUsernameModal()">👤 Cambia Username</button>
         <button class="profile-btn" onclick="openEmailModal()">✉️ Cambia Email</button>
         <button class="profile-btn" onclick="openPasswordModal()">🔒 Cambia Password</button>
+        <button class="profile-btn" onclick="openMaxesModal()">💪 I Miei Massimali</button>
         <button class="profile-btn logout" onclick="handleLogout()">🚪 Logout</button>
         <button class="profile-btn secondary" onclick="closeProfileModal()">← Indietro</button>
       </div>
@@ -358,6 +366,47 @@
       <button onclick="savePassword()">Salva Password</button>
       <button class="secondary" onclick="closePasswordModal()">Annulla</button>
       <div class="message" id="password-message" style="display: none;"></div>
+    </div>
+  </div>
+
+  <!-- Maxes Modal -->
+  <div class="modal" id="maxes-modal">
+    <div class="modal-content">
+      <h2 class="modal-title">💪 I MIEI MASSIMALI</h2>
+      <div class="maxes-grid">
+        <div class="max-field">
+          <label class="max-label">Front Squat</label>
+          <div class="max-input-row">
+            <input type="number" id="max-front_squat" placeholder="—" step="0.5" min="0">
+            <span class="max-kg">kg</span>
+          </div>
+        </div>
+        <div class="max-field">
+          <label class="max-label">Back Squat</label>
+          <div class="max-input-row">
+            <input type="number" id="max-back_squat" placeholder="—" step="0.5" min="0">
+            <span class="max-kg">kg</span>
+          </div>
+        </div>
+        <div class="max-field">
+          <label class="max-label">Deadlift</label>
+          <div class="max-input-row">
+            <input type="number" id="max-deadlift" placeholder="—" step="0.5" min="0">
+            <span class="max-kg">kg</span>
+          </div>
+        </div>
+        <div class="max-field">
+          <label class="max-label">Panca Piana</label>
+          <div class="max-input-row">
+            <input type="number" id="max-bench_press" placeholder="—" step="0.5" min="0">
+            <span class="max-kg">kg</span>
+          </div>
+        </div>
+      </div>
+      <p style="color:#666; font-size:1.3vh; text-align:center; margin:1.5vh 0;">Usati per calcolare i pesi nei workout (es. 70% Back Squat)</p>
+      <button onclick="saveMaxes()">Salva Massimali</button>
+      <button class="secondary" onclick="closeMaxesModal()">Annulla</button>
+      <div class="message" id="maxes-message" style="display: none;"></div>
     </div>
   </div>
 
@@ -759,6 +808,86 @@
     };
     
     // ═══════════════════════════════════════════════════════════════════════════
+    // MAXES MODAL
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    const MAXES_CACHE_KEY = 'viltrum_user_maxes';
+    const MAXES_IDS = ['front_squat', 'back_squat', 'deadlift', 'bench_press'];
+
+    window.openMaxesModal = async function() {
+      closeProfileModal();
+      document.getElementById('maxes-message').style.display = 'none';
+      
+      // Load from cache or Supabase
+      let maxes = {};
+      try {
+        const cached = localStorage.getItem(MAXES_CACHE_KEY);
+        if (cached) {
+          maxes = JSON.parse(cached);
+        } else if (supabase) {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user?.user_metadata?.maxes) {
+            maxes = user.user_metadata.maxes;
+            localStorage.setItem(MAXES_CACHE_KEY, JSON.stringify(maxes));
+          }
+        }
+      } catch (e) { console.error('[Maxes] Load error:', e); }
+      
+      // Fill inputs
+      MAXES_IDS.forEach(id => {
+        const input = document.getElementById('max-' + id);
+        if (input) input.value = maxes[id] || '';
+      });
+      
+      document.getElementById('maxes-modal').classList.add('active');
+    };
+    
+    window.closeMaxesModal = function() {
+      document.getElementById('maxes-modal').classList.remove('active');
+      document.getElementById('maxes-message').style.display = 'none';
+    };
+    
+    window.saveMaxes = async function() {
+      const message = document.getElementById('maxes-message');
+      
+      const maxes = {};
+      MAXES_IDS.forEach(id => {
+        const input = document.getElementById('max-' + id);
+        const val = parseFloat(input?.value);
+        if (!isNaN(val) && val > 0) maxes[id] = val;
+      });
+      
+      message.textContent = 'Salvataggio...';
+      message.className = 'message';
+      message.style.display = 'block';
+      
+      // Save to localStorage
+      localStorage.setItem(MAXES_CACHE_KEY, JSON.stringify(maxes));
+      
+      // Save to Supabase
+      try {
+        if (supabase) {
+          const { error } = await supabase.auth.updateUser({ data: { maxes: maxes } });
+          if (error) {
+            message.textContent = '✅ Salvato localmente (sync cloud fallito)';
+            message.className = 'message success';
+          } else {
+            message.textContent = '✅ Massimali salvati!';
+            message.className = 'message success';
+          }
+        } else {
+          message.textContent = '✅ Salvato localmente';
+          message.className = 'message success';
+        }
+      } catch (error) {
+        message.textContent = '✅ Salvato localmente';
+        message.className = 'message success';
+      }
+      message.style.display = 'block';
+      setTimeout(() => closeMaxesModal(), 2000);
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // LOGOUT - Uses signOut from auth.js or direct supabase call
     // ═══════════════════════════════════════════════════════════════════════════
     
@@ -788,6 +917,7 @@
           localStorage.removeItem('viltrum_last_workout_index');
           localStorage.removeItem('viltrum_exercise_weights');
           localStorage.removeItem('viltrum_total_workouts');
+          localStorage.removeItem('viltrum_user_maxes');
           
           // Clear sessionStorage
           sessionStorage.clear();
