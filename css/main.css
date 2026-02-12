@@ -1353,12 +1353,9 @@ body:has(#exercise-container[style*="display: flex"]) #start-button-bottom {
   align-items: center;
   justify-content: flex-start;
   height: var(--dvh-px);
-  height: var(--dvh-px);
   max-height: var(--dvh-px);
-  max-height: var(--dvh-px);
-  /* Responsive padding with safe areas */
-  padding: max(calc(var(--dvh-px) * 0.05), env(safe-area-inset-top)) clamp(8px, 2vw, 10px) max(calc(var(--dvh-px) * 0.05), env(safe-area-inset-bottom)) clamp(8px, 2vw, 10px);
-  gap: clamp(2px, calc(var(--dvh-px) * 0.05), 4px);
+  padding: max(8px, env(safe-area-inset-top)) clamp(8px, 2vw, 10px) max(8px, env(safe-area-inset-bottom)) clamp(8px, 2vw, 10px);
+  gap: 2px;
   position: fixed;
   top: 0;
   left: 0;
@@ -1401,20 +1398,19 @@ body:has(#exercise-container[style*="display: flex"]) {
   font-size: clamp(15px, 4vw, 18px);
   font-weight: bold;
   color: #fff;
-  margin: 0 clamp(8px, 2vw, 10px) clamp(2px, calc(var(--dvh-px) * 0.05), 4px) clamp(8px, 2vw, 10px);
+  margin: 0 clamp(8px, 2vw, 10px) 2px clamp(8px, 2vw, 10px);
   text-align: center;
   line-height: 1.2;
   flex-shrink: 0;
   flex-grow: 0;
-  /* Responsive min-height */
-  min-height: clamp(42px, calc(var(--dvh-px) * 0.08), 48px);
+  min-height: 36px;
   max-height: none;
   overflow: visible;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: clamp(6px, calc(var(--dvh-px) * 0.05), 8px) clamp(10px, 2.5vw, 14px);
+  padding: 4px clamp(10px, 2.5vw, 14px);
   text-shadow: 0 2px 8px rgba(0,0,0,0.9);
   background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(10px);
@@ -2187,13 +2183,6 @@ audio {
   }
 }
 
-/* Safari fallback */
-@supports (height: -webkit-fill-available) {
-  #exercise-container {
-    height: -webkit-fill-available !important;
-  }
-}
-
 /* Prevent any scrolling during workout */
 body:has(#exercise-container[style*="display: flex"]),
 body:has(#exercise-container[style*="display: flex"]) html {
@@ -2228,14 +2217,6 @@ body:has(#exercise-container[style*="display: flex"]) html {
 /* Portrait is default - no override needed since main definition already handles it */
 
 
-#exercise-container {
-  display: flex;
-  flex-direction: column;
-  height: var(--dvh-px);
-  max-height: var(--dvh-px);
-  min-height: 0;
-}
-
 /* Non-GIF parts keep their natural size */
 #workout-progress-header,
 #workout-progress-container,
@@ -2246,7 +2227,7 @@ body:has(#exercise-container[style*="display: flex"]) html {
 }
 
 
-/* --- Cropped GIF fills the leftover height, for ANY crop % --- */
+/* --- GIF viewport fills all leftover space --- */
 #exercise-gif-viewport {
   flex: 1 1 auto;
   min-height: 0;
@@ -2258,29 +2239,21 @@ body:has(#exercise-container[style*="display: flex"]) html {
   position: relative;
 }
 
-/* iOS Safari fallback: ensure GIF viewport has real height */
-@supports (-webkit-touch-callout: none) {
-  #exercise-gif-viewport {
-    min-height: calc(var(--dvh-px) * 0.35);
-  }
-}
-
-/* Set crop as FRACTIONS (0–1). Change these two only. */
+/* GIF: cropped and sized to fill viewport */
 #exercise-gif {
-  --clip-top: 0.13;      /* 13% top crop  → set 0.05 for 5%, etc. */
-  --clip-bottom: 0.07;   /*  7% bottom crop */
+  --clip-top: 0.13;
+  --clip-bottom: 0.07;
 
-  /* Fill the viewport height, expand beyond to account for cropping */
-  height: calc(100% / (1 - (var(--clip-top) + var(--clip-bottom))));
+  /* Use dvh-based height as primary, percentage as fallback */
+  height: calc(var(--dvh-px) * 0.55);
+  max-height: calc(100% / (1 - (var(--clip-top) + var(--clip-bottom))));
   width: auto;
-  max-width: none;
-  max-height: none;
+  max-width: 95vw;
 
   aspect-ratio: 9 / 16;
   object-fit: cover;
   object-position: center;
 
-  /* Convert the FRACTIONS above into percentages for clip-path */
   clip-path: inset(calc(var(--clip-top) * 100%) 0 calc(var(--clip-bottom) * 100%) 0);
 
   display: block;
