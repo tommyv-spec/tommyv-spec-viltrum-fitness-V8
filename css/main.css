@@ -1427,25 +1427,15 @@ body:has(#exercise-container[style*="display: flex"]) {
 }
 
 /* ====== GIF - ALWAYS 9:16 VERTICAL ====== */
+/* Base styles only - sizing handled by the cropped-GIF rules below */
 #exercise-gif,
 #next-exercise-gif {
-  /* CRITICAL: Responsive width that maintains 9:16 aspect ratio */
-  width: min(85vw, calc(var(--dvh-px) * 0.75));
-  max-width: 90vw;
-  /* CRITICAL: Force 9:16 vertical aspect ratio */
-  aspect-ratio: 9 / 16;
-  /* Let height be calculated by aspect-ratio */
-  height: auto;
-  /* Cover and center the image */
   object-fit: cover;
   object-position: center;
   display: block;
   margin: 0 auto;
   border-radius: clamp(10px, 2vw, 12px);
   box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-  /* CRITICAL: Crop 5% from top and bottom */
-  clip-path: inset(5% 0 5% 0);
-  flex-shrink: 0;
 }
 
 /* ====== CONTROLS - RESPONSIVE ====== */
@@ -2247,6 +2237,7 @@ body:has(#exercise-container[style*="display: flex"]) html {
 }
 
 /* Non-GIF parts keep their natural size */
+#workout-progress-header,
 #workout-progress-container,
 #timer,
 #exercise-name,
@@ -2264,6 +2255,14 @@ body:has(#exercise-container[style*="display: flex"]) html {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  position: relative;
+}
+
+/* iOS Safari fallback: ensure GIF viewport has real height */
+@supports (-webkit-touch-callout: none) {
+  #exercise-gif-viewport {
+    min-height: calc(var(--dvh-px) * 0.35);
+  }
 }
 
 /* Set crop as FRACTIONS (0–1). Change these two only. */
@@ -2271,10 +2270,11 @@ body:has(#exercise-container[style*="display: flex"]) html {
   --clip-top: 0.13;      /* 13% top crop  → set 0.05 for 5%, etc. */
   --clip-bottom: 0.07;   /*  7% bottom crop */
 
-  /* After cropping (top+bottom), the visible height = 100% */
-  height: calc(100% / (1 - (var(--clip-top) + var(--clip-bottom)))) !important;
-  width: auto !important;
-  max-width: none !important;
+  /* Fill the viewport height, expand beyond to account for cropping */
+  height: calc(100% / (1 - (var(--clip-top) + var(--clip-bottom))));
+  width: auto;
+  max-width: none;
+  max-height: none;
 
   aspect-ratio: 9 / 16;
   object-fit: cover;
