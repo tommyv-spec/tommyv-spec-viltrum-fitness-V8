@@ -290,7 +290,10 @@
 
     <!-- Loading View -->
     <div id="loading-view" class="view active">
-      <div class="loading"><div class="spinner"></div></div>
+      <div class="loading">
+        <div class="spinner"></div>
+        <div id="debug-status" style="color:#666;font-size:12px;margin-top:20px;text-align:center;">Avvio...</div>
+      </div>
     </div>
 
     <!-- Selector View -->
@@ -896,10 +899,14 @@
     // ═══════════════════════════════════════════════════════════════════════════
     // INITIALIZATION
     // ═══════════════════════════════════════════════════════════════════════════
+    const dbg = (msg) => { 
+      const el = document.getElementById('debug-status'); 
+      if (el) el.textContent = msg; 
+      console.log('🏃 DBG:', msg); 
+    };
+
     async function init() {
-      console.log('🏃 Endurance V2.2 (ElevenLabs) Initializing...', 'readyState:', document.readyState);
-      console.log('🏃 loggedUser:', localStorage.getItem('loggedUser'));
-      console.log('🏃 currentWorkout from session:', sessionStorage.getItem('currentWorkout'));
+      dbg('init() chiamata');
       
       // Load saved sound mode
       const savedMode = localStorage.getItem('viltrum_run_soundMode');
@@ -910,7 +917,6 @@
       // Save sound mode on change
       document.getElementById('soundMode').addEventListener('change', (e) => {
         localStorage.setItem('viltrum_run_soundMode', e.target.value);
-        // Test audio on mode change
         if (e.target.value !== 'none') {
           ensureAudioUnlocked();
           playBeep();
@@ -920,12 +926,17 @@
       try {
         const loggedUser = localStorage.getItem('loggedUser');
         if (!loggedUser) {
+          dbg('Nessun utente loggato, redirect...');
           window.location.href = '../index.html';
           return;
         }
+        dbg('Utente: ' + loggedUser + ' - caricamento dati...');
 
         await DataPreloader.loadAll(loggedUser);
+        dbg('DataPreloader caricato');
+        
         runWorkouts = DataPreloader.getAllRunWorkouts();
+        dbg('RunWorkouts: ' + Object.keys(runWorkouts).length + ' trovati');
         
         // Check if coming from plan-view
         const planWorkout = sessionStorage.getItem('currentWorkout');
@@ -933,44 +944,45 @@
           try {
             const info = JSON.parse(planWorkout);
             if (info.workoutType === 'run') {
-              console.log('🎯 Loading from plan-view:', info.workoutName);
+              dbg('Da plan-view: ' + info.workoutName);
               v7PlanInfo = info;
               
-              // Verify workout exists, force reload if not
               if (!runWorkouts[info.workoutName]) {
-                console.warn('⚠️ Run workout not in cache, forcing reload...');
+                dbg('Workout non in cache, forceRefresh...');
                 await DataPreloader.forceRefresh(loggedUser);
                 runWorkouts = DataPreloader.getAllRunWorkouts();
+                dbg('Dopo refresh: ' + Object.keys(runWorkouts).length + ' workouts');
               }
               
               if (!runWorkouts[info.workoutName]) {
-                console.error('❌ Run workout not found after reload:', info.workoutName, 'Available:', Object.keys(runWorkouts));
+                dbg('❌ Workout non trovato: ' + info.workoutName);
                 sessionStorage.removeItem('currentWorkout');
                 showView('selector-view');
                 renderWorkoutList();
                 return;
               }
               
-              showView('loading-view');
+              dbg('Avvio workout: ' + info.workoutName);
               try {
                 await startWorkout(info.workoutName);
               } catch (startErr) {
-                console.error('❌ startWorkout failed:', startErr);
+                dbg('❌ startWorkout errore: ' + startErr.message);
                 showView('selector-view');
                 renderWorkoutList();
               }
               return;
             }
           } catch (e) {
-            console.warn('Failed to parse plan workout:', e);
+            dbg('Errore parse plan: ' + e.message);
           }
         }
 
+        dbg('Mostra lista workouts');
         showView('selector-view');
         renderWorkoutList();
         
       } catch (error) {
-        console.error('❌ Init failed:', error);
+        dbg('❌ Init fallita: ' + error.message);
         showView('selector-view');
         document.getElementById('no-workouts').style.display = 'flex';
       }
