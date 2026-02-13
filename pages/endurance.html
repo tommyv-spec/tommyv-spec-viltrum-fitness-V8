@@ -897,7 +897,9 @@
     // INITIALIZATION
     // ═══════════════════════════════════════════════════════════════════════════
     async function init() {
-      console.log('🏃 Endurance V2.2 (ElevenLabs) Initializing...');
+      console.log('🏃 Endurance V2.2 (ElevenLabs) Initializing...', 'readyState:', document.readyState);
+      console.log('🏃 loggedUser:', localStorage.getItem('loggedUser'));
+      console.log('🏃 currentWorkout from session:', sessionStorage.getItem('currentWorkout'));
       
       // Load saved sound mode
       const savedMode = localStorage.getItem('viltrum_run_soundMode');
@@ -1549,8 +1551,12 @@
       }
     });
 
-    // Initialize
-    document.addEventListener('DOMContentLoaded', init);
+    // Initialize - handle case where DOMContentLoaded already fired (module scripts are deferred)
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
   </script>
 </body>
 </html>

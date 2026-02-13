@@ -199,7 +199,13 @@ const DataPreloader = {
   },
   
   async waitForLoad() {
+    const timeout = Date.now() + 15000; // 15 second max wait
     while (this._cache.isLoading && !this._cache.isLoaded) {
+      if (Date.now() > timeout) {
+        console.error('⏰ DataPreloader: waitForLoad timeout after 15s');
+        this._cache.isLoading = false;
+        break;
+      }
       await new Promise(r => setTimeout(r, 50));
     }
     return this._cache;
