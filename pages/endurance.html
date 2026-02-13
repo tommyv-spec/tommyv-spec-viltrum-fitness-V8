@@ -296,6 +296,15 @@
       </div>
     </div>
 
+    <!-- Ready View (requires tap to start - unlocks audio on iOS) -->
+    <div id="ready-view" class="view">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3vh;padding:4vh 2vw;">
+        <div style="font-size:2vh;color:#666;letter-spacing:2px;">PRONTO?</div>
+        <div id="ready-workout-name" style="font-size:3.5vh;font-weight:700;color:#FFF;text-align:center;"></div>
+        <button id="ready-start-btn" style="margin-top:3vh;padding:2.5vh 8vw;font-size:2.5vh;font-family:'Staatliches',sans-serif;letter-spacing:3px;background:#FFF;color:#000;border:none;border-radius:50px;cursor:pointer;font-weight:700;">▶ AVVIA</button>
+      </div>
+    </div>
+
     <!-- Selector View -->
     <div id="selector-view" class="view selector-view">
       <div class="selector-title">
@@ -978,14 +987,13 @@
                 return;
               }
               
-              dbg('Avvio workout: ' + info.workoutName);
-              try {
+              // Show ready screen - user tap will unlock audio on iOS
+              document.getElementById('ready-workout-name').textContent = info.workoutName;
+              showView('ready-view');
+              document.getElementById('ready-start-btn').onclick = async function() {
+                await ensureAudioUnlocked();
                 await startWorkout(info.workoutName);
-              } catch (startErr) {
-                dbg('❌ startWorkout errore: ' + startErr.message);
-                showView('selector-view');
-                renderWorkoutList();
-              }
+              };
               return;
             }
           } catch (e) {
@@ -1053,6 +1061,9 @@
         return;
       }
 
+      // Unlock audio (should already be unlocked from user tap)
+      await ensureAudioUnlocked();
+
       // Expand phases (handle loops)
       expandedPhases = expandPhases(currentWorkout.phases);
       currentPhaseIndex = 0;
@@ -1065,7 +1076,7 @@
       isPaused = false;
       lastAnnouncedWarning = {};
 
-      // Show workout UI IMMEDIATELY (before audio)
+      // Show workout UI
       document.getElementById('workout-name').textContent = name;
       showView('workout-view');
       renderCurrentPhase();
@@ -1077,16 +1088,12 @@
       if (timerInterval) clearInterval(timerInterval);
       timerInterval = setInterval(updateGlobalTimer, 1000);
       
-      // Audio announcements (non-blocking - don't await)
-      ensureAudioUnlocked().then(() => {
-        const firstPhase = expandedPhases[0];
-        if (firstPhase._loopRep) {
-          announceLoopRep(firstPhase._loopRep, firstPhase._loopTotal)
-            .then(() => announcePhaseStart(firstPhase));
-        } else {
-          announcePhaseStart(firstPhase);
-        }
-      });
+      // Announce first phase
+      const firstPhase = expandedPhases[0];
+      if (firstPhase._loopRep) {
+        await announceLoopRep(firstPhase._loopRep, firstPhase._loopTotal);
+      }
+      await announcePhaseStart(firstPhase);
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
