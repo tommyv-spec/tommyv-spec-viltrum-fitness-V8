@@ -933,8 +933,30 @@
             if (info.workoutType === 'run') {
               console.log('🎯 Loading from plan-view:', info.workoutName);
               v7PlanInfo = info;
+              
+              // Verify workout exists, force reload if not
+              if (!runWorkouts[info.workoutName]) {
+                console.warn('⚠️ Run workout not in cache, forcing reload...');
+                await DataPreloader.forceRefresh(loggedUser);
+                runWorkouts = DataPreloader.getAllRunWorkouts();
+              }
+              
+              if (!runWorkouts[info.workoutName]) {
+                console.error('❌ Run workout not found after reload:', info.workoutName, 'Available:', Object.keys(runWorkouts));
+                sessionStorage.removeItem('currentWorkout');
+                showView('selector-view');
+                renderWorkoutList();
+                return;
+              }
+              
               showView('loading-view');
-              startWorkout(info.workoutName);
+              try {
+                await startWorkout(info.workoutName);
+              } catch (startErr) {
+                console.error('❌ startWorkout failed:', startErr);
+                showView('selector-view');
+                renderWorkoutList();
+              }
               return;
             }
           } catch (e) {
@@ -995,7 +1017,9 @@
       currentWorkoutName = name;
       
       if (!currentWorkout?.phases?.length) {
-        alert('Workout non valido');
+        console.error('❌ Workout non valido o senza fasi:', name);
+        showView('selector-view');
+        renderWorkoutList();
         return;
       }
 
