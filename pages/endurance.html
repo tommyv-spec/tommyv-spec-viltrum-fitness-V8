@@ -517,14 +517,24 @@
         const AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) { audioUnlocked = true; return; }
         const ctx = new AC();
-        if (ctx.state === 'suspended') await ctx.resume();
-        const src = ctx.createBufferSource();
-        src.buffer = ctx.createBuffer(1, 1, 22050);
-        src.connect(ctx.destination);
-        src.start(0);
+        if (ctx.state === 'suspended') {
+          // iOS Safari: ctx.resume() hangs forever without user gesture
+          // Use a timeout to prevent blocking
+          await Promise.race([
+            ctx.resume(),
+            new Promise(r => setTimeout(r, 1000))
+          ]);
+        }
+        if (ctx.state === 'running') {
+          const src = ctx.createBufferSource();
+          src.buffer = ctx.createBuffer(1, 1, 22050);
+          src.connect(ctx.destination);
+          src.start(0);
+        }
         audioUnlocked = true;
-        console.log('🔊 Audio unlocked');
+        console.log('🔊 Audio unlocked (state: ' + ctx.state + ')');
       } catch (e) {
+        audioUnlocked = true; // Don't block workout even if audio fails
         console.warn('Unable to unlock audio:', e);
       }
     }
@@ -533,12 +543,15 @@
       const el = document.getElementById('tts-audio');
       if (!el) return;
       
-      return new Promise((resolve, reject) => {
-        el.src = url;
-        el.onended = () => { URL.revokeObjectURL(url); resolve(); };
-        el.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
-        el.play().catch(reject);
-      });
+      return Promise.race([
+        new Promise((resolve, reject) => {
+          el.src = url;
+          el.onended = () => { try { URL.revokeObjectURL(url); } catch(e){} resolve(); };
+          el.onerror = (e) => { try { URL.revokeObjectURL(url); } catch(e2){} reject(e); };
+          el.play().catch(reject);
+        }),
+        new Promise(r => setTimeout(r, 10000)) // 10s max per audio
+      ]);
     }
 
     // Cloud TTS
@@ -659,12 +672,15 @@
       const url = `${ELEVEN_BASE_URL}/${ELEVEN_AUDIO[key]}`;
       const audio = document.getElementById('tts-audio');
       
-      return new Promise((resolve) => {
-        audio.src = url;
-        audio.onended = resolve;
-        audio.onerror = () => { console.warn(`❌ Failed: ${key}`); resolve(); };
-        audio.play().catch(() => resolve());
-      });
+      return Promise.race([
+        new Promise((resolve) => {
+          audio.src = url;
+          audio.onended = resolve;
+          audio.onerror = () => { console.warn(`❌ Failed: ${key}`); resolve(); };
+          audio.play().catch(() => resolve());
+        }),
+        new Promise(r => setTimeout(r, 5000)) // 5s max per clip
+      ]);
     }
     
     async function playElevenSequence(keys) {
@@ -1037,9 +1053,6 @@
         return;
       }
 
-      // Unlock audio on user interaction
-      await ensureAudioUnlocked();
-
       // Expand phases (handle loops)
       expandedPhases = expandPhases(currentWorkout.phases);
       currentPhaseIndex = 0;
@@ -1052,9 +1065,10 @@
       isPaused = false;
       lastAnnouncedWarning = {};
 
-      // Update UI
+      // Show workout UI IMMEDIATELY (before audio)
       document.getElementById('workout-name').textContent = name;
       showView('workout-view');
+      renderCurrentPhase();
       
       // Start GPS tracking
       startGPS();
@@ -1063,15 +1077,16 @@
       if (timerInterval) clearInterval(timerInterval);
       timerInterval = setInterval(updateGlobalTimer, 1000);
       
-      // Render first phase
-      renderCurrentPhase();
-      
-      // Announce first phase
-      const firstPhase = expandedPhases[0];
-      if (firstPhase._loopRep) {
-        await announceLoopRep(firstPhase._loopRep, firstPhase._loopTotal);
-      }
-      await announcePhaseStart(firstPhase);
+      // Audio announcements (non-blocking - don't await)
+      ensureAudioUnlocked().then(() => {
+        const firstPhase = expandedPhases[0];
+        if (firstPhase._loopRep) {
+          announceLoopRep(firstPhase._loopRep, firstPhase._loopTotal)
+            .then(() => announcePhaseStart(firstPhase));
+        } else {
+          announcePhaseStart(firstPhase);
+        }
+      });
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
