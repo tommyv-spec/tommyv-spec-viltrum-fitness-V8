@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Dashboard - Viltrum Fitness</title>
+  
+  <style>
+    select, input:not([type="checkbox"]):not([type="radio"]), button { 
+      -webkit-appearance: none; -moz-appearance: none; appearance: none;
+    }
+    html, body { background: #000; }
+  </style>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Staatliches&display=swap" rel="stylesheet" />
+  <link rel="manifest" href="../manifest.json" />
+  <meta name="theme-color" content="#000000" />
+  
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100vh; height: var(--dvh-px, 100vh);
+      width: 100%; font-family: 'Staatliches', sans-serif;
+      background: #000; color: #FFF; overflow: hidden;
+    }
+    .dashboard-container {
+      height: 100vh; height: var(--dvh-px, 100vh);
+      display: flex; flex-direction: column;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+
+    header {
+      display: grid !important;
+      grid-template-columns: 1fr auto 1fr !important;
+      align-items: center !important;
+      height: 60px !important;
+      max-height: 60px !important;
+      min-height: 50px !important;
+      padding: 0 4vw !important;
+      background: #000 !important;
+      border-bottom: 1px solid #222 !important;
+      overflow: hidden !important;
+      flex-shrink: 0;
+    }
+    header img {
+      height: 40px !important;
+      max-height: 40px !important;
+      width: auto !important;
+      max-width: 150px !important;
+      object-fit: contain !important;
+    }
+    .header-left { grid-column: 1; justify-self: start; }
+    .header-center { grid-column: 2; justify-self: center; }
+    .header-right { grid-column: 3; justify-self: end; }
+    .header-action-btn {
+      padding: 8px 16px; background: #FFF; border: 2px solid #FFF; border-radius: 8px;
+      color: #000; font-family: 'Staatliches', sans-serif; font-size: 14px;
+      cursor: pointer; display: flex; align-items: center; gap: 6px; text-decoration: none;
+    }
+    .header-action-btn svg { width: 18px; height: 18px; }
+
+    .welcome-section { flex-shrink: 0; text-align: center; padding: 1.5vh 4vw; }
+    .welcome-section h1 { font-size: 2.2vh; letter-spacing: 2px; }
+
+    .stats-section {
+      flex-shrink: 0; display: flex; justify-content: center; gap: 6vw;
+      padding: 1.5vh 4vw; border-bottom: 1px solid #222;
+    }
+    .stat-box { text-align: center; }
+    .stat-label { font-size: 1.3vh; color: #666; margin-bottom: 0.3vh; }
+    .stat-value { font-size: 2vh; color: #FFF; }
+    .stat-sub { font-size: 1.2vh; color: #888; }
+
+    main { 
+      flex: 1; display: flex; flex-direction: column; 
+      padding: 2vh 4vw; gap: 1.5vh; 
+      padding-bottom: calc(2vh + 20px);
+      overflow-y: auto; overflow-x: hidden;
+      min-height: 0;
+    }
+    body.preload-bar-visible main {
+      padding-bottom: calc(2vh + 85px);
+    }
+    /* No bottom nav in dashboard — preload bar goes to bottom edge */
+    :root { --footer-total: 0px; }
+    .section-card {
+      flex-shrink: 0; background: #111; border: 2px solid #333; border-radius: 16px;
+      padding: 2.5vh 4vw; text-decoration: none; display: flex; flex-direction: column;
+      justify-content: center; align-items: center; gap: 1vh; cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .section-card:hover { border-color: #FFF; transform: translateY(-2px); }
+    .section-card.disabled { opacity: 0.4; cursor: not-allowed; }
+    .section-card.disabled:hover { border-color: #333; transform: none; }
+    .card-icon {
+      width: 6vh; height: 6vh; border: 2px solid #444; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .card-icon svg { width: 3vh; height: 3vh; color: #FFF; }
+    .card-title { font-size: 2.5vh; letter-spacing: 3px; color: #FFF; }
+    .card-subtitle { font-size: 1.4vh; color: #888; text-align: center; }
+    .card-badge {
+      font-size: 1.3vh; padding: 0.4vh 2vw; border: 1px solid #444;
+      border-radius: 4px; color: #AAA;
+    }
+    .card-badge.active { border-color: #FFF; color: #FFF; }
+
+    .small-cards-row { flex-shrink: 0; display: flex; gap: 3vw; margin-top: auto; }
+    .small-card {
+      flex: 1; background: #111; border: 2px solid #333; border-radius: 12px;
+      padding: 1.5vh 3vw; display: flex; flex-direction: column;
+      justify-content: center; align-items: center; gap: 0.8vh; cursor: pointer;
+      transition: all 0.2s ease; text-decoration: none;
+    }
+    .small-card:hover { border-color: #FFF; transform: translateY(-2px); }
+    .small-card-icon {
+      width: 4vh; height: 4vh; border: 2px solid #444; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .small-card-icon svg { width: 2vh; height: 2vh; color: #FFF; }
+    .small-card-title { font-size: 1.8vh; letter-spacing: 2px; color: #FFF; }
+    .small-card-subtitle { font-size: 1.2vh; color: #888; text-align: center; }
+
+    .modal {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.95); z-index: 1000; align-items: center;
+      justify-content: center; padding: 4vw;
+    }
+    .modal.active { display: flex; }
+    .modal-content {
+      background: #111; border: 2px solid #333; border-radius: 16px;
+      padding: 3vh 4vw; max-width: 400px; width: 100%; max-height: 80vh; overflow-y: auto;
+    }
+    .modal-title { font-size: 2.5vh; letter-spacing: 2px; text-align: center; margin-bottom: 3vh; }
+    .plan-list { display: flex; flex-direction: column; gap: 1.5vh; }
+    .plan-item {
+      background: #1A1A1A; border: 2px solid #333; border-radius: 12px;
+      padding: 2vh 3vw; cursor: pointer; transition: all 0.2s ease;
+    }
+    .plan-item:hover { border-color: #FFF; }
+    .plan-item-name { font-size: 2vh; color: #FFF; margin-bottom: 0.5vh; }
+    .plan-item-progress { font-size: 1.4vh; color: #666; }
+    .modal-close {
+      margin-top: 2vh; width: 100%; padding: 1.5vh; background: none;
+      border: 2px solid #444; border-radius: 8px; color: #FFF;
+      font-family: 'Staatliches', sans-serif; font-size: 1.8vh; cursor: pointer;
+    }
+    .modal-close:hover { border-color: #FFF; }
+
+    .profile-actions { display: flex; flex-direction: column; gap: 1.5vh; }
+    .profile-btn {
+      padding: 1.5vh 3vw; background: #1A1A1A; border: 1px solid #333;
+      border-radius: 8px; color: #FFF; font-family: 'Staatliches', sans-serif;
+      font-size: 1.6vh; cursor: pointer; text-align: left;
+    }
+    .profile-btn:hover { border-color: #FFF; }
+    .profile-btn.logout { border-color: #600; color: #F44; }
+    .profile-btn.secondary { border-color: #444; color: #888; text-align: center; }
+    .subscription-info {
+      text-align: center; padding: 2vh; background: #1A1A1A;
+      border-radius: 8px; margin-bottom: 2vh;
+    }
+    .subscription-status { font-size: 1.6vh; margin-bottom: 0.5vh; }
+    .subscription-status.active { color: #4CAF50; }
+    .subscription-status.expired { color: #F44336; }
+    .subscription-date { font-size: 1.4vh; color: #666; }
+
+    .modal-content input {
+      width: 100%; padding: 1.5vh 2vw; margin-bottom: 1.5vh;
+      background: #1A1A1A; border: 1px solid #333; border-radius: 8px;
+      color: #FFF; font-family: 'Staatliches', sans-serif; font-size: 1.6vh;
+    }
+    .modal-content input:focus { outline: none; border-color: #4CAF50; }
+    .modal-content input::placeholder { color: #666; }
+    .modal-content button {
+      width: 100%; padding: 1.5vh; margin-bottom: 1vh;
+      background: #4CAF50; border: none; border-radius: 8px;
+      color: #FFF; font-family: 'Staatliches', sans-serif;
+      font-size: 1.6vh; cursor: pointer; transition: background 0.2s ease;
+    }
+    .modal-content button:hover { background: #45a049; }
+    .modal-content button.secondary {
+      background: transparent; border: 1px solid #444; color: #888;
+    }
+    .modal-content button.secondary:hover { border-color: #FFF; color: #FFF; }
+    .message {
+      padding: 1.5vh; border-radius: 8px; text-align: center;
+      font-size: 1.4vh; margin-top: 1vh;
+    }
+
+    .maxes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5vh; margin-bottom: 1.5vh; }
+    .max-field {}
+    .max-label { display: block; color: #888; font-size: 1.3vh; margin-bottom: 0.5vh; }
+    .max-input-row { display: flex; align-items: center; gap: 0.5vw; }
+    .max-input-row input { flex: 1; text-align: center; font-size: 1.8vh !important; }
+    .max-kg { color: #666; font-size: 1.4vh; flex-shrink: 0; }
+    .message.error {
+      background: rgba(244, 67, 54, 0.2); border: 1px solid #F44336; color: #F44336;
+    }
+    .message.success {
+      background: rgba(76, 175, 80, 0.2); border: 1px solid #4CAF50; color: #4CAF50;
+    }
+
+    .loading-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: #000; display: none; flex-direction: column;
+      align-items: center; justify-content: center; gap: 2vh; z-index: 2000;
+    }
+    .loading-overlay.visible { display: flex; }
+    .loading-spinner {
+      width: 40px; height: 40px; border: 3px solid #333;
+      border-top-color: #FFF; border-radius: 50%; animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .preload-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: #111; border-top: 1px solid #333;
+      padding: 1.5vh 4vw; display: none; z-index: 100;
+    }
+    .preload-bar.active { display: block; }
+    .preload-bar-text { font-size: 1.4vh; color: #888; margin-bottom: 0.5vh; text-align: center; }
+    .preload-bar-track { height: 4px; background: #333; border-radius: 2px; overflow: hidden; }
+    .preload-bar-fill { height: 100%; background: #FFF; width: 0%; transition: width 0.3s ease; }
+  </style>
+  <!-- Real viewport height before first paint -->
+  <script>
+    (function(){
+      function setH(){
+        var h = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+        document.documentElement.style.setProperty('--dvh-px', h + 'px');
+      }
+      setH();
+      window.addEventListener('resize', setH, {passive:true});
+      if(window.visualViewport){
+        window.visualViewport.addEventListener('resize', setH, {passive:true});
+      }
+    })();
+  </script>
+</head>
+<body>
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="loading-spinner"></div>
+    <p style="color:#AAA;font-size:1.6vh;">Caricamento...</p>
+  </div>
+
+  <div class="dashboard-container">
+    <header>
+      <div class="header-left"></div>
+      <div class="header-center">
+        <img src="https://lh3.googleusercontent.com/d/1va6OkGp9yAHDJBfeDM3npwqlJJoLUh5C" alt="Viltrum Fitness" style="height: 40px !important; max-height: 40px !important; width: auto !important; max-width: 150px !important;" />
+      </div>
+      <div class="header-right">
+        <button class="header-action-btn" onclick="window.location.href='./profile.html'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="welcome-section">
+      <h1 id="welcome-text">BENVENUTO</h1>
+    </div>
+
+    <div class="stats-section">
+      <div class="stat-box">
+        <div class="stat-label">WORKOUT TOTALI</div>
+        <div class="stat-value" id="total-workouts">0</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">STREAK</div>
+        <div class="stat-value" id="streak-value">0</div>
+        <div class="stat-sub">giorni</div>
+      </div>
+    </div>
+
+    <main>
+      <div class="section-card" id="training-card" onclick="handleTrainingClick()">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6.5 6.5h11M6.5 17.5h11M4 12h16M7 6.5v11M17 6.5v11"/>
+          </svg>
+        </div>
+        <h2 class="card-title">ALLENAMENTO</h2>
+        <p class="card-subtitle">I tuoi piani personalizzati</p>
+        <span class="card-badge" id="training-badge">CARICAMENTO...</span>
+      </div>
+
+      <div class="section-card" id="nutrition-card" onclick="handleNutritionClick()">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/>
+          </svg>
+        </div>
+        <h2 class="card-title">NUTRIZIONE</h2>
+        <p class="card-subtitle">Piano alimentare e tracker</p>
+        <span class="card-badge" id="nutrition-badge">CARICAMENTO...</span>
+      </div>
+
+      <div class="small-cards-row">
+        <div class="small-card" onclick="window.open('https://shop.viltrumfitness.com/collections/all', '_blank')">
+          <div class="small-card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/>
+            </svg>
+          </div>
+          <h3 class="small-card-title">SHOP</h3>
+          <p class="small-card-subtitle">Acquista pacchetti</p>
+        </div>
+
+        <div class="small-card" onclick="window.open('https://shop.viltrumfitness.com/blogs/nutrition', '_blank')">
+          <div class="small-card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 014 17V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H6.5"/>
+              <path d="M8 7h8M8 11h6"/>
+            </svg>
+          </div>
+          <h3 class="small-card-title">BLOG</h3>
+          <p class="small-card-subtitle">Articoli e consigli</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Plan Selection Modal -->
+  <div class="modal" id="plan-modal">
+    <div class="modal-content">
+      <h2 class="modal-title">SELEZIONA PIANO</h2>
+      <div class="plan-list" id="plan-list"></div>
+      <button class="modal-close" onclick="closePlanModal()">CHIUDI</button>
+    </div>
+  </div>
+
+  <!-- Profile Modal -->
+  <div class="modal" id="profile-modal">
+    <div class="modal-content">
+      <h2 class="modal-title">👤 PROFILO</h2>
+      <div class="subscription-info">
+        <div class="subscription-status" id="subscription-status">Caricamento...</div>
+        <div class="subscription-date" id="subscription-date">-</div>
+      </div>
+      <div class="profile-actions">
+        <button class="profile-btn" onclick="openUsernameModal()">👤 Cambia Username</button>
+        <button class="profile-btn" onclick="openEmailModal()">✉️ Cambia Email</button>
+        <button class="profile-btn" onclick="openPasswordModal()">🔒 Cambia Password</button>
+        <button class="profile-btn" onclick="openMaxesModal()">💪 I Miei Massimali</button>
+        <button class="profile-btn logout" onclick="handleLogout()">🚪 Logout</button>
+        <button class="profile-btn secondary" onclick="closeProfileModal()">← Indietro</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Username Change Modal -->
+  <div class="modal" id="username-modal">
+    <div class="modal-content">
+      <h2 class="modal-title">👤 CAMBIA USERNAME</h2>
+      <input type="text" id="new-username" placeholder="Nuovo Username" minlength="2">
+      <button onclick="saveUsername()">Salva Username</button>
+      <button class="secondary" onclick="closeUsernameModal()">Annulla</button>
+      <div class="message" id="username-message" style="display: none;"></div>
+    </div>
+  </div>
+
+  <!-- Email Change Modal -->
+  <div class="modal" id="email-modal">
+    <div class="modal-content">
+      <h2 class="modal-title">✉️ CAMBIA EMAIL</h2>
+      <input type="email" id="new-email" placeholder="Nuova Email">
+      <input type="password" id="email-password" placeholder="Password Attuale" minlength="6">
+      <button onclick="saveEmail()">Salva Email</button>
+      <button class="secondary" onclick="closeEmailModal()">Annulla</button>
+      <div class="message" id="email-message" style="display: none;"></div>
+    </div>
+  </div>
+
+  <!-- Password Change Modal -->
+  <div class="modal" id="password-modal">
+    <div class="modal-content">
+      <h2 class="modal-title">🔒 CAMBIA PASSWORD</h2>
+      <input type="password" id="new-password" placeholder="Nuova Password" minlength="6">
+      <input type="password" id="new-password-confirm" placeholder="Conferma Password" minlength="6">
+      <button onclick="savePassword()">Salva Password</button>
+      <button class="secondary" onclick="closePasswordModal()">Annulla</button>
+      <div class="message" id="password-message" style="display: none;"></div>
+    </div>
+  </div>
+
+  <!-- Maxes Modal -->
+  <div class="modal" id="maxes-modal">
+    <div class="modal-content">
+      <h2 class="modal-title">💪 I MIEI MASSIMALI</h2>
+      <div class="maxes-grid">
+        <div class="max-field">
+          <label class="max-label">Front Squat</label>
+          <div class="max-input-row">
+            <input type="number" id="max-front_squat" placeholder="—" step="0.5" min="0">
+            <span class="max-kg">kg</span>
+          </div>
+        </div>
+        <div class="max-field">
+          <label class="max-label">Back Squat</label>
+          <div class="max-input-row">
+            <input type="number" id="max-back_squat" placeholder="—" step="0.5" min="0">
+            <span class="max-kg">kg</span>
+          </div>
+        </div>
+        <div class="max-field">
+          <label class="max-label">Deadlift</label>
+          <div class="max-input-row">
+            <input type="number" id="max-deadlift" placeholder="—" step="0.5" min="0">
+            <span class="max-kg">kg</span>
+          </div>
+        </div>
+        <div class="max-field">
+          <label class="max-label">Panca Piana</label>
+          <div class="max-input-row">
+            <input type="number" id="max-bench_press" placeholder="—" step="0.5" min="0">
+            <span class="max-kg">kg</span>
+          </div>
+        </div>
+      </div>
+      <p style="color:#666; font-size:1.3vh; text-align:center; margin:1.5vh 0;">Usati per calcolare i pesi nei workout (es. 70% Back Squat)</p>
+      <button onclick="saveMaxes()">Salva Massimali</button>
+      <button class="secondary" onclick="closeMaxesModal()">Annulla</button>
+      <div class="message" id="maxes-message" style="display: none;"></div>
+    </div>
+  </div>
+
+  <script src="../viewport.js"></script>
+  <script src="../js/offline-preloader.js"></script>
+  <script src="../js/global-preload-bar.js"></script>
+  
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Auth module (provides signOut, supabase global) -->
+  <script type="module" src="../js/auth.js"></script>
+  
+  <script type="module">
+    import DataPreloader from '../js/data-preloader.js';
+    import { GOOGLE_SCRIPT_URL, SUPABASE_URL, SUPABASE_ANON_KEY } from '../js/config.js';
+    
+    // Use supabase from auth.js (exposed as window.supabase) or create our own
+    let supabase;
+    if (window.supabase && window.supabase.auth) {
+      supabase = window.supabase;
+    } else {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+    
+    let userData = null;
+    let userPlans = [];
+    let allProgress = {};
+    let allPlansData = {};
+    
+    async function init() {
+      const email = localStorage.getItem('loggedUser');
+      if (!email) { window.location.href = '../index.html'; return; }
+      
+      document.getElementById('loading-overlay').classList.add('hidden');
+      
+      try {
+        await DataPreloader.loadAll(email);
+        
+        userData = DataPreloader.getUserData();
+        userPlans = userData?.plans || [];
+        allPlansData = DataPreloader.getPlans();
+        allProgress = DataPreloader.getAllProgress();
+        
+        if (!userData) {
+          userData = { plans: [], fullName: localStorage.getItem('userName') || 'User' };
+        }
+        
+        renderUI();
+        
+        window.addEventListener('dataRefreshed', (e) => {
+          console.log('🔄 UI: Aggiornamento dati ricevuto');
+          userData = DataPreloader.getUserData();
+          userPlans = userData?.plans || [];
+          allPlansData = DataPreloader.getPlans();
+          allProgress = DataPreloader.getAllProgress();
+          renderUI();
+        });
+        
+        if (typeof OfflinePreloader !== 'undefined' && userData) {
+          const userInfo = {
+            email: userData.email,
+            plans: userPlans,
+            allPlansData: allPlansData,
+            allWorkoutsData: DataPreloader.getAllMuscleWorkouts(),
+            runWorkouts: DataPreloader.getAllRunWorkouts(),
+            nutritionPdfUrl: userData.nutritionPdfUrl
+          };
+          
+          OfflinePreloader.preloadAll(userInfo, { scriptUrl: GOOGLE_SCRIPT_URL })
+            .then(result => {
+              if (result.skipped) console.log('⏭️ Preload already in progress');
+              else if (result.cached) console.log('✅ Already cached');
+              else console.log('✅ Preload complete');
+            });
+        }
+        
+      } catch (error) {
+        console.error('Failed to initialize:', error);
+        if (!userData) {
+          document.getElementById('welcome-text').textContent = 'ERRORE CARICAMENTO';
+        }
+      }
+    }
+    
+    function renderUI() {
+      // Priority: localStorage userName (user's choice) > server fullName > fallback
+      const name = localStorage.getItem('userName') || userData.fullName || 'Atleta';
+      document.getElementById('welcome-text').textContent = `BENVENUTO, ${name.toUpperCase()}`;
+      
+      let totalWorkouts = 0;
+      for (const planName in allProgress) {
+        const progress = allProgress[planName];
+        if (progress.lastWorkoutIndex >= 0) totalWorkouts += progress.lastWorkoutIndex + 1;
+      }
+      const localTotal = parseInt(localStorage.getItem('viltrum_total_workouts')) || 0;
+      document.getElementById('total-workouts').textContent = Math.max(totalWorkouts, localTotal);
+      
+      const trainingBadge = document.getElementById('training-badge');
+      if (userPlans.length > 0) {
+        trainingBadge.textContent = `${userPlans.length} PIAN${userPlans.length > 1 ? 'I' : 'O'}`;
+        trainingBadge.classList.add('active');
+      } else {
+        trainingBadge.textContent = 'NESSUN PIANO';
+        document.getElementById('training-card').classList.add('disabled');
+      }
+      
+      const nutritionBadge = document.getElementById('nutrition-badge');
+      if (userData.nutritionPdfUrl) {
+        nutritionBadge.textContent = 'ATTIVO';
+        nutritionBadge.classList.add('active');
+      } else {
+        nutritionBadge.textContent = 'NON ATTIVO';
+        document.getElementById('nutrition-card').classList.add('disabled');
+      }
+      
+      const statusEl = document.getElementById('subscription-status');
+      const dateEl = document.getElementById('subscription-date');
+      if (userData.scadenza) {
+        const expDate = new Date(userData.scadenza);
+        const daysRemaining = Math.ceil((expDate - new Date()) / (1000 * 60 * 60 * 24));
+        statusEl.textContent = daysRemaining < 0 ? '❌ Abbonamento Scaduto' : '✓ Abbonamento Attivo';
+        statusEl.className = 'subscription-status ' + (daysRemaining < 0 ? 'expired' : 'active');
+        dateEl.textContent = `Scadenza: ${expDate.toLocaleDateString('it-IT')}`;
+      } else {
+        statusEl.textContent = 'Stato sconosciuto';
+        dateEl.textContent = '';
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // NAVIGATION
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    window.handleTrainingClick = function() {
+      if (userPlans.length === 0) { alert('Nessun piano assegnato'); return; }
+      if (userPlans.length === 1) {
+        sessionStorage.setItem('selectedPlan', userPlans[0]);
+        window.location.href = 'plan-view.html';
+      } else {
+        openPlanModal();
+      }
+    };
+    
+    window.handleNutritionClick = function() {
+      if (!userData.nutritionPdfUrl) { alert('Piano nutrizionale non disponibile'); return; }
+      window.location.href = 'nutrition.html';
+    };
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PLAN MODAL
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    window.openPlanModal = function() {
+      const list = document.getElementById('plan-list');
+      list.innerHTML = '';
+      
+      userPlans.forEach(planName => {
+        const progress = allProgress[planName] || { lastWorkoutIndex: -1 };
+        const planData = allPlansData[planName] || { totalWorkouts: 0 };
+        const completed = progress.lastWorkoutIndex + 1;
+        const total = planData.totalWorkouts || 0;
+        
+        const item = document.createElement('div');
+        item.className = 'plan-item';
+        item.innerHTML = `
+          <div class="plan-item-name">${planName}</div>
+          <div class="plan-item-progress">${completed}/${total} completati</div>
+        `;
+        item.onclick = () => {
+          sessionStorage.setItem('selectedPlan', planName);
+          window.location.href = 'plan-view.html';
+        };
+        list.appendChild(item);
+      });
+      
+      document.getElementById('plan-modal').classList.add('active');
+    };
+    
+    window.closePlanModal = function() {
+      document.getElementById('plan-modal').classList.remove('active');
+    };
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PROFILE MODAL
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    window.openProfileModal = function() {
+      document.getElementById('profile-modal').classList.add('active');
+    };
+    
+    window.closeProfileModal = function() {
+      document.getElementById('profile-modal').classList.remove('active');
+    };
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // USERNAME MODAL
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    window.openUsernameModal = function() {
+      closeProfileModal();
+      const currentUsername = localStorage.getItem('userName') || '';
+      document.getElementById('new-username').value = currentUsername;
+      document.getElementById('username-modal').classList.add('active');
+    };
+    
+    window.closeUsernameModal = function() {
+      document.getElementById('username-modal').classList.remove('active');
+      document.getElementById('new-username').value = '';
+      document.getElementById('username-message').style.display = 'none';
+    };
+    
+    window.saveUsername = async function() {
+      const newUsername = document.getElementById('new-username').value.trim();
+      const message = document.getElementById('username-message');
+
+      if (!newUsername || newUsername.length < 2) {
+        message.textContent = 'Username deve essere di almeno 2 caratteri';
+        message.className = 'message error';
+        message.style.display = 'block';
+        return;
+      }
+
+      message.textContent = 'Aggiornamento...';
+      message.className = 'message';
+      message.style.display = 'block';
+
+      try {
+        // Update localStorage
+        localStorage.setItem('userName', newUsername);
+        
+        // Update Supabase user metadata
+        const { error } = await supabase.auth.updateUser({
+          data: { username: newUsername }
+        });
+
+        if (error) {
+          console.error('Supabase update error:', error);
+          message.textContent = '✅ Username aggiornato localmente!';
+        } else {
+          message.textContent = '✅ Username aggiornato!';
+        }
+        message.className = 'message success';
+        
+        // Update welcome text immediately
+        document.getElementById('welcome-text').textContent = `BENVENUTO, ${newUsername.toUpperCase()}`;
+        
+        // Also update the DataPreloader cache so it persists
+        if (userData) {
+          userData.fullName = newUsername;
+        }
+        
+        setTimeout(() => closeUsernameModal(), 2000);
+      } catch (error) {
+        console.error('Username update error:', error);
+        message.textContent = 'Errore durante aggiornamento';
+        message.className = 'message error';
+      }
+      message.style.display = 'block';
+    };
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EMAIL MODAL
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    window.openEmailModal = function() {
+      closeProfileModal();
+      const currentEmail = localStorage.getItem('loggedUser') || '';
+      document.getElementById('new-email').value = currentEmail;
+      document.getElementById('email-modal').classList.add('active');
+    };
+    
+    window.closeEmailModal = function() {
+      document.getElementById('email-modal').classList.remove('active');
+      document.getElementById('new-email').value = '';
+      document.getElementById('email-password').value = '';
+      document.getElementById('email-message').style.display = 'none';
+    };
+    
+    window.saveEmail = async function() {
+      const newEmail = document.getElementById('new-email').value.trim().toLowerCase();
+      const password = document.getElementById('email-password').value;
+      const message = document.getElementById('email-message');
+
+      if (!newEmail || !newEmail.includes('@')) {
+        message.textContent = 'Inserisci un\'email valida';
+        message.className = 'message error';
+        message.style.display = 'block';
+        return;
+      }
+
+      if (!password || password.length < 6) {
+        message.textContent = 'Inserisci la password attuale';
+        message.className = 'message error';
+        message.style.display = 'block';
+        return;
+      }
+
+      message.textContent = 'Verifico password...';
+      message.className = 'message';
+      message.style.display = 'block';
+
+      try {
+        const currentEmail = localStorage.getItem('loggedUser');
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: currentEmail,
+          password: password
+        });
+
+        if (signInError) {
+          message.textContent = '❌ Password non corretta';
+          message.className = 'message error';
+          message.style.display = 'block';
+          return;
+        }
+
+        message.textContent = 'Aggiornamento email...';
+        const { error } = await supabase.auth.updateUser({ email: newEmail });
+
+        if (error) {
+          message.textContent = '❌ ' + error.message;
+          message.className = 'message error';
+        } else {
+          localStorage.setItem('loggedUser', newEmail);
+          message.textContent = '✅ Email aggiornata! Controlla la tua casella per confermare.';
+          message.className = 'message success';
+          setTimeout(() => closeEmailModal(), 3000);
+        }
+      } catch (error) {
+        console.error('Email update error:', error);
+        message.textContent = 'Errore durante aggiornamento';
+        message.className = 'message error';
+      }
+      message.style.display = 'block';
+    };
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PASSWORD MODAL
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    window.openPasswordModal = function() {
+      closeProfileModal();
+      document.getElementById('password-modal').classList.add('active');
+    };
+    
+    window.closePasswordModal = function() {
+      document.getElementById('password-modal').classList.remove('active');
+      document.getElementById('new-password').value = '';
+      document.getElementById('new-password-confirm').value = '';
+      document.getElementById('password-message').style.display = 'none';
+    };
+    
+    window.savePassword = async function() {
+      const newPassword = document.getElementById('new-password').value.trim();
+      const confirmPassword = document.getElementById('new-password-confirm').value.trim();
+      const message = document.getElementById('password-message');
+
+      if (!newPassword || !confirmPassword) {
+        message.textContent = 'Compila tutti i campi';
+        message.className = 'message error';
+        message.style.display = 'block';
+        return;
+      }
+
+      if (newPassword.length < 6) {
+        message.textContent = 'Password deve essere di almeno 6 caratteri';
+        message.className = 'message error';
+        message.style.display = 'block';
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        message.textContent = 'Le password non corrispondono';
+        message.className = 'message error';
+        message.style.display = 'block';
+        return;
+      }
+
+      message.textContent = 'Aggiornamento...';
+      message.className = 'message';
+      message.style.display = 'block';
+
+      try {
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+        if (error) {
+          message.textContent = error.message;
+          message.className = 'message error';
+        } else {
+          message.textContent = '✅ Password aggiornata!';
+          message.className = 'message success';
+          setTimeout(() => closePasswordModal(), 2000);
+        }
+      } catch (error) {
+        message.textContent = 'Errore durante aggiornamento';
+        message.className = 'message error';
+      }
+      message.style.display = 'block';
+    };
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // MAXES MODAL
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    const MAXES_CACHE_KEY = 'viltrum_user_maxes';
+    const MAXES_IDS = ['front_squat', 'back_squat', 'deadlift', 'bench_press'];
+
+    window.openMaxesModal = async function() {
+      closeProfileModal();
+      document.getElementById('maxes-message').style.display = 'none';
+      
+      // Load from cache or Supabase
+      let maxes = {};
+      try {
+        const cached = localStorage.getItem(MAXES_CACHE_KEY);
+        if (cached) {
+          maxes = JSON.parse(cached);
+        } else if (supabase) {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user?.user_metadata?.maxes) {
+            maxes = user.user_metadata.maxes;
+            localStorage.setItem(MAXES_CACHE_KEY, JSON.stringify(maxes));
+          }
+        }
+      } catch (e) { console.error('[Maxes] Load error:', e); }
+      
+      // Fill inputs
+      MAXES_IDS.forEach(id => {
+        const input = document.getElementById('max-' + id);
+        if (input) input.value = maxes[id] || '';
+      });
+      
+      document.getElementById('maxes-modal').classList.add('active');
+    };
+    
+    window.closeMaxesModal = function() {
+      document.getElementById('maxes-modal').classList.remove('active');
+      document.getElementById('maxes-message').style.display = 'none';
+    };
+    
+    window.saveMaxes = async function() {
+      const message = document.getElementById('maxes-message');
+      
+      const maxes = {};
+      MAXES_IDS.forEach(id => {
+        const input = document.getElementById('max-' + id);
+        const val = parseFloat(input?.value);
+        if (!isNaN(val) && val > 0) maxes[id] = val;
+      });
+      
+      message.textContent = 'Salvataggio...';
+      message.className = 'message';
+      message.style.display = 'block';
+      
+      // Save to localStorage
+      localStorage.setItem(MAXES_CACHE_KEY, JSON.stringify(maxes));
+      
+      // Save to Supabase
+      try {
+        if (supabase) {
+          const { error } = await supabase.auth.updateUser({ data: { maxes: maxes } });
+          if (error) {
+            message.textContent = '✅ Salvato localmente (sync cloud fallito)';
+            message.className = 'message success';
+          } else {
+            message.textContent = '✅ Massimali salvati!';
+            message.className = 'message success';
+          }
+        } else {
+          message.textContent = '✅ Salvato localmente';
+          message.className = 'message success';
+        }
+      } catch (error) {
+        message.textContent = '✅ Salvato localmente';
+        message.className = 'message success';
+      }
+      message.style.display = 'block';
+      setTimeout(() => closeMaxesModal(), 2000);
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // LOGOUT - Uses signOut from auth.js or direct supabase call
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    window.handleLogout = async function() {
+      if (confirm('Sei sicuro di voler uscire?')) {
+        try {
+          // Try to use signOut from auth.js if available
+          if (typeof window.signOut === 'function') {
+            console.log('[Logout] Using auth.js signOut()');
+            await window.signOut();
+          } else {
+            // Fallback: direct Supabase signOut
+            console.log('[Logout] Direct Supabase signOut');
+            await supabase.auth.signOut();
+            
+            // Clear localStorage manually
+            localStorage.removeItem('loggedUser');
+            localStorage.removeItem('userName');
+            localStorage.removeItem('userFullName');
+          }
+          
+          // Clear DataPreloader cache
+          DataPreloader.clearCache();
+          
+          // Clear additional localStorage items
+          localStorage.removeItem('viltrum_user_settings');
+          localStorage.removeItem('viltrum_last_workout_index');
+          localStorage.removeItem('viltrum_exercise_weights');
+          localStorage.removeItem('viltrum_total_workouts');
+          localStorage.removeItem('viltrum_user_maxes');
+          
+          // Clear sessionStorage
+          sessionStorage.clear();
+          
+          console.log('[Logout] Complete, redirecting...');
+          window.location.href = '../index.html';
+          
+        } catch (error) {
+          console.error('[Logout] Error:', error);
+          // Even if there's an error, still redirect
+          window.location.href = '../index.html';
+        }
+      }
+    };
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EVENT LISTENERS
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    document.getElementById('profile-modal').addEventListener('click', function(e) {
+      if (e.target === this) closeProfileModal();
+    });
+    document.getElementById('plan-modal').addEventListener('click', function(e) {
+      if (e.target === this) closePlanModal();
+    });
+    document.getElementById('username-modal').addEventListener('click', function(e) {
+      if (e.target === this) closeUsernameModal();
+    });
+    document.getElementById('email-modal').addEventListener('click', function(e) {
+      if (e.target === this) closeEmailModal();
+    });
+    document.getElementById('password-modal').addEventListener('click', function(e) {
+      if (e.target === this) closePasswordModal();
+    });
+    
+    document.getElementById('new-username').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') saveUsername();
+    });
+    document.getElementById('email-password').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') saveEmail();
+    });
+    document.getElementById('new-password-confirm').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') savePassword();
+    });
+    
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+  <script src="../js/update-notifier.js"></script>
+</body>
+</html>
