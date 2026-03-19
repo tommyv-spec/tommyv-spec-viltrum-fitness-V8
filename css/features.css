@@ -1,0 +1,389 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   VILTRUM FITNESS - NEW FEATURES STYLES
+   CSS for workout history, favorites, profile, and enhanced settings
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   WORKOUT STATS & HISTORY
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.workout-stats {
+  margin: 2rem 0;
+  padding: 2rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 15px;
+}
+
+.workout-stats h2 {
+  font-family: 'Staatliches', sans-serif;
+  font-size: 2rem;
+  color: #fff;
+  margin-bottom: 1.5rem;
+  text-transform: uppercase;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.stat-card {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(69, 160, 73, 0.05) 100%);
+  padding: 1.5rem;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid rgba(76, 175, 80, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+}
+
+.stat-value {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #4CAF50;
+  margin-bottom: 0.5rem;
+  font-family: 'Roboto Mono', monospace;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FAVORITES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.favorites-section {
+  margin: 2rem 0;
+  padding: 2rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 15px;
+}
+
+.favorites-section h2 {
+  font-family: 'Staatliches', sans-serif;
+  font-size: 2rem;
+  color: #fff;
+  margin-bottom: 1.5rem;
+  text-transform: uppercase;
+}
+
+.favorite-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(5px);
+  border: none;
+  color: #FFD700;
+  font-size: 1.75rem;
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.favorite-btn:hover {
+  transform: scale(1.1) rotate(15deg);
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.favorite-btn.active {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.3) 0%, rgba(255, 193, 7, 0.3) 100%);
+  border: 2px solid rgba(255, 215, 0, 0.5);
+  animation: favoritePulse 0.5s ease;
+}
+
+@keyframes favoritePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+.empty-favorites {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: #666;
+}
+
+.empty-favorites-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SETTINGS BUTTON (IN WORKOUT)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.settings-button {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 1rem);
+  right: 1rem;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  padding: 0.75rem 1.25rem;
+  border-radius: 12px;
+  cursor: pointer;
+  z-index: 100;
+  font-size: 1rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.settings-button:hover {
+  background: rgba(0, 0, 0, 0.9);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.settings-button:active {
+  transform: translateY(0);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PROFILE LINK
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.profile-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: #fff;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  font-weight: bold;
+}
+
+.profile-link:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(76, 175, 80, 0.5);
+  transform: translateY(-2px);
+}
+
+.profile-link-icon {
+  font-size: 1.5rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   WORKOUT HISTORY LIST
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.workout-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.history-item {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1rem;
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-left: 3px solid #4CAF50;
+  transition: all 0.2s ease;
+}
+
+.history-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateX(5px);
+}
+
+.history-item-info {
+  flex: 1;
+}
+
+.history-item-name {
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 0.25rem;
+}
+
+.history-item-meta {
+  font-size: 0.875rem;
+  color: #999;
+}
+
+.history-item-duration {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #4CAF50;
+  font-family: 'Roboto Mono', monospace;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   NEW TRAINING SECTIONS (HOME)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.training-zone.nutrition {
+  background: linear-gradient(135deg, rgba(139, 195, 74, 0.2) 0%, rgba(104, 159, 56, 0.2) 100%);
+}
+
+.training-zone.aerobic {
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.2) 0%, rgba(25, 118, 210, 0.2) 100%);
+}
+
+.training-zone.muscle {
+  background: linear-gradient(135deg, rgba(244, 67, 54, 0.2) 0%, rgba(211, 47, 47, 0.2) 100%);
+}
+
+.whatsapp-button {
+  background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+  color: #fff;
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  border: none;
+  font-size: 1.125rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Staatliches', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+}
+
+.whatsapp-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(37, 211, 102, 0.4);
+}
+
+.whatsapp-button:active {
+  transform: translateY(0);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE ADJUSTMENTS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  .stat-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .stat-card {
+    padding: 1.25rem;
+  }
+  
+  .stat-value {
+    font-size: 2rem;
+  }
+  
+  .workout-stats, .favorites-section {
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+  }
+  
+  .favorite-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 1.5rem;
+  }
+  
+  .settings-button {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .stat-grid {
+    gap: 0.75rem;
+  }
+  
+  .stat-card {
+    padding: 1rem;
+  }
+  
+  .stat-value {
+    font-size: 1.75rem;
+  }
+  
+  .stat-label {
+    font-size: 0.75rem;
+  }
+  
+  .workout-stats h2, .favorites-section h2 {
+    font-size: 1.5rem;
+  }
+  
+  .history-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .history-item-duration {
+    align-self: flex-end;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stat-card, .history-item {
+  animation: slideIn 0.3s ease forwards;
+}
+
+.stat-card:nth-child(1) { animation-delay: 0.1s; }
+.stat-card:nth-child(2) { animation-delay: 0.2s; }
+.stat-card:nth-child(3) { animation-delay: 0.3s; }
+.stat-card:nth-child(4) { animation-delay: 0.4s; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PRINT STYLES (for workout history)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media print {
+  .settings-button, .favorite-btn, .back-button {
+    display: none;
+  }
+  
+  .workout-stats, .favorites-section {
+    page-break-inside: avoid;
+  }
+  
+  .stat-card {
+    border: 1px solid #ddd;
+  }
+}
