@@ -1,0 +1,510 @@
+/* access-control-styles.css - Styles for subscription system */
+
+/* ============================================================================
+   ACCESS STATUS BANNERS
+   ============================================================================ */
+
+.access-banner {
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.trial-banner {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.expired-banner {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+}
+
+.active-banner {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  color: white;
+}
+
+.active-banner.warning {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  color: #333;
+}
+
+.access-banner h3 {
+  margin: 0 0 10px 0;
+  font-size: 24px;
+}
+
+.access-banner p {
+  margin: 5px 0;
+  font-size: 16px;
+}
+
+.access-banner .small {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+/* ============================================================================
+   CALL TO ACTION BUTTONS
+   ============================================================================ */
+
+.cta-button {
+  background: white;
+  color: #667eea;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 15px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.cta-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.cta-button.urgent {
+  background: #ff4757;
+  color: white;
+  animation: pulse 2s infinite;
+}
+
+.cta-button.secondary {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+  border: 2px solid white;
+}
+
+.cta-button.large {
+  padding: 16px 40px;
+  font-size: 18px;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+/* ============================================================================
+   WORKOUT CARDS WITH ACCESS STATES
+   ============================================================================ */
+
+.workout-card {
+  background: white;
+  border-radius: 15px;
+  padding: 25px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  position: relative;
+  transition: transform 0.2s;
+}
+
+.workout-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Trial state */
+.workout-card.trial {
+  border: 2px solid #667eea;
+}
+
+.trial-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #667eea;
+  color: white;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Locked state */
+.workout-card.locked {
+  opacity: 0.7;
+  background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
+}
+
+.workout-card.locked::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 15px;
+}
+
+.lock-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #666;
+  color: white;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Active state */
+.workout-card.active {
+  border: 2px solid #4facfe;
+}
+
+.workout-card h3 {
+  margin: 0 0 10px 0;
+  font-size: 20px;
+  color: #333;
+}
+
+.exercise-count {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 15px;
+}
+
+.start-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 10px 25px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: transform 0.2s;
+}
+
+.start-button:hover {
+  transform: scale(1.05);
+}
+
+.upgrade-button {
+  background: #ffd93d;
+  color: #333;
+  border: none;
+  padding: 10px 25px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: transform 0.2s;
+}
+
+.upgrade-button:hover {
+  transform: scale(1.05);
+  background: #ffed4e;
+}
+
+/* ============================================================================
+   NO ACCESS / EXPIRED MESSAGES
+   ============================================================================ */
+
+.no-access-message,
+.expired-message {
+  text-align: center;
+  padding: 40px;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+}
+
+.no-access-message h2,
+.expired-message h2 {
+  margin: 0 0 20px 0;
+  color: #333;
+}
+
+.feature-list {
+  list-style: none;
+  padding: 0;
+  margin: 30px 0;
+  text-align: left;
+  display: inline-block;
+}
+
+.feature-list li {
+  padding: 10px 0;
+  font-size: 16px;
+  color: #555;
+}
+
+.workout-preview-locked {
+  margin: 30px 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 15px;
+}
+
+/* ============================================================================
+   TRIAL NOTICE & UPGRADE PROMPT
+   ============================================================================ */
+
+.trial-notice {
+  background: #fff3cd;
+  border: 2px solid #ffc107;
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.trial-notice p {
+  margin: 0;
+  color: #856404;
+}
+
+.upgrade-prompt {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 30px;
+  border-radius: 15px;
+  text-align: center;
+  margin-top: 30px;
+}
+
+.upgrade-prompt h3 {
+  margin: 0 0 10px 0;
+}
+
+.upgrade-prompt p {
+  margin: 0 0 20px 0;
+  opacity: 0.9;
+}
+
+/* ============================================================================
+   SUBSCRIPTION MODAL
+   ============================================================================ */
+
+.subscription-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-content {
+  background: white;
+  border-radius: 20px;
+  padding: 40px;
+  max-width: 1000px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  animation: slideUp 0.3s;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(50px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.close-modal {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: none;
+  border: none;
+  font-size: 30px;
+  color: #999;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.close-modal:hover {
+  background: #f0f0f0;
+}
+
+.modal-content h2 {
+  text-align: center;
+  margin: 0 0 30px 0;
+  font-size: 32px;
+  color: #333;
+}
+
+/* ============================================================================
+   PRICING PLANS
+   ============================================================================ */
+
+.pricing-plans {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.plan-card {
+  background: #f8f9fa;
+  border: 2px solid #e0e0e0;
+  border-radius: 15px;
+  padding: 30px;
+  text-align: center;
+  position: relative;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.plan-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+.plan-card.featured {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  transform: scale(1.05);
+}
+
+.plan-card.featured:hover {
+  transform: scale(1.08) translateY(-5px);
+}
+
+.popular-badge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ffd93d;
+  color: #333;
+  padding: 5px 15px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.plan-card h3 {
+  margin: 0 0 15px 0;
+  font-size: 24px;
+}
+
+.price {
+  font-size: 48px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.price span {
+  font-size: 18px;
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.savings {
+  background: #4caf50;
+  color: white;
+  padding: 5px 15px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-block;
+  margin-bottom: 20px;
+}
+
+.plan-features {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0;
+  text-align: left;
+}
+
+.plan-features li {
+  padding: 8px 0;
+  font-size: 14px;
+}
+
+.plan-card.featured .plan-features li {
+  color: white;
+}
+
+.select-plan-btn {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 15px;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.select-plan-btn:hover {
+  transform: scale(1.05);
+  background: #5568d3;
+}
+
+.select-plan-btn.featured {
+  background: white;
+  color: #667eea;
+}
+
+.select-plan-btn.featured:hover {
+  background: #f0f0f0;
+}
+
+.payment-info {
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+  margin-top: 20px;
+}
+
+/* ============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .pricing-plans {
+    grid-template-columns: 1fr;
+  }
+  
+  .plan-card.featured {
+    transform: scale(1);
+  }
+  
+  .modal-content {
+    padding: 20px;
+  }
+  
+  .modal-content h2 {
+    font-size: 24px;
+  }
+  
+  .price {
+    font-size: 36px;
+  }
+}
