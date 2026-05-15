@@ -115,11 +115,15 @@ async function signIn(email, password) {
             localStorage.setItem('loggedUser', userEmail);
             localStorage.setItem('userName', data.user.user_metadata?.username || 'User'); // Username for display
             localStorage.setItem('userFullName', data.user.user_metadata?.full_name || 'User'); // Full name for backend
-            
+
+            // Self-heal: ensure user row exists in Sheet (empty plan/scadenza if absent).
+            // Fire-and-forget, no await — doesn't block login.
+            ensureUserRowInSheet(userEmail, data.user.user_metadata?.full_name || '');
+
             // 🚀 V8: Start comprehensive preloading IMMEDIATELY after login
             // This runs in parallel - doesn't block the redirect
             startLoginPreload(userEmail);
-            
+
             return { success: true, user: data.user };
         }
 
@@ -128,6 +132,30 @@ async function signIn(email, password) {
     } catch (error) {
         console.error('Login exception:', error);
         return { success: false, error: 'An unexpected error occurred' };
+    }
+}
+
+/**
+ * Self-heal: ensure user row exists in the Google Sheet on every login.
+ * If user is in Supabase but missing from Sheet (e.g. involuntary delete),
+ * appends an empty row (no plan, no scadenza) so admin can reassign later.
+ * Idempotent server-side; failures are logged but don't block login.
+ */
+async function ensureUserRowInSheet(email, fullName) {
+    try {
+        const res = await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'ensureUserInSheet', email: email, name: fullName || '' }),
+        });
+        const body = await res.json().catch(() => null);
+        if (body && body.status === 'success') {
+            console.log(`Sheet self-heal: ${body.mode} (${email})`);
+        } else {
+            console.warn('Sheet self-heal: unexpected response', body);
+        }
+    } catch (err) {
+        console.warn('Sheet self-heal failed (non-blocking):', err);
     }
 }
 

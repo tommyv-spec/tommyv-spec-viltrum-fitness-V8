@@ -1257,6 +1257,7 @@ function doPost(e) {
     if (data.action === 'list-users')        return syncListUsers(data);
     if (data.action === 're-add-user')       return syncReAddUser(data);
     if (data.action === 'delete-user')       return syncDeleteUser(data);
+    if (data.action === 'ensureUserInSheet') return ensureUserInSheet(data);
     return createResponse({ status: 'error', message: 'Unknown action' });
   } catch (error) {
     return createResponse({ status: 'error', message: error.toString() });
@@ -1813,6 +1814,28 @@ function syncReAddUser(data) {
     }
   }
   userSheet.appendRow([name, email, '', '', scadenza, plan]);
+  return createResponse({ status: 'success', mode: 'inserted', email: email });
+}
+
+function ensureUserInSheet(data) {
+  // Called from client JS on every login. Idempotent.
+  // No token check: client is already Supabase-authenticated; worst case = empty rows (no plan = no access).
+  const email = (data.email || '').toString().trim().toLowerCase();
+  if (!email || !email.includes('@')) {
+    return createResponse({ status: 'error', message: 'Invalid email' });
+  }
+  const name = (data.name || '').toString().trim();
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const userSheet = ss.getSheetByName('Users');
+  const rows = userSheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if ((rows[i][1] || '').toString().trim().toLowerCase() === email) {
+      return createResponse({ status: 'success', mode: 'exists', email: email });
+    }
+  }
+  // Empty plan + empty scadenza on purpose: admin assigns plan later
+  userSheet.appendRow([name, email, '', '', '', '']);
   return createResponse({ status: 'success', mode: 'inserted', email: email });
 }
 
