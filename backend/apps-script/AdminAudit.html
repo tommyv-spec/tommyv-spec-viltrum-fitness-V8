@@ -4,49 +4,106 @@
   <base target="_top">
   <style>
     body { font-family: Arial, sans-serif; padding: 12px; font-size: 13px; }
-    h3 { margin: 0 0 12px; }
+    h3 { margin: 0 0 10px; }
+    h4 { margin: 14px 0 6px; }
     .summary { background: #f5f5f5; padding: 10px; border-radius: 4px; margin-bottom: 10px; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #eee; }
+    .stat { display: inline-block; padding: 6px 12px; margin: 2px 4px 2px 0; background: white; border-radius: 4px; border: 1px solid #ddd; }
+    .stat-bad { background: #fce8e6; color: #c5221f; border-color: #f5b5b1; }
+    .stat-ok { background: #e6f4ea; color: #137333; border-color: #b3e0c2; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 10px; }
+    th, td { padding: 5px 8px; text-align: left; border-bottom: 1px solid #eee; }
     th { background: #fafafa; }
-    .loading { color: #888; }
-    .err { color: #c00; }
+    .empty { color: #888; font-style: italic; padding: 6px 0; }
+    .err { color: #c5221f; background: #fce8e6; padding: 12px; border-radius: 4px; }
+    .loading { color: #888; padding: 20px; text-align: center; }
+    button.fix { padding: 4px 8px; font-size: 11px; background: #1a73e8; color: white; border: none; border-radius: 3px; cursor: pointer; }
+    button.fix:disabled { background: #999; }
   </style>
 </head>
 <body>
-  <h3>Utenti nel foglio (tab Users)</h3>
-  <div class="summary" id="summary">Caricamento...</div>
-  <table>
-    <thead>
-      <tr><th>Nome</th><th>Email</th><th>Scadenza</th><th>Piano</th></tr>
-    </thead>
-    <tbody id="rows"></tbody>
-  </table>
+  <h3>Audit allineamento Foglio &harr; Supabase</h3>
+  <div id="content" class="loading">Caricamento... (chiamata a Supabase in corso)</div>
 
   <script>
-    function onSuccess(users) {
-      document.getElementById('summary').textContent = 'Totale utenti: ' + users.length;
-      const tbody = document.getElementById('rows');
-      tbody.innerHTML = '';
-      users.forEach(function(u) {
-        const tr = document.createElement('tr');
-        tr.innerHTML =
-          '<td>' + escapeHtml(u.name) + '</td>' +
-          '<td>' + escapeHtml(u.email) + '</td>' +
-          '<td>' + escapeHtml(u.scadenza) + '</td>' +
-          '<td>' + escapeHtml(u.plan) + '</td>';
-        tbody.appendChild(tr);
-      });
-    }
-    function onFailure(err) {
-      document.getElementById('summary').innerHTML = '<span class="err">Errore: ' + escapeHtml(err.message) + '</span>';
-    }
     function escapeHtml(s) {
       return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
         return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
       });
     }
-    google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onFailure).adminListSheetUsers();
+
+    function renderTable(rows, columns, emptyMsg, includeFix) {
+      if (!rows.length) return '<div class="empty">' + emptyMsg + '</div>';
+      let html = '<table><thead><tr>';
+      columns.forEach(function(c) { html += '<th>' + c.label + '</th>'; });
+      if (includeFix) html += '<th>Azione</th>';
+      html += '</tr></thead><tbody>';
+      rows.forEach(function(r) {
+        html += '<tr>';
+        columns.forEach(function(c) { html += '<td>' + escapeHtml(r[c.key] || '') + '</td>'; });
+        if (includeFix) {
+          html += '<td><button class="fix" onclick="reAdd(\'' + escapeHtml(r.email) + '\')">Aggiungi al foglio</button></td>';
+        }
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      return html;
+    }
+
+    function reAdd(email) {
+      if (!confirm('Aggiungere ' + email + ' al foglio con piano "Trial Plan" e scadenza +7 giorni?')) return;
+      google.script.run
+        .withSuccessHandler(function(r) {
+          alert('OK [' + r.mode + ']: ' + r.email);
+          load();
+        })
+        .withFailureHandler(function(err) { alert('Errore: ' + err.message); })
+        .adminReAddUser({ email: email });
+    }
+
+    function onSuccess(data) {
+      const c = data.counts;
+      let html = '<div class="summary">';
+      html += '<span class="stat">Supabase: ' + c.supabase + '</span>';
+      html += '<span class="stat">Foglio: ' + c.sheet + '</span>';
+      html += '<span class="stat stat-ok">Allineati: ' + c.in_both + '</span>';
+      html += '<span class="stat ' + (c.only_in_supabase ? 'stat-bad' : '') + '">Solo in Supabase: ' + c.only_in_supabase + '</span>';
+      html += '<span class="stat ' + (c.only_in_sheet ? 'stat-bad' : '') + '">Solo nel foglio: ' + c.only_in_sheet + '</span>';
+      html += '</div>';
+
+      html += '<h4>In Supabase ma NON nel foglio (' + c.only_in_supabase + ')</h4>';
+      html += renderTable(
+        data.only_in_supabase,
+        [{key:'email', label:'Email'}, {key:'created_at', label:'Creato'}],
+        'Nessuno — allineato.',
+        true
+      );
+
+      html += '<h4>Nel foglio ma NON in Supabase (' + c.only_in_sheet + ')</h4>';
+      html += renderTable(
+        data.only_in_sheet,
+        [{key:'name', label:'Nome'}, {key:'email', label:'Email'}, {key:'plan', label:'Piano'}, {key:'scadenza', label:'Scadenza'}],
+        'Nessuno — allineato.',
+        false
+      );
+
+      document.getElementById('content').innerHTML = html;
+    }
+
+    function onFailure(err) {
+      document.getElementById('content').innerHTML =
+        '<div class="err"><b>Errore:</b><br>' + escapeHtml(err.message) +
+        '<br><br>Verifica che in <i>Project Settings -> Script Properties</i> siano configurate:<br>' +
+        '<b>SUPABASE_URL</b> (es. https://xxx.supabase.co)<br>' +
+        '<b>SUPABASE_SERVICE_ROLE</b> (service_role key, NON anon)</div>';
+    }
+
+    function load() {
+      document.getElementById('content').className = 'loading';
+      document.getElementById('content').innerHTML = 'Caricamento... (chiamata a Supabase in corso)';
+      google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onFailure).adminAuditMismatch();
+    }
+
+    load();
   </script>
 </body>
 </html>

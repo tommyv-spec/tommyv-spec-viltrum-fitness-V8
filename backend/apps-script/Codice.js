@@ -1891,6 +1891,60 @@ function adminListSheetUsers() {
   return users;
 }
 
+function _adminFetchSupabaseUsers() {
+  const props = PropertiesService.getScriptProperties();
+  const url = props.getProperty('SUPABASE_URL');
+  const key = props.getProperty('SUPABASE_SERVICE_ROLE');
+  if (!url || !key) {
+    throw new Error('Manca SUPABASE_URL o SUPABASE_SERVICE_ROLE in Script Properties (Project Settings -> Script Properties)');
+  }
+  const res = UrlFetchApp.fetch(url + '/auth/v1/admin/users?per_page=1000', {
+    method: 'get',
+    headers: { apikey: key, Authorization: 'Bearer ' + key },
+    muteHttpExceptions: true
+  });
+  const code = res.getResponseCode();
+  const body = res.getContentText();
+  if (code !== 200) {
+    throw new Error('Supabase ' + code + ': ' + body.slice(0, 200));
+  }
+  const data = JSON.parse(body);
+  const list = Array.isArray(data) ? data : (data.users || []);
+  return list.map(function(u) {
+    return {
+      id: u.id,
+      email: (u.email || '').toLowerCase(),
+      created_at: u.created_at || ''
+    };
+  }).filter(function(u) { return u.email; });
+}
+
+function adminAuditMismatch() {
+  const sheetUsers = adminListSheetUsers();
+  const supabaseUsers = _adminFetchSupabaseUsers();
+
+  const sheetMap = {};
+  sheetUsers.forEach(function(u) { sheetMap[u.email] = u; });
+  const supMap = {};
+  supabaseUsers.forEach(function(u) { supMap[u.email] = u; });
+
+  const onlyInSheet = sheetUsers.filter(function(u) { return !supMap[u.email]; });
+  const onlyInSupabase = supabaseUsers.filter(function(u) { return !sheetMap[u.email]; });
+  const inBoth = sheetUsers.filter(function(u) { return supMap[u.email]; });
+
+  return {
+    counts: {
+      sheet: sheetUsers.length,
+      supabase: supabaseUsers.length,
+      in_both: inBoth.length,
+      only_in_sheet: onlyInSheet.length,
+      only_in_supabase: onlyInSupabase.length
+    },
+    only_in_sheet: onlyInSheet,
+    only_in_supabase: onlyInSupabase
+  };
+}
+
 function adminReAddUser(payload) {
   const email = (payload.email || '').trim().toLowerCase();
   if (!email || !email.includes('@')) throw new Error('Email non valida');
