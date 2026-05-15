@@ -9,6 +9,9 @@ graphify-out/
 # Audit reports
 audit-*.json
 
+# Local planning artifacts
+.planning/
+
 # OS
 .DS_Store
 Thumbs.db
