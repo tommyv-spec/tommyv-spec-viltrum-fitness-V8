@@ -1,0 +1,14 @@
+# Env / secrets
+backend/.env.sync
+.env
+.env.local
+
+# Graphify artifacts (planning only — checked in via .planning/graphs/)
+graphify-out/
+
+# Audit reports
+audit-*.json
+
+# OS
+.DS_Store
+Thumbs.db

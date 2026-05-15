@@ -1072,6 +1072,9 @@ function doPost(e) {
     if (data.action === 'updateSubscription') return updateSubscription(data);
     if (data.action === 'saveLastWorkout') return saveLastWorkout(data);
     if (data.action === 'addPlanToUser') return addPlanToUser(data);
+    if (data.action === 'list-users') return syncListUsers(data);
+    if (data.action === 're-add-user') return syncReAddUser(data);
+    if (data.action === 'delete-user') return syncDeleteUser(data);
     return createResponse({ status: 'error', message: 'Unknown action' });
   } catch (error) {
     return createResponse({ status: 'error', message: error.toString() });
@@ -1386,11 +1389,99 @@ function sendWelcomeEmail(email, name, planName, tempPassword) {
     `;
     
     GmailApp.sendEmail(email, subject, "", { htmlBody: htmlBody });
-    
+
     Logger.log("Welcome email sent to: " + email);
-    
+
   } catch (error) {
     Logger.log("Failed to send welcome email: " + error.toString());
     // Don't throw - email failure shouldn't break the flow
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SUPABASE <-> SHEET SYNC ENDPOINTS
+// Token-gated. Set SYNC_TOKEN in Script Properties: Settings -> Script Properties.
+// ═══════════════════════════════════════════════════════════════════════════
+
+function _checkSyncToken(data) {
+  const expected = PropertiesService.getScriptProperties().getProperty('SYNC_TOKEN');
+  if (!expected) {
+    return { ok: false, response: createResponse({ status: 'error', message: 'SYNC_TOKEN not configured in Script Properties' }) };
+  }
+  if (!data.token || data.token !== expected) {
+    return { ok: false, response: createResponse({ status: 'error', message: 'Unauthorized' }) };
+  }
+  return { ok: true };
+}
+
+function syncListUsers(data) {
+  const auth = _checkSyncToken(data);
+  if (!auth.ok) return auth.response;
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const userSheet = ss.getSheetByName('Users');
+  const rows = userSheet.getDataRange().getValues();
+  const users = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    const email = (r[1] || '').toString().trim().toLowerCase();
+    if (!email) continue;
+    users.push({
+      name: r[0] || '',
+      email: email,
+      scadenza: r[4] ? new Date(r[4]).toISOString() : null,
+      plan: r[5] || ''
+    });
+  }
+  return createResponse({ status: 'success', users: users, count: users.length });
+}
+
+function syncReAddUser(data) {
+  const auth = _checkSyncToken(data);
+  if (!auth.ok) return auth.response;
+
+  const email = (data.email || '').trim().toLowerCase();
+  if (!email || !email.includes('@')) {
+    return createResponse({ status: 'error', message: 'Invalid email' });
+  }
+  const name = data.name || '';
+  const plan = data.plan || 'Trial Plan';
+  let scadenza = data.scadenza ? new Date(data.scadenza) : null;
+  if (!scadenza || isNaN(scadenza.getTime())) {
+    scadenza = new Date();
+    scadenza.setDate(scadenza.getDate() + 7);
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const userSheet = ss.getSheetByName('Users');
+  const rows = userSheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if ((rows[i][1] || '').toString().trim().toLowerCase() === email) {
+      userSheet.getRange(i + 1, 1).setValue(name);
+      userSheet.getRange(i + 1, 5).setValue(scadenza);
+      userSheet.getRange(i + 1, 6).setValue(plan);
+      return createResponse({ status: 'success', mode: 'updated', email: email });
+    }
+  }
+  userSheet.appendRow([name, email, '', '', scadenza, plan]);
+  return createResponse({ status: 'success', mode: 'inserted', email: email });
+}
+
+function syncDeleteUser(data) {
+  const auth = _checkSyncToken(data);
+  if (!auth.ok) return auth.response;
+
+  const email = (data.email || '').trim().toLowerCase();
+  if (!email) return createResponse({ status: 'error', message: 'Email required' });
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const userSheet = ss.getSheetByName('Users');
+  const rows = userSheet.getDataRange().getValues();
+  for (let i = rows.length - 1; i >= 1; i--) {
+    if ((rows[i][1] || '').toString().trim().toLowerCase() === email) {
+      userSheet.deleteRow(i + 1);
+      return createResponse({ status: 'success', mode: 'deleted', email: email });
+    }
+  }
+  return createResponse({ status: 'info', mode: 'not-found', email: email });
 }
