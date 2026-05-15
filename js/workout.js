@@ -2241,25 +2241,6 @@ async function playExercise(index, exercises, resumeTime = null) {
 
   const mode = document.getElementById("soundMode").value;
 
-  // Coach tip at exercise start — only for the FIRST real exercise (TIP 2)
-  if (!exercise.isLabel && !exercise.isWarmup && (mode === "eleven" || mode === "voice" || mode === "synth")) {
-    const firstRealIdx = fullWorkoutSequence.findIndex(e => !e.isLabel && !e.isWarmup);
-    if (index === firstRealIdx) {
-      if (!firedTips.has("tip-usa-massimo-peso")) {
-        firedTips.add("tip-usa-massimo-peso");
-        clearTimeout(pendingTipTimeout);
-        pendingTipTimeout = setTimeout(() => {
-          pendingTipTimeout = null;
-          if (mode === "eleven") {
-            speakEleven("tip-usa-massimo-peso", "it-IT").catch(() => speak("Usa il massimo peso che riesci a gestire", "it-IT").catch(() => {}));
-          } else {
-            speak("Usa il massimo peso che riesci a gestire", "it-IT").catch(() => {});
-          }
-        }, 5000);
-      }
-    }
-  }
-
   // start the countdown immediately
   startExerciseTimer(duration, exercise, nextExercise);
 
@@ -2521,15 +2502,6 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
               if (text) speak(text, "it-IT").catch(() => {});
             }
           }, 5000);
-        }
-      }
-
-      // Good Job: remind to log weights
-      if (upcoming && upcoming.name === "Good Job" && (mode === "eleven" || mode === "voice" || mode === "synth")) {
-        if (mode === "eleven") {
-          speakEleven("tip-annota-pesi", "it-IT").catch(() => speak("Ricordati di annotare i pesi usati", "it-IT").catch(() => {}));
-        } else {
-          speak("Ricordati di annotare i pesi usati", "it-IT").catch(() => {});
         }
       }
 
