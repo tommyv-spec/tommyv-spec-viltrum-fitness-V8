@@ -57,8 +57,9 @@ function _exerciseToMaxNameFE(name) {
   if (n.includes('bench press') || n === 'bench press') return 'Bench Press';
   if (n.includes('back squat') || n === 'back squat') return 'Back Squat';
   if (n.includes('front squat') || n === 'front squat') return 'Front Squat';
+  if (n.includes('sumo deadlift') || n === 'sumo deadlift' || n.includes('stacco sumo')) return 'Sumo Deadlift';
   if (n.includes('deadlift') || n === 'deadlift') return 'Deadlift';
-  if (n.includes('strict press') || n === 'strict press') return 'Bench Press';
+  if (n.includes('strict press') || n === 'strict press' || n.includes('military press') || n.includes('overhead press')) return 'Strict Press';
   if (n.includes('push press') || n === 'push press') return 'Bench Press';
   return null;
 }

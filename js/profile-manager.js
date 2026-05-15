@@ -266,7 +266,9 @@ export const AVAILABLE_MAXES = [
   { id: 'front_squat', label: 'Front Squat', unit: 'kg' },
   { id: 'back_squat', label: 'Back Squat', unit: 'kg' },
   { id: 'deadlift', label: 'Deadlift', unit: 'kg' },
-  { id: 'bench_press', label: 'Panca Piana', unit: 'kg' }
+  { id: 'sumo_deadlift', label: 'Sumo Deadlift', unit: 'kg' },
+  { id: 'bench_press', label: 'Panca Piana', unit: 'kg' },
+  { id: 'strict_press', label: 'Strict Press', unit: 'kg' }
 ];
 
 /**
@@ -374,11 +376,20 @@ export function calculateWeightFromMax(tipoDiPeso) {
     'squat': 'back_squat',
     'deadlift': 'deadlift',
     'stacco': 'deadlift',
+    'sumo': 'sumo_deadlift',
+    'sumo deadlift': 'sumo_deadlift',
+    'sumodeadlift': 'sumo_deadlift',
+    'stacco sumo': 'sumo_deadlift',
     'panca': 'bench_press',
     'bench': 'bench_press',
     'bench press': 'bench_press',
     'benchpress': 'bench_press',
-    'panca piana': 'bench_press'
+    'panca piana': 'bench_press',
+    'strict press': 'strict_press',
+    'strictpress': 'strict_press',
+    'military press': 'strict_press',
+    'overhead press': 'strict_press',
+    'ohp': 'strict_press'
   };
 
   const maxId = maxMapping[maxRef];
