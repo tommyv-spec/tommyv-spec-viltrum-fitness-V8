@@ -695,8 +695,8 @@
       document.getElementById('progress-fill').style.width = `${percentage}%`;
       
       const nextWorkout = planData.workouts[selectedWorkoutIndex];
-      document.getElementById('current-workout-name').textContent = 
-        nextWorkout ? `${selectedWorkoutIndex + 1}. ${nextWorkout.name}` : 'Completato!';
+      document.getElementById('current-workout-name').textContent =
+        nextWorkout ? `${planName} ${selectedWorkoutIndex + 1}` : 'Completato!';
       
       renderWorkoutList();
       renderPreview();
@@ -721,8 +721,7 @@
         
         item.innerHTML = `
           <div class="workout-checkbox"></div>
-          <span class="workout-index">${index + 1}.</span>
-          <span class="workout-name">${workout.name}</span>
+          <span class="workout-name">${planName} ${index + 1}</span>
           <span class="workout-type">${workout.type === 'muscle' ? 'FORZA' : 'CORSA'}</span>
         `;
         
