@@ -1837,3 +1837,97 @@ function syncDeleteUser(data) {
 
 // Alias per il bottone "AGGIUNGI" nel foglio Selettore
 function aggiungiBlocko() { aggiungiBloccoDaSelettore(); }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ADMIN UI — Custom menu + dialogs for non-technical operators
+// Runs inside the Sheet (no token needed — authenticated session)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('Admin Sync')
+    .addItem('Lista utenti (audit)', 'adminShowAuditDialog')
+    .addItem('Aggiungi / Riallinea utente', 'adminShowReAddDialog')
+    .addItem('Elimina utente dal foglio', 'adminShowDeleteDialog')
+    .addToUi();
+}
+
+function adminShowAuditDialog() {
+  const html = HtmlService.createHtmlOutputFromFile('AdminAudit')
+    .setWidth(600).setHeight(500);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Audit utenti');
+}
+
+function adminShowReAddDialog() {
+  const html = HtmlService.createHtmlOutputFromFile('AdminReAdd')
+    .setWidth(500).setHeight(450);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Aggiungi / Riallinea utente');
+}
+
+function adminShowDeleteDialog() {
+  const html = HtmlService.createHtmlOutputFromFile('AdminDelete')
+    .setWidth(500).setHeight(300);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Elimina utente dal foglio');
+}
+
+// Internal helpers (no token gate — only callable from same-script UI / scheduled tasks)
+
+function adminListSheetUsers() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const userSheet = ss.getSheetByName('Users');
+  const rows = userSheet.getDataRange().getValues();
+  const users = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    const email = (r[1] || '').toString().trim().toLowerCase();
+    if (!email) continue;
+    users.push({
+      name: r[0] || '',
+      email: email,
+      scadenza: r[4] ? Utilities.formatDate(new Date(r[4]), Session.getScriptTimeZone(), 'yyyy-MM-dd') : '',
+      plan: r[5] || ''
+    });
+  }
+  return users;
+}
+
+function adminReAddUser(payload) {
+  const email = (payload.email || '').trim().toLowerCase();
+  if (!email || !email.includes('@')) throw new Error('Email non valida');
+  const name = payload.name || '';
+  const plan = payload.plan || 'Trial Plan';
+  let scadenza = payload.scadenza ? new Date(payload.scadenza) : null;
+  if (!scadenza || isNaN(scadenza.getTime())) {
+    scadenza = new Date();
+    scadenza.setDate(scadenza.getDate() + 7);
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const userSheet = ss.getSheetByName('Users');
+  const rows = userSheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if ((rows[i][1] || '').toString().trim().toLowerCase() === email) {
+      userSheet.getRange(i + 1, 1).setValue(name);
+      userSheet.getRange(i + 1, 5).setValue(scadenza);
+      userSheet.getRange(i + 1, 6).setValue(plan);
+      return { mode: 'updated', email: email };
+    }
+  }
+  userSheet.appendRow([name, email, '', '', scadenza, plan]);
+  return { mode: 'inserted', email: email };
+}
+
+function adminDeleteUser(email) {
+  email = (email || '').trim().toLowerCase();
+  if (!email) throw new Error('Email mancante');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const userSheet = ss.getSheetByName('Users');
+  const rows = userSheet.getDataRange().getValues();
+  for (let i = rows.length - 1; i >= 1; i--) {
+    if ((rows[i][1] || '').toString().trim().toLowerCase() === email) {
+      userSheet.deleteRow(i + 1);
+      return { mode: 'deleted', email: email };
+    }
+  }
+  return { mode: 'not-found', email: email };
+}

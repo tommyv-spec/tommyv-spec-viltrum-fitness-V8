@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 12px; font-size: 13px; }
+    h3 { margin: 0 0 12px; }
+    .summary { background: #f5f5f5; padding: 10px; border-radius: 4px; margin-bottom: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #fafafa; }
+    .loading { color: #888; }
+    .err { color: #c00; }
+  </style>
+</head>
+<body>
+  <h3>Utenti nel foglio (tab Users)</h3>
+  <div class="summary" id="summary">Caricamento...</div>
+  <table>
+    <thead>
+      <tr><th>Nome</th><th>Email</th><th>Scadenza</th><th>Piano</th></tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <script>
+    function onSuccess(users) {
+      document.getElementById('summary').textContent = 'Totale utenti: ' + users.length;
+      const tbody = document.getElementById('rows');
+      tbody.innerHTML = '';
+      users.forEach(function(u) {
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td>' + escapeHtml(u.name) + '</td>' +
+          '<td>' + escapeHtml(u.email) + '</td>' +
+          '<td>' + escapeHtml(u.scadenza) + '</td>' +
+          '<td>' + escapeHtml(u.plan) + '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+    function onFailure(err) {
+      document.getElementById('summary').innerHTML = '<span class="err">Errore: ' + escapeHtml(err.message) + '</span>';
+    }
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+        return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+      });
+    }
+    google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onFailure).adminListSheetUsers();
+  </script>
+</body>
+</html>

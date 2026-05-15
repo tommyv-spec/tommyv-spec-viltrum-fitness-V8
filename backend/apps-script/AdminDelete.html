@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 14px; font-size: 13px; }
+    h3 { margin: 0 0 8px; color: #c5221f; }
+    label { display: block; margin: 8px 0 4px; font-weight: bold; }
+    input { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    button { margin-top: 14px; padding: 8px 16px; background: #c5221f; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:disabled { background: #999; }
+    .warn { background: #fef7e0; padding: 8px; border-radius: 4px; color: #5f6368; font-size: 12px; }
+    .result { margin-top: 12px; padding: 10px; border-radius: 4px; }
+    .ok { background: #e6f4ea; color: #137333; }
+    .err { background: #fce8e6; color: #c5221f; }
+  </style>
+</head>
+<body>
+  <h3>Elimina utente dal foglio</h3>
+  <div class="warn">
+    Rimuove la riga dal tab <b>Users</b> in modo permanente (hard delete).
+    NON elimina l'utente da Supabase — usa il pannello Supabase per quello.
+  </div>
+
+  <label>Email</label>
+  <input id="email" type="email" placeholder="mario@example.com">
+
+  <button id="btn" onclick="submit()">Elimina</button>
+  <div id="result"></div>
+
+  <script>
+    function submit() {
+      const email = document.getElementById('email').value.trim();
+      if (!email) { alert('Inserisci email'); return; }
+      if (!confirm('Eliminare ' + email + ' dal foglio? Operazione irreversibile.')) return;
+      const btn = document.getElementById('btn');
+      btn.disabled = true;
+      btn.textContent = 'Eliminazione...';
+      google.script.run
+        .withSuccessHandler(onOk)
+        .withFailureHandler(onErr)
+        .adminDeleteUser(email);
+    }
+    function onOk(r) {
+      const el = document.getElementById('result');
+      el.className = 'result ok';
+      el.textContent = r.mode === 'deleted' ? 'Eliminato: ' + r.email : 'Non trovato nel foglio: ' + r.email;
+      document.getElementById('btn').disabled = false;
+      document.getElementById('btn').textContent = 'Elimina';
+    }
+    function onErr(err) {
+      const el = document.getElementById('result');
+      el.className = 'result err';
+      el.textContent = 'Errore: ' + err.message;
+      document.getElementById('btn').disabled = false;
+      document.getElementById('btn').textContent = 'Elimina';
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 14px; font-size: 13px; }
+    h3 { margin: 0 0 12px; }
+    label { display: block; margin: 8px 0 4px; font-weight: bold; }
+    input { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    button { margin-top: 14px; padding: 8px 16px; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:disabled { background: #999; }
+    .help { color: #888; font-size: 11px; margin-top: 2px; }
+    .result { margin-top: 12px; padding: 10px; border-radius: 4px; }
+    .ok { background: #e6f4ea; color: #137333; }
+    .err { background: #fce8e6; color: #c5221f; }
+  </style>
+</head>
+<body>
+  <h3>Aggiungi o riallinea utente</h3>
+  <p class="help">Se l'email esiste gia' nel foglio, i campi vengono aggiornati. Altrimenti viene inserita una nuova riga.</p>
+
+  <label>Email *</label>
+  <input id="email" type="email" placeholder="mario@example.com">
+
+  <label>Nome</label>
+  <input id="name" type="text" placeholder="Mario Rossi">
+
+  <label>Piano</label>
+  <input id="plan" type="text" placeholder="Trial Plan" value="Trial Plan">
+  <div class="help">Deve corrispondere a una riga del foglio "Plans"</div>
+
+  <label>Scadenza (YYYY-MM-DD)</label>
+  <input id="scadenza" type="date">
+  <div class="help">Se vuoto, default = oggi + 7 giorni</div>
+
+  <button id="btn" onclick="submit()">Conferma</button>
+  <div id="result"></div>
+
+  <script>
+    function submit() {
+      const btn = document.getElementById('btn');
+      btn.disabled = true;
+      btn.textContent = 'Salvataggio...';
+      const payload = {
+        email: document.getElementById('email').value.trim(),
+        name: document.getElementById('name').value.trim(),
+        plan: document.getElementById('plan').value.trim(),
+        scadenza: document.getElementById('scadenza').value || null,
+      };
+      google.script.run
+        .withSuccessHandler(onOk)
+        .withFailureHandler(onErr)
+        .adminReAddUser(payload);
+    }
+    function onOk(r) {
+      const el = document.getElementById('result');
+      el.className = 'result ok';
+      el.textContent = 'OK [' + r.mode + ']: ' + r.email;
+      document.getElementById('btn').disabled = false;
+      document.getElementById('btn').textContent = 'Conferma';
+    }
+    function onErr(err) {
+      const el = document.getElementById('result');
+      el.className = 'result err';
+      el.textContent = 'Errore: ' + err.message;
+      document.getElementById('btn').disabled = false;
+      document.getElementById('btn').textContent = 'Conferma';
+    }
+  </script>
+</body>
+</html>
