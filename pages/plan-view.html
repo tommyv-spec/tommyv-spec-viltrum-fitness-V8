@@ -696,7 +696,7 @@
       
       const nextWorkout = planData.workouts[selectedWorkoutIndex];
       document.getElementById('current-workout-name').textContent =
-        nextWorkout ? `${planName} ${selectedWorkoutIndex + 1}` : 'Completato!';
+        nextWorkout ? `${planData.name} ${selectedWorkoutIndex + 1}` : 'Completato!';
       
       renderWorkoutList();
       renderPreview();
@@ -721,7 +721,7 @@
         
         item.innerHTML = `
           <div class="workout-checkbox"></div>
-          <span class="workout-name">${planName} ${index + 1}</span>
+          <span class="workout-name">${planData.name} ${index + 1}</span>
           <span class="workout-type">${workout.type === 'muscle' ? 'FORZA' : 'CORSA'}</span>
         `;
         
