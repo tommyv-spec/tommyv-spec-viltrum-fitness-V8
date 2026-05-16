@@ -739,27 +739,30 @@
       gap: 8px;
       flex-wrap: wrap;
     }
-    .q-options button {
+    .auth-modal .q-options button {
       flex: 1;
       min-width: 80px;
       padding: 10px 12px;
-      background: transparent;
-      color: #FFFFFF;
-      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: transparent !important;
+      color: #FFFFFF !important;
+      border: 1px solid rgba(255, 255, 255, 0.3) !important;
       border-radius: 8px;
       font-family: 'Staatliches', sans-serif;
       font-size: 14px;
       letter-spacing: 0.5px;
       cursor: pointer;
-      transition: background 0.15s ease, border-color 0.15s ease;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+      box-shadow: none !important;
+      transform: none !important;
     }
-    .q-options button:hover {
-      border-color: #FFFFFF;
+    .auth-modal .q-options button:hover {
+      border-color: #FFFFFF !important;
+      background: rgba(255, 255, 255, 0.05) !important;
     }
-    .q-options button.selected {
-      background: #FFFFFF;
-      color: #000000;
-      border-color: #FFFFFF;
+    .auth-modal .q-options button.selected {
+      background: #FFFFFF !important;
+      color: #000000 !important;
+      border-color: #FFFFFF !important;
     }
     .q-submit-btn {
       margin-top: 8px;
@@ -1371,7 +1374,7 @@
     // ═══════════════════════════════════════════════════════════════════════════
     // ONBOARDING CTAs + QUESTIONNAIRE MODAL
     // ═══════════════════════════════════════════════════════════════════════════
-    const COACH_WA = '+393397755980';
+    const COACH_WA = '+393791242290';
 
     const PLAN_MAP = {
       'MORE MUSCLE|Principiante|*': 'MORE MUSCLE V1.2',
