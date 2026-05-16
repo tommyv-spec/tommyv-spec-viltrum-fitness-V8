@@ -1431,7 +1431,7 @@ function sendRenewalEmail(email, name, newScadenza) {
         <div style="text-align:center;margin-bottom:30px;">
           <h1 style="font-size:28px;margin:0;letter-spacing:2px;">VILTRUM FITNESS</h1>
         </div>
-        <h2 style="color:#4CAF50;">Ciao ${name}! 💪</h2>
+        <h2 style="color:#4CAF50;">Ciao ${name}!</h2>
         <p>Grazie per aver rinnovato il tuo abbonamento Viltrum Fitness.</p>
         ${scadenzaStr ? `<p>Il tuo accesso e' confermato fino al <strong style="color:#4CAF50;">${scadenzaStr}</strong>.</p>` : ''}
         <p>Continua ad allenarti — il tuo piano e' gia' attivo nell'app.</p>
@@ -1442,7 +1442,7 @@ function sendRenewalEmail(email, name, newScadenza) {
         </div>
         <p style="font-size:12px;color:#666;text-align:center;">Per qualsiasi richiesta, scrivi al coach su WhatsApp.</p>
       </div>`;
-    GmailApp.sendEmail(email, "✅ Rinnovo confermato — Viltrum Fitness", "", { htmlBody });
+    GmailApp.sendEmail(email, "Rinnovo confermato - Viltrum Fitness", "", { htmlBody });
   } catch (error) {
     Logger.log("sendRenewalEmail failed: " + error.toString());
   }
@@ -1522,11 +1522,11 @@ function sendWelcomeEmail(email, name, planName, tempPassword) {
           <h1 style="font-size:28px;margin:0;letter-spacing:2px;">VILTRUM FITNESS</h1>
           <p style="color:#888;font-size:12px;margin-top:5px;">NO SHORTCUTS. ALL SWEAT. NO TALKS, JUST REPS.</p>
         </div>
-        <h2 style="color:#4CAF50;">Ciao ${name}! 💪</h2>
+        <h2 style="color:#4CAF50;">Ciao ${name}!</h2>
         <p>Grazie per aver acquistato <strong style="color:#4CAF50;">${planName}</strong>.</p>
 
         <div style="background:#111;border:1px solid #333;border-radius:8px;padding:20px;margin:25px 0;">
-          <h3 style="color:#FFD700;margin-top:0;">⚡ Step 1 — Personalizza il tuo piano</h3>
+          <h3 style="color:#FFD700;margin-top:0;">Step 1 &mdash; Personalizza il tuo piano</h3>
           <p>Compila il questionario per ricevere un piano cucito su di te. Il coach lo rivede entro 24h.</p>
           <div style="text-align:center;margin:15px 0;">
             <a href="${qUrl}" style="display:inline-block;background:#FFD700;color:#000;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
@@ -1536,7 +1536,7 @@ function sendWelcomeEmail(email, name, planName, tempPassword) {
         </div>
 
         <div style="background:#111;border:1px solid #333;border-radius:8px;padding:20px;margin:25px 0;">
-          <h3 style="color:#4CAF50;margin-top:0;">⚡ Step 2 — Accedi all'app</h3>
+          <h3 style="color:#4CAF50;margin-top:0;">Step 2 &mdash; Accedi all'app</h3>
           <p><strong>Email:</strong> ${email}</p>
           <p><strong>Password temporanea:</strong> <code style="background:#222;padding:4px 8px;border-radius:4px;color:#4CAF50;">${tempPassword}</code></p>
           <div style="text-align:center;margin:15px 0;">
@@ -1551,7 +1551,7 @@ function sendWelcomeEmail(email, name, planName, tempPassword) {
       </div>`;
     let quotaInfo = '';
     try { quotaInfo = 'quota=' + MailApp.getRemainingDailyQuota(); } catch (e) {}
-    GmailApp.sendEmail(email, "🏋️ Benvenuto in Viltrum Fitness — Step 1: questionario", "", { htmlBody });
+    GmailApp.sendEmail(email, "Benvenuto in Viltrum Fitness - Step 1: questionario", "", { htmlBody });
     Logger.log('✅ Welcome email sent to ' + email + ' ' + quotaInfo);
     _logEmailAttempt('welcome', email, 'sent', quotaInfo);
   } catch (error) {

@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="../css/main.css" />
   <link rel="manifest" href="../manifest.json" />
   <style>
+    /* Override main.css which sets overflow:hidden on the login screen */
     html, body {
       margin: 0;
       padding: 0;
@@ -16,7 +17,11 @@
       color: #FFFFFF;
       font-family: 'Staatliches', sans-serif;
       letter-spacing: 0.5px;
+      height: auto !important;
       min-height: 100vh;
+      overflow: auto !important;
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch !important;
     }
     .q-wrap {
       max-width: 600px;
