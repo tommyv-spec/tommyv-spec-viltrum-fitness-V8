@@ -1389,11 +1389,16 @@ function addPlanToUser(data) {
       bustUserCache(email);
       if (source === 'shopify') {
         try { notifyAdminNewPurchase(email, fullName, planName, orderId, orderTotal, isNewUser); } catch (e) { Logger.log('notify failed: ' + e); }
-        // Renewal email to customer — no temp password, just confirmation
+        const displayName = (row[cols.name] || fullName || email.split('@')[0]).toString();
+        // If edge function reset the customer's password (renewal flow now does too),
+        // email fresh credentials. Otherwise just send a renewal confirmation.
         try {
-          const displayName = (row[cols.name] || fullName || email.split('@')[0]).toString();
-          sendRenewalEmail(email, displayName, newScadenza);
-        } catch (e) { Logger.log('renewal email failed: ' + e); }
+          if (data.tempPassword) {
+            sendWelcomeEmail(email, displayName, planName, data.tempPassword);
+          } else {
+            sendRenewalEmail(email, displayName, newScadenza);
+          }
+        } catch (e) { Logger.log('email send failed: ' + e); }
       }
       return createResponse({ status: 'success', message: 'Plan added to existing user', email, planName, isNewUser: false });
     } else {
@@ -1442,11 +1447,24 @@ function sendRenewalEmail(email, name, newScadenza) {
   }
 }
 
-// One-shot setter for ADMIN_NOTIFY_EMAIL (run once from Apps Script editor or via clasp run)
+// One-shot setter for ADMIN_NOTIFY_EMAIL — invoked from the Sheet menu.
 function setAdminNotifyEmail() {
-  PropertiesService.getScriptProperties().setProperty('ADMIN_NOTIFY_EMAIL', 'viltrumfitness@gmail.com');
-  Logger.log('ADMIN_NOTIFY_EMAIL set to viltrumfitness@gmail.com');
-  return 'OK';
+  const targetEmail = 'viltrumfitness@gmail.com';
+  PropertiesService.getScriptProperties().setProperty('ADMIN_NOTIFY_EMAIL', targetEmail);
+  const got = PropertiesService.getScriptProperties().getProperty('ADMIN_NOTIFY_EMAIL');
+  Logger.log('ADMIN_NOTIFY_EMAIL set; verify-read=' + got);
+  try {
+    SpreadsheetApp.getUi().alert(
+      'Setup completato',
+      'Le notifiche admin verranno inviate a:\n\n' + got +
+      '\n\nPer cambiare, modifica il valore in Project Settings -> Script Properties.',
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+  } catch (e) {
+    // Non-UI context (e.g. running from editor) — silent log only
+    Logger.log('UI alert skipped: ' + e);
+  }
+  return got;
 }
 
 // Notify admin of a new Shopify purchase. Set ADMIN_NOTIFY_EMAIL Script Property.

@@ -186,31 +186,29 @@ serve(async (req: Request) => {
   });
 
   let isNewUser = false;
-  let tempPassword = "";
+
+  // Always generate a fresh tempPassword so the welcome email can carry credentials.
+  const tempPassword = generateTempPassword();
 
   // Check if user exists in Supabase Auth
   const { data: existingUsers, error: listError } = await supabase.auth.admin.listUsers();
-
-  const userExists = existingUsers?.users?.some(
+  const existingUser = existingUsers?.users?.find(
     (u: any) => u.email?.toLowerCase() === email
   );
 
-  if (!userExists) {
+  if (!existingUser) {
     // Create new Supabase Auth user
     isNewUser = true;
-    tempPassword = generateTempPassword();
-
-    const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+    const { error: createError } = await supabase.auth.admin.createUser({
       email: email,
       password: tempPassword,
-      email_confirm: true, // Auto-confirm email
+      email_confirm: true,
       user_metadata: {
         full_name: fullName,
         username: firstName || email.split("@")[0],
         source: "shopify",
       },
     });
-
     if (createError) {
       console.error("❌ Failed to create Supabase user:", createError.message);
       return new Response(
@@ -218,10 +216,20 @@ serve(async (req: Request) => {
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
-
     console.log(`✅ Created Supabase user: ${email}`);
   } else {
-    console.log(`ℹ️ User already exists in Supabase: ${email}`);
+    // Existing Supabase user — reset password to the new tempPassword so the
+    // welcome/renewal email carries valid credentials. Customer can change
+    // it later via "Password dimenticata?" in the app.
+    const { error: updateErr } = await supabase.auth.admin.updateUserById(existingUser.id, {
+      password: tempPassword,
+    });
+    if (updateErr) {
+      console.error(`⚠️ Failed to reset password for ${email}:`, updateErr.message);
+      // Continue anyway — customer can use forgot-password flow
+    } else {
+      console.log(`🔑 Reset password for existing Supabase user: ${email}`);
+    }
   }
 
   // Plan duration: €150 = 4 months. GAS will extend scadenza correctly
@@ -239,7 +247,9 @@ serve(async (req: Request) => {
         planName: planName,
         fullName: fullName,
         isNewUser: isNewUser,
-        tempPassword: isNewUser ? tempPassword : undefined,
+        // Always pass tempPassword — welcome email needs it regardless of
+        // whether the Supabase user is new or had password reset.
+        tempPassword: tempPassword,
         durationMonths: durationMonths,
         source: "shopify",
         orderId: order.id?.toString() || "",
