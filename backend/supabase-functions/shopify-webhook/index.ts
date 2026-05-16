@@ -33,13 +33,14 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SB_SERVICE_ROLE_KEY") || "";
 // Keys: Shopify product title (lowercase) or product ID
 // Values: Plan name exactly as it appears in the Plans sheet
 const PRODUCT_PLAN_MAP: Record<string, string> = {
-  // By product title (lowercase)
-  "prep program": "Prep Program",
-  "strength program": "Strength Program",
-  "hypertrophy program": "Hypertrophy Program",
-  // Add more mappings as needed
-  // You can also map by product ID:
-  // "12345678": "Prep Program",
+  // By product title (lowercase) — keys MUST be lowercase
+  // Placeholder: all current Shopify products → Free Trial; coach personalizes via questionnaire + Admin UI
+  "da zero a hybrid":  "Free Trial",
+  "viltrum 21k":       "Free Trial",
+  "hyrox ready":       "Free Trial",
+  "periodo di prova":  "Free Trial",
+  // Can also map by product ID:
+  // "12345678": "Free Trial",
 };
 
 

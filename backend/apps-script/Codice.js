@@ -1259,6 +1259,7 @@ function doPost(e) {
     if (data.action === 'delete-user')       return syncDeleteUser(data);
     if (data.action === 'ensureUserInSheet') return ensureUserInSheet(data);
     if (data.action === 'list-plans')        return syncListPlans(data);
+    if (data.action === 'submitQuestionnaire') return submitQuestionnaire(data);
     return createResponse({ status: 'error', message: 'Unknown action' });
   } catch (error) {
     return createResponse({ status: 'error', message: error.toString() });
@@ -1369,6 +1370,8 @@ function addPlanToUser(data) {
 
 function sendWelcomeEmail(email, name, planName, tempPassword) {
   try {
+    const qUrl = 'https://viltrumfitness.com/pages/questionario.html?email=' + encodeURIComponent(email);
+    const appUrl = 'https://viltrumfitness.com/';
     const htmlBody = `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#000;color:#fff;padding:40px;border-radius:12px;">
         <div style="text-align:center;margin-bottom:30px;">
@@ -1376,21 +1379,33 @@ function sendWelcomeEmail(email, name, planName, tempPassword) {
           <p style="color:#888;font-size:12px;margin-top:5px;">NO SHORTCUTS. ALL SWEAT. NO TALKS, JUST REPS.</p>
         </div>
         <h2 style="color:#4CAF50;">Ciao ${name}! 💪</h2>
-        <p>Il tuo piano <strong style="color:#4CAF50;">${planName}</strong> è stato attivato!</p>
+        <p>Grazie per aver acquistato <strong style="color:#4CAF50;">${planName}</strong>.</p>
+
         <div style="background:#111;border:1px solid #333;border-radius:8px;padding:20px;margin:25px 0;">
-          <h3 style="color:#4CAF50;margin-top:0;">Le tue credenziali:</h3>
+          <h3 style="color:#FFD700;margin-top:0;">⚡ Step 1 — Personalizza il tuo piano</h3>
+          <p>Compila il questionario per ricevere un piano cucito su di te. Il coach lo rivede entro 24h.</p>
+          <div style="text-align:center;margin:15px 0;">
+            <a href="${qUrl}" style="display:inline-block;background:#FFD700;color:#000;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+              COMPILA QUESTIONARIO →
+            </a>
+          </div>
+        </div>
+
+        <div style="background:#111;border:1px solid #333;border-radius:8px;padding:20px;margin:25px 0;">
+          <h3 style="color:#4CAF50;margin-top:0;">⚡ Step 2 — Accedi all'app</h3>
           <p><strong>Email:</strong> ${email}</p>
           <p><strong>Password temporanea:</strong> <code style="background:#222;padding:4px 8px;border-radius:4px;color:#4CAF50;">${tempPassword}</code></p>
+          <div style="text-align:center;margin:15px 0;">
+            <a href="${appUrl}" style="display:inline-block;background:#4CAF50;color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+              APRI VILTRUM FITNESS
+            </a>
+          </div>
+          <p style="font-size:12px;color:#888;text-align:center;margin-top:10px;">I workout appariranno appena il coach attiva il tuo piano personalizzato.</p>
         </div>
-        <div style="text-align:center;margin:30px 0;">
-          <a href="https://tommyv-spec.github.io/tommyv-spec-viltrum-fitness-V8/"
-             style="display:inline-block;background:#4CAF50;color:#fff;padding:14px 40px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">
-            APRI VILTRUM FITNESS
-          </a>
-        </div>
+
         <p style="font-size:12px;color:#666;text-align:center;">Viltrum Fitness — Il tuo percorso inizia ora.</p>
       </div>`;
-    GmailApp.sendEmail(email, "🏋️ Benvenuto in Viltrum Fitness!", "", { htmlBody });
+    GmailApp.sendEmail(email, "🏋️ Benvenuto in Viltrum Fitness — Step 1: questionario", "", { htmlBody });
   } catch (error) {
     Logger.log("Failed to send welcome email: " + error.toString());
   }
@@ -1818,6 +1833,93 @@ function syncReAddUser(data) {
   return createResponse({ status: 'success', mode: 'inserted', email: email });
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// LEADS — Questionnaire submissions stored in "Leads" tab
+// Public endpoint; data is self-declared by user. Coach reviews via Admin menu.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const LEAD_COLS = [
+  'submitted_at', 'fullname', 'email', 'phone', 'age', 'gender', 'city',
+  'experience', 'km_week', 'pace', 'best_times', 'injuries',
+  'goal', 'race', 'days', 'gym', 'other_sports',
+  'conditions', 'medical',
+  'consent_data', 'consent_medical',
+  'status', 'assigned_plan', 'coach_notes'
+];
+
+function _ensureLeadsSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('Leads');
+  if (!sheet) {
+    sheet = ss.insertSheet('Leads');
+    sheet.appendRow(LEAD_COLS);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function submitQuestionnaire(data) {
+  const email = (data.email || '').trim().toLowerCase();
+  if (!email || !email.includes('@')) {
+    return createResponse({ status: 'error', message: 'Email non valida' });
+  }
+  if (!data.fullname || !data.phone) {
+    return createResponse({ status: 'error', message: 'Nome e telefono obbligatori' });
+  }
+  if (!data.consent_data || !data.consent_medical) {
+    return createResponse({ status: 'error', message: 'Consensi obbligatori non spuntati' });
+  }
+
+  const sheet = _ensureLeadsSheet();
+  const row = LEAD_COLS.map(col => {
+    if (col === 'status') return 'new';
+    if (col === 'assigned_plan') return '';
+    if (col === 'coach_notes') return '';
+    return (data[col] != null) ? data[col].toString() : '';
+  });
+  sheet.appendRow(row);
+
+  return createResponse({ status: 'success', email: email, mode: 'submitted' });
+}
+
+function adminListLeads() {
+  // For Admin UI dialog — returns rows in reverse chronological order
+  const sheet = _ensureLeadsSheet();
+  const rows = sheet.getDataRange().getValues();
+  if (rows.length < 2) return [];
+  const header = rows[0];
+  const out = [];
+  for (let i = rows.length - 1; i >= 1; i--) {
+    const r = rows[i];
+    const obj = {};
+    header.forEach((col, idx) => { obj[col] = r[idx]; });
+    obj._row = i + 1;
+    out.push(obj);
+  }
+  return out;
+}
+
+function adminUpdateLeadStatus(payload) {
+  // payload: { rowIndex, status?, assigned_plan?, coach_notes? }
+  const sheet = _ensureLeadsSheet();
+  const header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const colMap = {};
+  header.forEach((h, idx) => { colMap[h] = idx + 1; });
+
+  if (!payload.rowIndex || payload.rowIndex < 2) throw new Error('Riga non valida');
+
+  if (payload.status != null && colMap.status) {
+    sheet.getRange(payload.rowIndex, colMap.status).setValue(payload.status);
+  }
+  if (payload.assigned_plan != null && colMap.assigned_plan) {
+    sheet.getRange(payload.rowIndex, colMap.assigned_plan).setValue(payload.assigned_plan);
+  }
+  if (payload.coach_notes != null && colMap.coach_notes) {
+    sheet.getRange(payload.rowIndex, colMap.coach_notes).setValue(payload.coach_notes);
+  }
+  return { ok: true };
+}
+
 function syncListPlans(data) {
   // Public: plan names are non-sensitive (already visible to logged-in users via DataPreloader)
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1888,7 +1990,15 @@ function onOpen() {
     .addItem('Lista utenti (audit)', 'adminShowAuditDialog')
     .addItem('Aggiungi / Riallinea utente', 'adminShowReAddDialog')
     .addItem('Elimina utente dal foglio', 'adminShowDeleteDialog')
+    .addSeparator()
+    .addItem('Lead / Questionari', 'adminShowLeadsDialog')
     .addToUi();
+}
+
+function adminShowLeadsDialog() {
+  const html = HtmlService.createHtmlOutputFromFile('AdminLeads')
+    .setWidth(900).setHeight(600);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Lead / Questionari');
 }
 
 function adminShowAuditDialog() {

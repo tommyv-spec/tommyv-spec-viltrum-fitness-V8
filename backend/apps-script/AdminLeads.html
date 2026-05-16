@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 12px; font-size: 13px; }
+    h3 { margin: 0 0 10px; }
+    .stat { display: inline-block; padding: 4px 10px; margin: 0 6px 6px 0; background: #f5f5f5; border-radius: 4px; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #eee; vertical-align: top; }
+    th { background: #fafafa; position: sticky; top: 0; }
+    .lead-status-new { color: #c5221f; font-weight: bold; }
+    .lead-status-contacted { color: #1a73e8; }
+    .lead-status-converted { color: #137333; font-weight: bold; }
+    .lead-status-rejected { color: #888; text-decoration: line-through; }
+    .empty { color: #888; font-style: italic; padding: 20px; text-align: center; }
+    .err { color: #c5221f; background: #fce8e6; padding: 12px; border-radius: 4px; }
+    .loading { color: #888; padding: 20px; text-align: center; }
+    .row-expand { background: #fafafa; }
+    .row-expand td { padding: 12px 16px; }
+    button.action { padding: 3px 6px; font-size: 11px; margin: 1px; border-radius: 3px; border: 1px solid #ccc; background: white; cursor: pointer; }
+    button.action:hover { background: #f0f0f0; }
+    button.action.primary { background: #1a73e8; color: white; border-color: #1a73e8; }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; font-size: 11px; }
+    .detail-grid div b { color: #555; }
+  </style>
+</head>
+<body>
+  <h3>Lead / Questionari</h3>
+  <div id="content" class="loading">Caricamento...</div>
+
+  <script>
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function fmtDate(iso) {
+      if (!iso) return '';
+      try {
+        const d = new Date(iso);
+        return d.toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' });
+      } catch { return iso; }
+    }
+
+    function statusClass(s) {
+      return 'lead-status-' + (s || 'new');
+    }
+
+    function renderRow(lead) {
+      const tr = '<tr data-row="' + lead._row + '">' +
+        '<td>' + fmtDate(lead.submitted_at) + '</td>' +
+        '<td>' + escapeHtml(lead.fullname) + '<br><small>' + escapeHtml(lead.email) + '</small></td>' +
+        '<td>' + escapeHtml(lead.phone) + '</td>' +
+        '<td>' + escapeHtml(lead.goal) + ' / ' + escapeHtml(lead.experience) + '</td>' +
+        '<td>' + escapeHtml(lead.days) + 'x/sett</td>' +
+        '<td><span class="' + statusClass(lead.status) + '">' + escapeHtml(lead.status || 'new') + '</span></td>' +
+        '<td><button class="action" onclick="toggle(' + lead._row + ')">Dettagli</button></td>' +
+        '</tr>';
+
+      const detail = '<tr id="expand-' + lead._row + '" class="row-expand" style="display:none"><td colspan="7">' +
+        '<div class="detail-grid">' +
+        '<div><b>Eta:</b> ' + escapeHtml(lead.age) + '</div>' +
+        '<div><b>Sesso:</b> ' + escapeHtml(lead.gender) + '</div>' +
+        '<div><b>Citta:</b> ' + escapeHtml(lead.city) + '</div>' +
+        '<div><b>Km/sett:</b> ' + escapeHtml(lead.km_week) + '</div>' +
+        '<div><b>Passo:</b> ' + escapeHtml(lead.pace) + '</div>' +
+        '<div><b>Migliori tempi:</b> ' + escapeHtml(lead.best_times) + '</div>' +
+        '<div><b>Infortuni:</b> ' + escapeHtml(lead.injuries) + '</div>' +
+        '<div><b>Gara:</b> ' + escapeHtml(lead.race) + '</div>' +
+        '<div><b>Palestra:</b> ' + escapeHtml(lead.gym) + '</div>' +
+        '<div><b>Altri sport:</b> ' + escapeHtml(lead.other_sports) + '</div>' +
+        '<div><b>Patologie:</b> ' + escapeHtml(lead.conditions) + '</div>' +
+        '<div><b>Cert. medico:</b> ' + escapeHtml(lead.medical) + '</div>' +
+        '</div>' +
+        '<div style="margin-top:10px;">' +
+        '<b>Note coach:</b><br>' +
+        '<textarea id="notes-' + lead._row + '" rows="2" style="width:100%;font-family:inherit;font-size:12px;">' + escapeHtml(lead.coach_notes) + '</textarea>' +
+        '</div>' +
+        '<div style="margin-top:8px;">' +
+        '<b>Piano da assegnare:</b> <input id="plan-' + lead._row + '" type="text" value="' + escapeHtml(lead.assigned_plan) + '" placeholder="es. Free Trial" style="width:200px;font-size:12px;padding:3px 6px;">' +
+        '</div>' +
+        '<div style="margin-top:10px; text-align:right;">' +
+        '<button class="action" onclick="updateStatus(' + lead._row + ', \'contacted\')">Marca contattato</button>' +
+        '<button class="action primary" onclick="convert(' + lead._row + ')">Converti + assegna piano</button>' +
+        '<button class="action" onclick="updateStatus(' + lead._row + ', \'rejected\')">Rifiuta</button>' +
+        '</div>' +
+        '</td></tr>';
+
+      return tr + detail;
+    }
+
+    function toggle(rowIdx) {
+      const el = document.getElementById('expand-' + rowIdx);
+      el.style.display = (el.style.display === 'none' ? 'table-row' : 'none');
+    }
+
+    function updateStatus(rowIdx, newStatus) {
+      const notes = document.getElementById('notes-' + rowIdx).value.trim();
+      google.script.run
+        .withSuccessHandler(() => { alert('OK: ' + newStatus); load(); })
+        .withFailureHandler(err => alert('Errore: ' + err.message))
+        .adminUpdateLeadStatus({ rowIndex: rowIdx, status: newStatus, coach_notes: notes });
+    }
+
+    function convert(rowIdx) {
+      const plan = document.getElementById('plan-' + rowIdx).value.trim();
+      const notes = document.getElementById('notes-' + rowIdx).value.trim();
+      if (!plan) { alert('Inserisci nome piano prima'); return; }
+      // 1. Update lead status + plan
+      google.script.run
+        .withSuccessHandler(() => {
+          // 2. Also assign in Users sheet via existing adminReAddUser
+          const lead = window._currentLeads.find(l => l._row === rowIdx);
+          google.script.run
+            .withSuccessHandler(r => { alert('Convertito! Piano "' + plan + '" assegnato a ' + lead.email); load(); })
+            .withFailureHandler(err => alert('Lead aggiornato ma assegnazione utente fallita: ' + err.message))
+            .adminReAddUser({ email: lead.email, name: lead.fullname, plan: plan });
+        })
+        .withFailureHandler(err => alert('Errore: ' + err.message))
+        .adminUpdateLeadStatus({ rowIndex: rowIdx, status: 'converted', assigned_plan: plan, coach_notes: notes });
+    }
+
+    function load() {
+      document.getElementById('content').className = 'loading';
+      document.getElementById('content').innerHTML = 'Caricamento...';
+      google.script.run
+        .withSuccessHandler(leads => {
+          window._currentLeads = leads;
+          if (!leads.length) {
+            document.getElementById('content').innerHTML = '<div class="empty">Nessun lead ricevuto ancora.</div>';
+            return;
+          }
+          const counts = { new:0, contacted:0, converted:0, rejected:0 };
+          leads.forEach(l => { counts[l.status || 'new'] = (counts[l.status || 'new'] || 0) + 1; });
+          let html = '<div>';
+          html += '<span class="stat">Totale: ' + leads.length + '</span>';
+          html += '<span class="stat">Nuovi: ' + (counts.new || 0) + '</span>';
+          html += '<span class="stat">Contattati: ' + (counts.contacted || 0) + '</span>';
+          html += '<span class="stat">Convertiti: ' + (counts.converted || 0) + '</span>';
+          html += '<span class="stat">Rifiutati: ' + (counts.rejected || 0) + '</span>';
+          html += '</div>';
+          html += '<table><thead><tr>' +
+            '<th>Data</th><th>Nome / Email</th><th>Telefono</th><th>Obiettivo / Esp.</th><th>Giorni</th><th>Stato</th><th></th>' +
+            '</tr></thead><tbody>';
+          leads.forEach(l => { html += renderRow(l); });
+          html += '</tbody></table>';
+          document.getElementById('content').innerHTML = html;
+        })
+        .withFailureHandler(err => {
+          document.getElementById('content').innerHTML = '<div class="err">Errore: ' + escapeHtml(err.message) + '</div>';
+        })
+        .adminListLeads();
+    }
+
+    load();
+  </script>
+</body>
+</html>

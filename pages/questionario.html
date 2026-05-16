@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+  <meta name="theme-color" content="#000000" />
+  <title>Questionario — Viltrum Fitness</title>
+  <link href="https://fonts.googleapis.com/css2?family=Staatliches&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/main.css" />
+  <link rel="manifest" href="../manifest.json" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #000000;
+      color: #FFFFFF;
+      font-family: 'Staatliches', sans-serif;
+      letter-spacing: 0.5px;
+      min-height: 100vh;
+    }
+    .q-wrap {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 30px 20px 80px;
+    }
+    h1 {
+      font-size: 32px;
+      margin: 0 0 10px;
+      text-align: center;
+      letter-spacing: 2px;
+    }
+    .q-intro {
+      color: #B0B0B0;
+      font-size: 14px;
+      text-align: center;
+      margin: 0 0 30px;
+      line-height: 1.5;
+    }
+    .q-section {
+      margin-bottom: 30px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+    }
+    .q-section-title {
+      font-size: 18px;
+      color: #FFFFFF;
+      margin: 0 0 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+      letter-spacing: 1px;
+    }
+    .q-field {
+      margin-bottom: 16px;
+    }
+    .q-field label {
+      display: block;
+      color: #B0B0B0;
+      font-size: 13px;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+    .q-field label .required {
+      color: #ff6b6b;
+    }
+    .q-field input[type="text"],
+    .q-field input[type="email"],
+    .q-field input[type="tel"],
+    .q-field input[type="number"],
+    .q-field input[type="date"],
+    .q-field textarea,
+    .q-field select {
+      width: 100%;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      color: #FFFFFF;
+      font-family: inherit;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+      box-sizing: border-box;
+    }
+    .q-field input:focus,
+    .q-field textarea:focus,
+    .q-field select:focus {
+      outline: none;
+      border-color: #FFFFFF;
+      background: rgba(0, 0, 0, 0.8);
+    }
+    .q-field textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+    .q-pills {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .q-pills button {
+      flex: 1;
+      min-width: 90px;
+      padding: 10px 14px;
+      background: transparent;
+      color: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .q-pills button:hover {
+      border-color: #FFFFFF;
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .q-pills button.selected {
+      background: #FFFFFF;
+      color: #000000;
+      border-color: #FFFFFF;
+    }
+    .q-checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin: 6px 0;
+    }
+    .q-checkbox-row input[type="checkbox"] {
+      margin-top: 3px;
+      transform: scale(1.2);
+      accent-color: #FFFFFF;
+    }
+    .q-checkbox-row label {
+      color: #E0E0E0;
+      font-size: 13px;
+      line-height: 1.4;
+      letter-spacing: 0.3px;
+    }
+    .q-submit {
+      width: 100%;
+      padding: 16px;
+      background: #FFFFFF;
+      color: #000000;
+      border: none;
+      border-radius: 12px;
+      font-family: inherit;
+      font-size: 18px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      margin-top: 16px;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .q-submit:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(255, 255, 255, 0.3);
+    }
+    .q-submit:disabled {
+      background: #555;
+      color: #999;
+      cursor: not-allowed;
+    }
+    .q-message {
+      padding: 14px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 14px;
+      margin-top: 16px;
+      display: none;
+    }
+    .q-message.success {
+      background: rgba(76, 175, 80, 0.2);
+      border: 1px solid #4CAF50;
+      color: #4CAF50;
+    }
+    .q-message.error {
+      background: rgba(255, 107, 107, 0.2);
+      border: 1px solid #ff6b6b;
+      color: #ff6b6b;
+    }
+    .q-disclaimer {
+      font-size: 11px;
+      color: #888;
+      line-height: 1.5;
+      margin-top: 12px;
+      padding: 12px;
+      background: rgba(255, 215, 0, 0.05);
+      border: 1px solid rgba(255, 215, 0, 0.2);
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="q-wrap">
+    <h1>QUESTIONARIO PIANO</h1>
+    <p class="q-intro">
+      Rispondi a queste domande per personalizzare il tuo piano di allenamento.<br>
+      Tempo richiesto: ~5 minuti.
+    </p>
+
+    <form id="q-form" autocomplete="on">
+
+      <!-- ── BLOCK 1: Anagrafica ── -->
+      <section class="q-section">
+        <h2 class="q-section-title">1 — Chi sei</h2>
+        <div class="q-field">
+          <label>Nome e cognome <span class="required">*</span></label>
+          <input type="text" id="f-fullname" required />
+        </div>
+        <div class="q-field">
+          <label>Email <span class="required">*</span></label>
+          <input type="email" id="f-email" required />
+        </div>
+        <div class="q-field">
+          <label>WhatsApp / Telefono <span class="required">*</span></label>
+          <input type="tel" id="f-phone" placeholder="+39..." required />
+        </div>
+        <div class="q-field">
+          <label>Eta'</label>
+          <input type="number" id="f-age" min="13" max="99" />
+        </div>
+        <div class="q-field">
+          <label>Sesso <span class="required">*</span></label>
+          <div class="q-pills" data-q="gender">
+            <button type="button" data-val="Uomo">Uomo</button>
+            <button type="button" data-val="Donna">Donna</button>
+          </div>
+        </div>
+        <div class="q-field">
+          <label>Citta'</label>
+          <input type="text" id="f-city" />
+        </div>
+      </section>
+
+      <!-- ── BLOCK 2: Stato attuale ── -->
+      <section class="q-section">
+        <h2 class="q-section-title">2 — Stato attuale</h2>
+        <div class="q-field">
+          <label>Da quanto ti alleni / corri <span class="required">*</span></label>
+          <div class="q-pills" data-q="experience">
+            <button type="button" data-val="Mai">Mai / iniziando</button>
+            <button type="button" data-val="<6mesi">&lt; 6 mesi</button>
+            <button type="button" data-val="6-24mesi">6-24 mesi</button>
+            <button type="button" data-val=">2anni">&gt; 2 anni</button>
+          </div>
+        </div>
+        <div class="q-field">
+          <label>Km medi a settimana ultimo mese</label>
+          <input type="number" id="f-km-week" min="0" placeholder="0 se non corri" />
+        </div>
+        <div class="q-field">
+          <label>Passo medio su 5-10km (mm:ss/km)</label>
+          <input type="text" id="f-pace" placeholder="es. 5:30 oppure 'non lo so'" />
+        </div>
+        <div class="q-field">
+          <label>Migliori tempi recenti (opzionale)</label>
+          <textarea id="f-best-times" placeholder="es. 5k 22:30 / 10k 48:00 / mezza 1:45..."></textarea>
+        </div>
+        <div class="q-field">
+          <label>Infortuni ultimi 12 mesi</label>
+          <textarea id="f-injuries" placeholder="Tendiniti, dolori, operazioni... (lascia vuoto se nessuno)"></textarea>
+        </div>
+      </section>
+
+      <!-- ── BLOCK 3: Obiettivo + disponibilita ── -->
+      <section class="q-section">
+        <h2 class="q-section-title">3 — Obiettivo e disponibilita'</h2>
+        <div class="q-field">
+          <label>Obiettivo principale <span class="required">*</span></label>
+          <div class="q-pills" data-q="goal">
+            <button type="button" data-val="gara">Preparare una gara</button>
+            <button type="button" data-val="tempo">Migliorare il tempo</button>
+            <button type="button" data-val="dimagrire">Dimagrire</button>
+            <button type="button" data-val="iniziare">Iniziare da zero</button>
+            <button type="button" data-val="ritorno">Tornare dopo stop</button>
+            <button type="button" data-val="forza">Forza / massa</button>
+          </div>
+        </div>
+        <div class="q-field">
+          <label>Se hai una gara, quale e quando?</label>
+          <input type="text" id="f-race" placeholder="es. Maratona Roma 15/03/2027" />
+        </div>
+        <div class="q-field">
+          <label>Giorni di allenamento a settimana <span class="required">*</span></label>
+          <div class="q-pills" data-q="days">
+            <button type="button" data-val="2">2</button>
+            <button type="button" data-val="3">3</button>
+            <button type="button" data-val="4">4</button>
+            <button type="button" data-val="5+">5+</button>
+          </div>
+        </div>
+        <div class="q-field">
+          <label>Accesso a palestra / pesi</label>
+          <div class="q-pills" data-q="gym">
+            <button type="button" data-val="si">Si'</button>
+            <button type="button" data-val="no">No</button>
+            <button type="button" data-val="casa">Solo casa</button>
+          </div>
+        </div>
+        <div class="q-field">
+          <label>Altri sport in parallelo</label>
+          <input type="text" id="f-other-sports" placeholder="es. CrossFit, bici, nuoto..." />
+        </div>
+      </section>
+
+      <!-- ── BLOCK 4: Salute ── -->
+      <section class="q-section">
+        <h2 class="q-section-title">4 — Salute</h2>
+        <div class="q-field">
+          <label>Patologie note / farmaci</label>
+          <textarea id="f-conditions" placeholder="Cardiopatie, asma, ipertensione, farmaci abituali..."></textarea>
+        </div>
+        <div class="q-field">
+          <label>Certificato medico</label>
+          <div class="q-pills" data-q="medical">
+            <button type="button" data-val="agonistico">Agonistico</button>
+            <button type="button" data-val="non-agonistico">Non agonistico</button>
+            <button type="button" data-val="nessuno">Nessuno</button>
+          </div>
+        </div>
+
+        <div class="q-checkbox-row">
+          <input type="checkbox" id="f-consent-data" required />
+          <label for="f-consent-data">
+            Acconsento al trattamento dei dati personali (GDPR) ai soli fini della personalizzazione del piano. <span class="required">*</span>
+          </label>
+        </div>
+        <div class="q-checkbox-row">
+          <input type="checkbox" id="f-consent-medical" required />
+          <label for="f-consent-medical">
+            Dichiaro di essere in condizioni fisiche idonee all'attivita' richiesta e di aver consultato il mio medico. Comprendo che il piano non sostituisce il parere medico. <span class="required">*</span>
+          </label>
+        </div>
+
+        <div class="q-disclaimer">
+          Le risposte saranno usate dal coach per personalizzare il piano. Il piano fornito non sostituisce in alcun modo il parere di un medico o di un fisioterapista qualificato.
+        </div>
+      </section>
+
+      <button type="submit" id="q-submit-btn" class="q-submit">INVIA RISPOSTE</button>
+      <div id="q-message" class="q-message"></div>
+    </form>
+  </div>
+
+  <script type="module">
+    import { GOOGLE_SCRIPT_URL } from '../js/config.js';
+
+    const form = document.getElementById('q-form');
+    const submitBtn = document.getElementById('q-submit-btn');
+    const msg = document.getElementById('q-message');
+
+    // Pill single-select per group
+    document.querySelectorAll('.q-pills').forEach(group => {
+      group.addEventListener('click', e => {
+        const btn = e.target.closest('button[data-val]');
+        if (!btn) return;
+        group.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+      });
+    });
+
+    function getPill(qKey) {
+      const sel = document.querySelector(`.q-pills[data-q="${qKey}"] button.selected`);
+      return sel ? sel.getAttribute('data-val') : '';
+    }
+
+    // Prefill email from URL ?email=... or localStorage (post-purchase deep link)
+    const params = new URLSearchParams(location.search);
+    const prefillEmail = params.get('email') || localStorage.getItem('loggedUser');
+    if (prefillEmail) document.getElementById('f-email').value = prefillEmail;
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msg.style.display = 'none';
+
+      const required = {
+        fullname: document.getElementById('f-fullname').value.trim(),
+        email: document.getElementById('f-email').value.trim(),
+        phone: document.getElementById('f-phone').value.trim(),
+        gender: getPill('gender'),
+        experience: getPill('experience'),
+        goal: getPill('goal'),
+        days: getPill('days'),
+        consent_data: document.getElementById('f-consent-data').checked,
+        consent_medical: document.getElementById('f-consent-medical').checked,
+      };
+
+      const missing = Object.entries(required).filter(([k, v]) => !v).map(([k]) => k);
+      if (missing.length) {
+        msg.className = 'q-message error';
+        msg.textContent = 'Completa tutti i campi obbligatori: ' + missing.join(', ');
+        msg.style.display = 'block';
+        return;
+      }
+
+      const payload = {
+        action: 'submitQuestionnaire',
+        ...required,
+        age: document.getElementById('f-age').value || '',
+        city: document.getElementById('f-city').value.trim(),
+        km_week: document.getElementById('f-km-week').value || '',
+        pace: document.getElementById('f-pace').value.trim(),
+        best_times: document.getElementById('f-best-times').value.trim(),
+        injuries: document.getElementById('f-injuries').value.trim(),
+        race: document.getElementById('f-race').value.trim(),
+        gym: getPill('gym'),
+        other_sports: document.getElementById('f-other-sports').value.trim(),
+        conditions: document.getElementById('f-conditions').value.trim(),
+        medical: getPill('medical'),
+        submitted_at: new Date().toISOString(),
+      };
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'INVIO IN CORSO...';
+
+      try {
+        const res = await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const body = await res.json();
+        if (body.status === 'success') {
+          msg.className = 'q-message success';
+          msg.textContent = '✓ Risposte inviate! Il coach ti contattera\' a breve via WhatsApp per personalizzare il piano.';
+          msg.style.display = 'block';
+          submitBtn.style.display = 'none';
+          form.querySelectorAll('input, textarea, select, button').forEach(el => el.disabled = true);
+        } else {
+          throw new Error(body.message || 'Errore sconosciuto');
+        }
+      } catch (err) {
+        msg.className = 'q-message error';
+        msg.textContent = 'Errore: ' + err.message + '. Riprova o contattaci su WhatsApp.';
+        msg.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'INVIA RISPOSTE';
+      }
+    });
+  </script>
+</body>
+</html>
