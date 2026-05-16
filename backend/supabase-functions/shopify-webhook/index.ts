@@ -120,6 +120,77 @@ function resolvePlanName(order: any): string | null {
 // MAIN HANDLER
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Background worker: heavy lifting (Supabase user, password reset, GAS call).
+// Runs after Shopify gets its 200 OK, kept alive by EdgeRuntime.waitUntil.
+async function processOrder(order: any): Promise<void> {
+  const email = (order.customer?.email || order.email || "").trim().toLowerCase();
+  const firstName = order.customer?.first_name || "";
+  const lastName = order.customer?.last_name || "";
+  const fullName = `${firstName} ${lastName}`.trim() || email.split("@")[0];
+
+  if (!email) { console.error("❌ No email in order"); return; }
+
+  const planName = resolvePlanName(order);
+  if (!planName) { console.error("❌ Could not resolve plan name from order"); return; }
+
+  console.log(`📦 Order received: ${email} → ${planName}`);
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  let isNewUser = false;
+  const tempPassword = generateTempPassword();
+
+  const { data: existingUsers } = await supabase.auth.admin.listUsers();
+  const existingUser = existingUsers?.users?.find(
+    (u: any) => u.email?.toLowerCase() === email
+  );
+
+  if (!existingUser) {
+    isNewUser = true;
+    const { error: createError } = await supabase.auth.admin.createUser({
+      email,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: { full_name: fullName, username: firstName || email.split("@")[0], source: "shopify" },
+    });
+    if (createError) { console.error("❌ Failed to create Supabase user:", createError.message); return; }
+    console.log(`✅ Created Supabase user: ${email}`);
+  } else {
+    const { error: updateErr } = await supabase.auth.admin.updateUserById(existingUser.id, {
+      password: tempPassword,
+    });
+    if (updateErr) console.error(`⚠️ Failed to reset password for ${email}:`, updateErr.message);
+    else console.log(`🔑 Reset password for existing Supabase user: ${email}`);
+  }
+
+  const durationMonths = 4;
+  try {
+    const gasResponse = await fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "addPlanToUser",
+        email,
+        planName,
+        fullName,
+        isNewUser,
+        tempPassword,
+        durationMonths,
+        source: "shopify",
+        orderId: order.id?.toString() || "",
+        orderTotal: order.total_price || "",
+      }),
+      redirect: "follow",
+    });
+    const gasResult = await gasResponse.json();
+    console.log(`✅ GAS response:`, gasResult);
+  } catch (gasError) {
+    console.error("❌ GAS call failed:", gasError);
+  }
+}
+
 serve(async (req: Request) => {
   // Only accept POST
   if (req.method !== "POST") {
@@ -131,7 +202,7 @@ serve(async (req: Request) => {
 
   const body = await req.text();
 
-  // ── Verify Shopify HMAC ──
+  // ── Verify Shopify HMAC (must be sync — Shopify trusts our 200 response)
   const hmacHeader = req.headers.get("X-Shopify-Hmac-Sha256") || "";
   if (SHOPIFY_WEBHOOK_SECRET) {
     const valid = await verifyShopifyHmac(body, hmacHeader);
@@ -154,136 +225,16 @@ serve(async (req: Request) => {
     });
   }
 
-  // ── Extract customer info ──
-  const email = (order.customer?.email || order.email || "").trim().toLowerCase();
-  const firstName = order.customer?.first_name || "";
-  const lastName = order.customer?.last_name || "";
-  const fullName = `${firstName} ${lastName}`.trim() || email.split("@")[0];
+  // Root-cause fix for duplicate webhook deliveries:
+  //   Shopify times out webhooks at ~5s and retries on timeout.
+  //   The heavy work (listUsers, createUser, fetch GAS) takes ~4-6s.
+  //   Solution: ACK Shopify in <100ms; process in background via waitUntil.
+  // @ts-ignore - EdgeRuntime is a Supabase Deno global
+  EdgeRuntime.waitUntil(processOrder(order));
 
-  if (!email) {
-    console.error("❌ No email in order");
-    return new Response(JSON.stringify({ error: "No customer email" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  // ── Resolve plan name ──
-  const planName = resolvePlanName(order);
-  if (!planName) {
-    console.error("❌ Could not resolve plan name from order");
-    return new Response(JSON.stringify({ error: "Unknown product/plan" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  console.log(`📦 Order received: ${email} → ${planName}`);
-
-  // ── Check/Create Supabase Auth user ──
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false },
+  return new Response(JSON.stringify({ received: true, orderId: order.id }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
   });
-
-  let isNewUser = false;
-
-  // Always generate a fresh tempPassword so the welcome email can carry credentials.
-  const tempPassword = generateTempPassword();
-
-  // Check if user exists in Supabase Auth
-  const { data: existingUsers, error: listError } = await supabase.auth.admin.listUsers();
-  const existingUser = existingUsers?.users?.find(
-    (u: any) => u.email?.toLowerCase() === email
-  );
-
-  if (!existingUser) {
-    // Create new Supabase Auth user
-    isNewUser = true;
-    const { error: createError } = await supabase.auth.admin.createUser({
-      email: email,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: {
-        full_name: fullName,
-        username: firstName || email.split("@")[0],
-        source: "shopify",
-      },
-    });
-    if (createError) {
-      console.error("❌ Failed to create Supabase user:", createError.message);
-      return new Response(
-        JSON.stringify({ error: "Failed to create user", details: createError.message }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
-    }
-    console.log(`✅ Created Supabase user: ${email}`);
-  } else {
-    // Existing Supabase user — reset password to the new tempPassword so the
-    // welcome/renewal email carries valid credentials. Customer can change
-    // it later via "Password dimenticata?" in the app.
-    const { error: updateErr } = await supabase.auth.admin.updateUserById(existingUser.id, {
-      password: tempPassword,
-    });
-    if (updateErr) {
-      console.error(`⚠️ Failed to reset password for ${email}:`, updateErr.message);
-      // Continue anyway — customer can use forgot-password flow
-    } else {
-      console.log(`🔑 Reset password for existing Supabase user: ${email}`);
-    }
-  }
-
-  // Plan duration: €150 = 4 months. GAS will extend scadenza correctly
-  // (from max(existing, today)) to avoid losing remaining time on renewal.
-  const durationMonths = 4;
-
-  // ── Call Google Apps Script to add plan ──
-  try {
-    const gasResponse = await fetch(GOOGLE_SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "addPlanToUser",
-        email: email,
-        planName: planName,
-        fullName: fullName,
-        isNewUser: isNewUser,
-        // Always pass tempPassword — welcome email needs it regardless of
-        // whether the Supabase user is new or had password reset.
-        tempPassword: tempPassword,
-        durationMonths: durationMonths,
-        source: "shopify",
-        orderId: order.id?.toString() || "",
-        orderTotal: order.total_price || "",
-      }),
-      // Follow redirects (GAS returns 302 → final JSON)
-      redirect: "follow",
-    });
-
-    const gasResult = await gasResponse.json();
-    console.log(`✅ GAS response:`, gasResult);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        email: email,
-        planName: planName,
-        isNewUser: isNewUser,
-        gasResult: gasResult,
-      }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
-  } catch (gasError) {
-    console.error("❌ GAS call failed:", gasError);
-    return new Response(
-      JSON.stringify({
-        error: "GAS call failed",
-        details: String(gasError),
-        // Still return success since Supabase user was created
-        partialSuccess: true,
-        email: email,
-        planName: planName,
-      }),
-      { status: 207, headers: { "Content-Type": "application/json" } }
-    );
-  }
 });
+
