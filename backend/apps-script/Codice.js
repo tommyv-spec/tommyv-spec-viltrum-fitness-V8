@@ -1258,6 +1258,7 @@ function doPost(e) {
     if (data.action === 're-add-user')       return syncReAddUser(data);
     if (data.action === 'delete-user')       return syncDeleteUser(data);
     if (data.action === 'ensureUserInSheet') return ensureUserInSheet(data);
+    if (data.action === 'list-plans')        return syncListPlans(data);
     return createResponse({ status: 'error', message: 'Unknown action' });
   } catch (error) {
     return createResponse({ status: 'error', message: error.toString() });
@@ -1815,6 +1816,21 @@ function syncReAddUser(data) {
   }
   userSheet.appendRow([name, email, '', '', scadenza, plan]);
   return createResponse({ status: 'success', mode: 'inserted', email: email });
+}
+
+function syncListPlans(data) {
+  // Public: plan names are non-sensitive (already visible to logged-in users via DataPreloader)
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const plansSheet = ss.getSheetByName('Plans');
+  if (!plansSheet) return createResponse({ status: 'error', message: 'No "Plans" sheet found' });
+  const rows = plansSheet.getDataRange().getValues();
+  const header = rows[0] || [];
+  const names = [];
+  for (let i = 1; i < rows.length; i++) {
+    const name = (rows[i][0] || '').toString().trim();
+    if (name) names.push(name);
+  }
+  return createResponse({ status: 'success', header: header, planNames: names, count: names.length });
 }
 
 function ensureUserInSheet(data) {

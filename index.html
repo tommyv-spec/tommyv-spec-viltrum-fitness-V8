@@ -656,6 +656,115 @@
       color: #FFD700;
     }
 
+    /* ───────── ONBOARDING CTAs (anon only) ───────── */
+    .onboarding-ctas {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      width: 100%;
+      max-width: 420px;
+      margin: 24px auto 0;
+      padding: 0 20px;
+      box-sizing: border-box;
+    }
+    .onboarding-ctas.hidden { display: none; }
+
+    .cta-primary, .cta-secondary {
+      width: 100%;
+      padding: 16px 20px;
+      border-radius: 12px;
+      font-family: 'Staatliches', sans-serif;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      border: 2px solid #FFFFFF;
+    }
+    .cta-primary {
+      background: #FFFFFF;
+      color: #000000;
+    }
+    .cta-primary:hover, .cta-primary:active {
+      background: #E0E0E0;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(255, 255, 255, 0.3);
+    }
+    .cta-secondary {
+      background: transparent;
+      color: #FFFFFF;
+    }
+    .cta-secondary:hover, .cta-secondary:active {
+      background: rgba(255, 255, 255, 0.08);
+      transform: translateY(-2px);
+    }
+    .cta-main {
+      font-size: 20px;
+      font-weight: bold;
+    }
+    .cta-sub {
+      font-size: 13px;
+      opacity: 0.7;
+      letter-spacing: 0.5px;
+    }
+
+    /* ───────── QUESTIONNAIRE MODAL ───────── */
+    .q-modal-content {
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .q-intro {
+      color: #B0B0B0;
+      font-size: 14px;
+      text-align: center;
+      margin: -6px 0 18px;
+      font-family: 'Staatliches', sans-serif;
+      letter-spacing: 0.5px;
+    }
+    .q-block {
+      margin-bottom: 16px;
+    }
+    .q-label {
+      display: block;
+      color: #B0B0B0;
+      font-size: 13px;
+      font-family: 'Staatliches', sans-serif;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+    .q-options {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .q-options button {
+      flex: 1;
+      min-width: 80px;
+      padding: 10px 12px;
+      background: transparent;
+      color: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      font-family: 'Staatliches', sans-serif;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .q-options button:hover {
+      border-color: #FFFFFF;
+    }
+    .q-options button.selected {
+      background: #FFFFFF;
+      color: #000000;
+      border-color: #FFFFFF;
+    }
+    .q-submit-btn {
+      margin-top: 8px;
+    }
+
     /* Responsive adjustments */
     /* iOS INSTALL TOOLTIP */
     .ios-install-tooltip {
@@ -959,6 +1068,55 @@
     </div>
   </div>
 
+  <!-- QUESTIONNAIRE MODAL (anon visitors) -->
+  <div class="auth-modal" id="q-modal">
+    <div class="auth-modal-content q-modal-content">
+      <button class="auth-modal-close" id="q-modal-close">×</button>
+      <h3>Trova il tuo piano</h3>
+      <p class="q-intro">Rispondi a 4 domande, ti mettiamo in contatto col coach su WhatsApp.</p>
+
+      <div class="q-block">
+        <label class="q-label">Obiettivo</label>
+        <div class="q-options" data-q="obj">
+          <button type="button" data-val="MORE MUSCLE">More Muscle</button>
+          <button type="button" data-val="FORZA">Forza</button>
+          <button type="button" data-val="CORSA">Corsa</button>
+        </div>
+      </div>
+
+      <div class="q-block">
+        <label class="q-label">Livello</label>
+        <div class="q-options" data-q="lvl">
+          <button type="button" data-val="Principiante">Principiante</button>
+          <button type="button" data-val="Intermedio">Intermedio</button>
+          <button type="button" data-val="Avanzato">Avanzato</button>
+        </div>
+      </div>
+
+      <div class="q-block">
+        <label class="q-label">Sesso</label>
+        <div class="q-options" data-q="gender">
+          <button type="button" data-val="Uomo">Uomo</button>
+          <button type="button" data-val="Donna">Donna</button>
+        </div>
+      </div>
+
+      <div class="q-block">
+        <label class="q-label">Allenamenti / settimana</label>
+        <div class="q-options" data-q="days">
+          <button type="button" data-val="2">2x</button>
+          <button type="button" data-val="3">3x</button>
+        </div>
+      </div>
+
+      <input type="text" id="q-name" placeholder="Nome" />
+      <input type="text" id="q-contact" placeholder="Email o telefono (opzionale)" />
+
+      <button id="q-submit" class="q-submit-btn">INVIA A WHATSAPP →</button>
+      <div class="auth-message" id="q-message"></div>
+    </div>
+  </div>
+
   <main class="page-safe screen">
     <!-- TRAINING SELECTOR -->
     <div id="training-selector" data-reach-bottom="true">
@@ -966,6 +1124,18 @@
         <div class="training-image-wrapper">
           <img src="https://drive.google.com/thumbnail?id=1XZA5S4Kb4reRRuVwkxwH6KACtxSMNjHS&sz=w1000" alt="Viltrum Fitness" class="training-base-image" />
         </div>
+
+        <!-- Anon-only CTAs (hidden when logged in via initAuth) -->
+        <section class="onboarding-ctas" id="onboarding-ctas">
+          <button class="cta-primary" id="cta-free-trial">
+            <span class="cta-main">INIZIA GRATIS</span>
+            <span class="cta-sub">7 giorni di prova</span>
+          </button>
+          <button class="cta-secondary" id="cta-personalized">
+            <span class="cta-main">Piano personalizzato</span>
+            <span class="cta-sub">parla col coach</span>
+          </button>
+        </section>
       </div>
 
       <!-- Bottom Sheet -->
@@ -1167,17 +1337,20 @@
       while (typeof window.checkAuth !== 'function') {
         await new Promise(resolve => setTimeout(resolve, 50));
       }
-      
+
       const isLoggedIn = await checkAuth();
+      const onboardingCtas = document.getElementById('onboarding-ctas');
       if (isLoggedIn) {
         headerDashboardBtn.style.display = 'flex';
         headerLoginBtn.style.display = 'none';
+        if (onboardingCtas) onboardingCtas.classList.add('hidden');
       } else {
         headerLoginBtn.style.display = 'flex';
         headerDashboardBtn.style.display = 'none';
+        if (onboardingCtas) onboardingCtas.classList.remove('hidden');
       }
     }
-    
+
     initAuth();
 
     // Open modal (show login by default)
@@ -1187,7 +1360,130 @@
       setTimeout(() => loginEmailInput.focus(), 300);
     }
 
+    function openAuthModalSignup() {
+      authModal.classList.add('active');
+      showSignup();
+      setTimeout(() => signupNameInput.focus(), 300);
+    }
+
     headerLoginBtn.addEventListener('click', openAuthModal);
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ONBOARDING CTAs + QUESTIONNAIRE MODAL
+    // ═══════════════════════════════════════════════════════════════════════════
+    const COACH_WA = '+393397755980';
+
+    const PLAN_MAP = {
+      'MORE MUSCLE|Principiante|*': 'MORE MUSCLE V1.2',
+      'MORE MUSCLE|Intermedio|*':   'MORE MUSCLE V2.2',
+      'MORE MUSCLE|Avanzato|*':     'MORE MUSCLE V3.2',
+      'FORZA|Principiante|Donna':   'FORZA PREP LADY',
+      'FORZA|Principiante|Uomo':    'FORZA prep',
+      'FORZA|Intermedio|Donna':     'FORZA STAMINA',
+      'FORZA|Intermedio|Uomo':      'FORZA stamina',
+      'FORZA|Avanzato|Donna':       'FORZA STAMINA B',
+      'FORZA|Avanzato|Uomo':        'FORZA B',
+      'CORSA|*|*':                  'Run 1.0',
+    };
+
+    function resolvePlan(obj, lvl, gender) {
+      return PLAN_MAP[`${obj}|${lvl}|${gender}`]
+          || PLAN_MAP[`${obj}|${lvl}|*`]
+          || PLAN_MAP[`${obj}|*|*`]
+          || '(da definire col coach)';
+    }
+
+    function buildWAUrl({obj, lvl, gender, days, name, contact}) {
+      const plan = resolvePlan(obj, lvl, gender);
+      const msg = [
+        'Ciao! Vorrei iniziare con Viltrum Fitness.',
+        '',
+        `Obiettivo: ${obj}`,
+        `Livello: ${lvl}`,
+        `Sesso: ${gender}`,
+        `Allenamenti/settimana: ${days}x`,
+        '',
+        `Nome: ${name || '-'}`,
+        `Contatto: ${contact || '-'}`,
+        '',
+        `Piano suggerito: ${plan}`,
+      ].join('\n');
+      const num = COACH_WA.replace(/[^\d]/g, '');
+      return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
+    }
+
+    // CTA: free trial -> open auth modal in signup view
+    const ctaFreeTrial = document.getElementById('cta-free-trial');
+    if (ctaFreeTrial) ctaFreeTrial.addEventListener('click', openAuthModalSignup);
+
+    // CTA: personalized -> open questionnaire modal
+    const qModal = document.getElementById('q-modal');
+    const qModalClose = document.getElementById('q-modal-close');
+    const qSubmit = document.getElementById('q-submit');
+    const qNameInput = document.getElementById('q-name');
+    const qContactInput = document.getElementById('q-contact');
+    const qMessage = document.getElementById('q-message');
+    const ctaPersonalized = document.getElementById('cta-personalized');
+
+    function openQModal() {
+      // Reset selections + inputs
+      qModal.querySelectorAll('.q-options button').forEach(b => b.classList.remove('selected'));
+      qNameInput.value = '';
+      qContactInput.value = '';
+      qMessage.style.display = 'none';
+      qMessage.textContent = '';
+      qModal.classList.add('active');
+    }
+    function closeQModal() { qModal.classList.remove('active'); }
+
+    if (ctaPersonalized) ctaPersonalized.addEventListener('click', openQModal);
+    if (qModalClose) qModalClose.addEventListener('click', closeQModal);
+    if (qModal) qModal.addEventListener('click', (e) => { if (e.target === qModal) closeQModal(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && qModal && qModal.classList.contains('active')) closeQModal();
+    });
+
+    // Question option selection (single-select per group)
+    if (qModal) {
+      qModal.querySelectorAll('.q-options').forEach(group => {
+        group.addEventListener('click', (e) => {
+          const btn = e.target.closest('button[data-val]');
+          if (!btn) return;
+          group.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+        });
+      });
+    }
+
+    function getSelectedValue(qKey) {
+      const sel = qModal.querySelector(`.q-options[data-q="${qKey}"] button.selected`);
+      return sel ? sel.getAttribute('data-val') : null;
+    }
+
+    if (qSubmit) {
+      qSubmit.addEventListener('click', () => {
+        const answers = {
+          obj:     getSelectedValue('obj'),
+          lvl:     getSelectedValue('lvl'),
+          gender:  getSelectedValue('gender'),
+          days:    getSelectedValue('days'),
+          name:    qNameInput.value.trim(),
+          contact: qContactInput.value.trim(),
+        };
+        const missing = ['obj','lvl','gender','days'].filter(k => !answers[k]);
+        if (missing.length) {
+          qMessage.className = 'auth-message error';
+          qMessage.textContent = 'Completa tutte le 4 domande prima di inviare.';
+          qMessage.style.display = 'block';
+          return;
+        }
+        const url = buildWAUrl(answers);
+        window.open(url, '_blank');
+        qMessage.className = 'auth-message success';
+        qMessage.textContent = 'Apertura WhatsApp...';
+        qMessage.style.display = 'block';
+      });
+    }
 
     // Close modal
     modalCloseBtn.addEventListener('click', () => {
