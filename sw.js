@@ -1,7 +1,7 @@
-const CACHE_NAME = 'viltrum-fitness-v8.2.19';
-const RUNTIME_CACHE = 'viltrum-runtime-v8.2.19';
-const PRELOAD_CACHE = 'viltrum-preload-v8.2.19';
-const BUILD_HASH = '20260516165342';
+const CACHE_NAME = 'viltrum-fitness-v8.2.20';
+const RUNTIME_CACHE = 'viltrum-runtime-v8.2.20';
+const PRELOAD_CACHE = 'viltrum-preload-v8.2.20';
+const BUILD_HASH = '20260516170112';
 
 const urlsToCache = [
   './',
@@ -75,11 +75,11 @@ let preloadAborted = false;
 // INSTALL EVENT
 // ═══════════════════════════════════════════════════════════════════════════
 self.addEventListener('install', (event) => {
-  console.log('[Service Worker] Installing v8.2.19...');
+  console.log('[Service Worker] Installing v8.2.20...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[Service Worker] Caching app shell v8.2.19');
+        console.log('[Service Worker] Caching app shell v8.2.20');
         return Promise.allSettled(
           urlsToCache.map(url => 
             cache.add(url).catch(err => {
@@ -370,7 +370,7 @@ async function handleBackgroundPreload(data) {
 // ACTIVATE EVENT
 // ═══════════════════════════════════════════════════════════════════════════
 self.addEventListener('activate', (event) => {
-  console.log('[Service Worker] Activating v8.2.19...');
+  console.log('[Service Worker] Activating v8.2.20...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(

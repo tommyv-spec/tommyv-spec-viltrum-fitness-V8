@@ -2,7 +2,7 @@
 // WELCOME MODAL V2 - Shows on first use AND on version upgrades
 // ═══════════════════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v8.2.19';
+const APP_VERSION = 'v8.2.20';
 
 function initWelcomeModal() {
   const loggedUser = localStorage.getItem('loggedUser');

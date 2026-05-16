@@ -1372,16 +1372,23 @@
     headerLoginBtn.addEventListener('click', openAuthModal);
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // ONBOARDING CTAs + QUESTIONNAIRE MODAL
-    // Feature flag: toggle FEATURE_ONBOARDING_CTAS to bring them back.
-    // (Code preserved on tag onboarding-funnel-v1 + branch feature/onboarding-funnel-v1)
+    // ONBOARDING CTAs
+    // INIZIA GRATIS  -> auth modal (signup view) -> free trial
+    // Piano personalizzato -> redirect to Shopify shop
+    //
+    // Feature flag retained so the old WA-questionnaire UX can be restored if
+    // ever needed (also fully preserved on tag onboarding-funnel-v1).
     // ═══════════════════════════════════════════════════════════════════════════
-    const FEATURE_ONBOARDING_CTAS = false;
+    const FEATURE_ONBOARDING_CTAS = true;
+    const SHOP_URL = 'https://shop.viltrumfitness.com';
 
-    // Hide CTA section immediately if flag is off
     if (!FEATURE_ONBOARDING_CTAS) {
       const _ctas = document.getElementById('onboarding-ctas');
       if (_ctas) _ctas.style.display = 'none';
+    }
+    // q-modal is no longer the destination for the "Piano personalizzato" CTA;
+    // hide its DOM entry to keep it dormant (code preserved for retrieval).
+    {
       const _qModal = document.getElementById('q-modal');
       if (_qModal) _qModal.style.display = 'none';
     }
@@ -1451,7 +1458,9 @@
     }
     function closeQModal() { qModal.classList.remove('active'); }
 
-    if (ctaPersonalized) ctaPersonalized.addEventListener('click', openQModal);
+    if (ctaPersonalized) ctaPersonalized.addEventListener('click', () => {
+      window.open(SHOP_URL, '_blank', 'noopener');
+    });
     if (qModalClose) qModalClose.addEventListener('click', closeQModal);
     if (qModal) qModal.addEventListener('click', (e) => { if (e.target === qModal) closeQModal(); });
     document.addEventListener('keydown', (e) => {
