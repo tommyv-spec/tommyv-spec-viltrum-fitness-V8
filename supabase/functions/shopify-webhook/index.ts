@@ -224,10 +224,9 @@ serve(async (req: Request) => {
     console.log(`ℹ️ User already exists in Supabase: ${email}`);
   }
 
-  // ── Scadenza: 4 months from now (plan duration €150 = 4 months) ──
-  const scadenza = new Date();
-  scadenza.setMonth(scadenza.getMonth() + 4);
-  const scadenzaIso = scadenza.toISOString();
+  // Plan duration: €150 = 4 months. GAS will extend scadenza correctly
+  // (from max(existing, today)) to avoid losing remaining time on renewal.
+  const durationMonths = 4;
 
   // ── Call Google Apps Script to add plan ──
   try {
@@ -241,7 +240,7 @@ serve(async (req: Request) => {
         fullName: fullName,
         isNewUser: isNewUser,
         tempPassword: isNewUser ? tempPassword : undefined,
-        scadenza: scadenzaIso,
+        durationMonths: durationMonths,
         source: "shopify",
         orderId: order.id?.toString() || "",
         orderTotal: order.total_price || "",

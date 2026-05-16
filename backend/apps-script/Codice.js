@@ -1324,15 +1324,16 @@ function addPlanToUser(data) {
     const source   = (data.source || "").toString();
     const orderId  = (data.orderId || "").toString();
     const orderTotal = (data.orderTotal || "").toString();
+    const durationMonths = Number(data.durationMonths) || 0;
 
-    // Parse scadenza (ISO date string from edge function)
-    let scadenza = null;
+    // Legacy: edge function used to send 'scadenza' ISO; new flow sends 'durationMonths'.
+    let legacyScadenza = null;
     if (data.scadenza) {
       const d = new Date(data.scadenza);
-      if (!isNaN(d.getTime())) scadenza = d;
+      if (!isNaN(d.getTime())) legacyScadenza = d;
     }
 
-    Logger.log("addPlanToUser V8: email=" + email + " plan=" + planName + " source=" + source);
+    Logger.log("addPlanToUser V8: email=" + email + " plan=" + planName + " source=" + source + " duration=" + durationMonths);
 
     if (!email || !email.includes('@')) return createResponse({ status: 'error', message: 'Invalid email' });
     if (!planName)                       return createResponse({ status: 'error', message: 'Plan name required' });
@@ -1349,8 +1350,18 @@ function addPlanToUser(data) {
       }
     }
 
+    function computeRenewalScadenza(existing) {
+      if (legacyScadenza) return legacyScadenza;
+      if (!durationMonths) return null;
+      const today = new Date();
+      const base = (existing instanceof Date && !isNaN(existing.getTime()) && existing > today) ? new Date(existing) : today;
+      base.setMonth(base.getMonth() + durationMonths);
+      return base;
+    }
+
     let isNewUser;
     if (userRowIndex > 0) {
+      // ── EXISTING USER ──
       isNewUser = false;
       const row           = userData[userRowIndex - 1];
       const existingPlans = [];
@@ -1358,23 +1369,40 @@ function addPlanToUser(data) {
         const val = (row[col] || "").toString().trim();
         if (val) existingPlans.push(val);
       }
-      if (!existingPlans.includes(planName)) {
+
+      // Skip "Pending" append if user already has any real (non-Pending) plan.
+      // This avoids polluting renewals with stale Pending markers.
+      const hasRealPlan = existingPlans.some(p => p && p.toLowerCase() !== 'pending');
+      const shouldAppend = !existingPlans.includes(planName) && !(planName.toLowerCase() === 'pending' && hasRealPlan);
+      if (shouldAppend) {
         userSheet.getRange(userRowIndex, cols.firstPlan + existingPlans.length + 1).setValue(planName);
       }
-      // Update scadenza if provided (e.g. on renewal)
-      if (scadenza && cols.scadenza != null) {
-        userSheet.getRange(userRowIndex, cols.scadenza + 1).setValue(scadenza);
+
+      // Renewal scadenza: from max(existing scadenza, today) + durationMonths
+      let newScadenza = null;
+      if (cols.scadenza != null) {
+        const existingScadenza = row[cols.scadenza] ? new Date(row[cols.scadenza]) : null;
+        newScadenza = computeRenewalScadenza(existingScadenza);
+        if (newScadenza) userSheet.getRange(userRowIndex, cols.scadenza + 1).setValue(newScadenza);
       }
+
       bustUserCache(email);
       if (source === 'shopify') {
         try { notifyAdminNewPurchase(email, fullName, planName, orderId, orderTotal, isNewUser); } catch (e) { Logger.log('notify failed: ' + e); }
+        // Renewal email to customer — no temp password, just confirmation
+        try {
+          const displayName = (row[cols.name] || fullName || email.split('@')[0]).toString();
+          sendRenewalEmail(email, displayName, newScadenza);
+        } catch (e) { Logger.log('renewal email failed: ' + e); }
       }
       return createResponse({ status: 'success', message: 'Plan added to existing user', email, planName, isNewUser: false });
     } else {
+      // ── NEW USER ──
       isNewUser = true;
       const displayName = fullName || email.split('@')[0];
+      const newScadenza = computeRenewalScadenza(null);
       // Row layout: [name, email, "", "", scadenza, planName]
-      userSheet.appendRow([displayName, email, "", "", scadenza || "", planName]);
+      userSheet.appendRow([displayName, email, "", "", newScadenza || "", planName]);
       if (data.tempPassword) sendWelcomeEmail(email, displayName, planName, data.tempPassword);
       if (source === 'shopify') {
         try { notifyAdminNewPurchase(email, displayName, planName, orderId, orderTotal, isNewUser); } catch (e) { Logger.log('notify failed: ' + e); }
@@ -1384,6 +1412,33 @@ function addPlanToUser(data) {
     }
   } catch (error) {
     return createResponse({ status: 'error', message: error.toString() });
+  }
+}
+
+// Renewal confirmation email — customer already has account, no temp password
+function sendRenewalEmail(email, name, newScadenza) {
+  try {
+    const scadenzaStr = newScadenza ? Utilities.formatDate(new Date(newScadenza), Session.getScriptTimeZone(), 'dd MMMM yyyy') : '';
+    const appUrl = 'https://viltrumfitness.com/';
+    const htmlBody = `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#000;color:#fff;padding:40px;border-radius:12px;">
+        <div style="text-align:center;margin-bottom:30px;">
+          <h1 style="font-size:28px;margin:0;letter-spacing:2px;">VILTRUM FITNESS</h1>
+        </div>
+        <h2 style="color:#4CAF50;">Ciao ${name}! 💪</h2>
+        <p>Grazie per aver rinnovato il tuo abbonamento Viltrum Fitness.</p>
+        ${scadenzaStr ? `<p>Il tuo accesso e' confermato fino al <strong style="color:#4CAF50;">${scadenzaStr}</strong>.</p>` : ''}
+        <p>Continua ad allenarti — il tuo piano e' gia' attivo nell'app.</p>
+        <div style="text-align:center;margin:30px 0;">
+          <a href="${appUrl}" style="display:inline-block;background:#4CAF50;color:#fff;padding:14px 40px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">
+            APRI VILTRUM FITNESS
+          </a>
+        </div>
+        <p style="font-size:12px;color:#666;text-align:center;">Per qualsiasi richiesta, scrivi al coach su WhatsApp.</p>
+      </div>`;
+    GmailApp.sendEmail(email, "✅ Rinnovo confermato — Viltrum Fitness", "", { htmlBody });
+  } catch (error) {
+    Logger.log("sendRenewalEmail failed: " + error.toString());
   }
 }
 
