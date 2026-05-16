@@ -1373,7 +1373,19 @@
 
     // ═══════════════════════════════════════════════════════════════════════════
     // ONBOARDING CTAs + QUESTIONNAIRE MODAL
+    // Feature flag: toggle FEATURE_ONBOARDING_CTAS to bring them back.
+    // (Code preserved on tag onboarding-funnel-v1 + branch feature/onboarding-funnel-v1)
     // ═══════════════════════════════════════════════════════════════════════════
+    const FEATURE_ONBOARDING_CTAS = false;
+
+    // Hide CTA section immediately if flag is off
+    if (!FEATURE_ONBOARDING_CTAS) {
+      const _ctas = document.getElementById('onboarding-ctas');
+      if (_ctas) _ctas.style.display = 'none';
+      const _qModal = document.getElementById('q-modal');
+      if (_qModal) _qModal.style.display = 'none';
+    }
+
     const COACH_WA = '+393397755980';
 
     const PLAN_MAP = {
