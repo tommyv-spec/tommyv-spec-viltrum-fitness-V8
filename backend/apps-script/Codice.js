@@ -1260,6 +1260,7 @@ function doPost(e) {
     if (data.action === 'ensureUserInSheet') return ensureUserInSheet(data);
     if (data.action === 'list-plans')        return syncListPlans(data);
     if (data.action === 'submitQuestionnaire') return submitQuestionnaire(data);
+    if (data.action === 'list-email-log')      return createResponse(Object.assign({ status: 'success' }, _adminListEmailLog(Number(data.limit) || 20)));
     return createResponse({ status: 'error', message: 'Unknown action' });
   } catch (error) {
     return createResponse({ status: 'error', message: error.toString() });
@@ -1494,7 +1495,24 @@ function notifyAdminNewPurchase(email, fullName, planName, orderId, orderTotal, 
 // WELCOME EMAIL
 // ═══════════════════════════════════════════════════════════════════════════
 
+function _logEmailAttempt(type, email, status, detail) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName('EmailLog');
+    if (!sheet) {
+      sheet = ss.insertSheet('EmailLog');
+      sheet.appendRow(['timestamp', 'type', 'to', 'status', 'detail']);
+      sheet.setFrozenRows(1);
+    }
+    sheet.appendRow([new Date(), type, email || '', status || '', detail || '']);
+  } catch (e) {
+    Logger.log('logEmailAttempt failed: ' + e);
+  }
+}
+
 function sendWelcomeEmail(email, name, planName, tempPassword) {
+  Logger.log('📧 sendWelcomeEmail called: to=' + email + ' name=' + name + ' plan=' + planName + ' tempPass.len=' + (tempPassword ? tempPassword.length : 0));
+  _logEmailAttempt('welcome', email, 'attempting', 'plan=' + planName);
   try {
     const qUrl = 'https://viltrumfitness.com/pages/questionario.html?email=' + encodeURIComponent(email);
     const appUrl = 'https://viltrumfitness.com/';
@@ -1531,10 +1549,36 @@ function sendWelcomeEmail(email, name, planName, tempPassword) {
 
         <p style="font-size:12px;color:#666;text-align:center;">Viltrum Fitness — Il tuo percorso inizia ora.</p>
       </div>`;
+    let quotaInfo = '';
+    try { quotaInfo = 'quota=' + MailApp.getRemainingDailyQuota(); } catch (e) {}
     GmailApp.sendEmail(email, "🏋️ Benvenuto in Viltrum Fitness — Step 1: questionario", "", { htmlBody });
+    Logger.log('✅ Welcome email sent to ' + email + ' ' + quotaInfo);
+    _logEmailAttempt('welcome', email, 'sent', quotaInfo);
   } catch (error) {
-    Logger.log("Failed to send welcome email: " + error.toString());
+    const msg = error.toString() + ' :: ' + (error.stack || '');
+    Logger.log("❌ Failed to send welcome email to " + email + ": " + msg);
+    _logEmailAttempt('welcome', email, 'failed', msg.slice(0, 400));
   }
+}
+
+// Expose a debug endpoint to fetch recent EmailLog rows.
+function _adminListEmailLog(limit) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('EmailLog');
+  if (!sheet) return { rows: [], message: 'No EmailLog sheet yet (no attempts logged)' };
+  const all = sheet.getDataRange().getValues();
+  const max = Math.min(all.length - 1, limit || 20);
+  const out = [];
+  for (let i = all.length - 1; i >= Math.max(1, all.length - max); i--) {
+    out.push({
+      timestamp: all[i][0] ? new Date(all[i][0]).toISOString() : '',
+      type: all[i][1],
+      to: all[i][2],
+      status: all[i][3],
+      detail: all[i][4],
+    });
+  }
+  return { rows: out };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2120,7 +2164,65 @@ function onOpen() {
     .addItem('Lead / Questionari', 'adminShowLeadsDialog')
     .addSeparator()
     .addItem('Setup: notifica admin email', 'setAdminNotifyEmail')
+    .addItem('Setup: autorizza invio email Gmail', 'setupAuthorizeGmail')
     .addToUi();
+}
+
+// One-shot Gmail authorization helper.
+// Running this from the menu triggers the OAuth consent prompt for gmail.send.
+// After accepting, doPost (web-app) can send emails because the deploying user
+// has granted the scope.
+// Returns the explicit OAuth URL — open it in the browser to grant all scopes
+// (including gmail.send). Useful when the consent prompt isn't triggering
+// (popup blocker, weird auth cache state, etc.).
+function getAuthorizationUrl() {
+  const authInfo = ScriptApp.getAuthorizationInfo(ScriptApp.AuthMode.FULL);
+  const status = authInfo.getAuthorizationStatus();
+  if (status === ScriptApp.AuthorizationStatus.NOT_REQUIRED) {
+    Logger.log('Tutti gli scope sono gia autorizzati. Se Gmail ancora non funziona, verifica che lo script sia eseguito come tommaso.vinattieri.online@gmail.com.');
+    return 'AUTHORIZED';
+  }
+  const url = authInfo.getAuthorizationUrl();
+  Logger.log('==========================================');
+  Logger.log('APRI QUESTO LINK IN UN NUOVO TAB DEL BROWSER PER AUTORIZZARE:');
+  Logger.log('');
+  Logger.log(url);
+  Logger.log('');
+  Logger.log('Dopo aver autorizzato, riesegui setupAuthorizeGmail.');
+  Logger.log('==========================================');
+  return url;
+}
+
+function setupAuthorizeGmail() {
+  // Detect context: works from menu (UI available) OR editor (no UI)
+  let ui = null;
+  try { ui = SpreadsheetApp.getUi(); } catch (e) { ui = null; }
+
+  let myEmail = '';
+  try { myEmail = Session.getActiveUser().getEmail(); } catch (e) {}
+  if (!myEmail) {
+    const msg = 'Impossibile rilevare la tua email. Esegui di nuovo.';
+    Logger.log(msg);
+    if (ui) ui.alert(msg);
+    return;
+  }
+
+  try {
+    GmailApp.sendEmail(
+      myEmail,
+      '[Viltrum] Test autorizzazione Gmail',
+      'Conferma: lo script ha il permesso di inviare email da: ' + myEmail + '\n\nDa ora le email di benvenuto Shopify funzioneranno automaticamente.'
+    );
+    const okMsg = 'Autorizzazione OK. Email di test inviata a: ' + myEmail;
+    Logger.log(okMsg);
+    _logEmailAttempt('setup-auth', myEmail, 'sent', '');
+    if (ui) ui.alert('Autorizzazione OK', okMsg + '\n\nDa ora le email di benvenuto Shopify funzioneranno.', ui.ButtonSet.OK);
+  } catch (error) {
+    const errMsg = 'Errore: ' + error.toString() + '\nStack: ' + (error.stack || '');
+    Logger.log(errMsg);
+    _logEmailAttempt('setup-auth', myEmail, 'failed', errMsg.slice(0, 400));
+    if (ui) ui.alert('Errore autorizzazione', 'Impossibile inviare email da: ' + myEmail + '\n\nDettagli: ' + error.toString(), ui.ButtonSet.OK);
+  }
 }
 
 function adminShowLeadsDialog() {
