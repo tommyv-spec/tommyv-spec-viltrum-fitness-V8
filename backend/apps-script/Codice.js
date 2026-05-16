@@ -1321,8 +1321,18 @@ function addPlanToUser(data) {
     const email    = (data.email || "").trim().toLowerCase();
     const planName = (data.planName || "").trim();
     const fullName = (data.fullName || "").trim();
+    const source   = (data.source || "").toString();
+    const orderId  = (data.orderId || "").toString();
+    const orderTotal = (data.orderTotal || "").toString();
 
-    Logger.log("addPlanToUser V8: email=" + email + " plan=" + planName);
+    // Parse scadenza (ISO date string from edge function)
+    let scadenza = null;
+    if (data.scadenza) {
+      const d = new Date(data.scadenza);
+      if (!isNaN(d.getTime())) scadenza = d;
+    }
+
+    Logger.log("addPlanToUser V8: email=" + email + " plan=" + planName + " source=" + source);
 
     if (!email || !email.includes('@')) return createResponse({ status: 'error', message: 'Invalid email' });
     if (!planName)                       return createResponse({ status: 'error', message: 'Plan name required' });
@@ -1339,29 +1349,72 @@ function addPlanToUser(data) {
       }
     }
 
+    let isNewUser;
     if (userRowIndex > 0) {
+      isNewUser = false;
       const row           = userData[userRowIndex - 1];
       const existingPlans = [];
       for (let col = cols.firstPlan; col < row.length; col++) {
         const val = (row[col] || "").toString().trim();
         if (val) existingPlans.push(val);
       }
-      if (existingPlans.includes(planName)) {
-        return createResponse({ status: 'info', message: 'User already has this plan', email, planName });
+      if (!existingPlans.includes(planName)) {
+        userSheet.getRange(userRowIndex, cols.firstPlan + existingPlans.length + 1).setValue(planName);
       }
-      userSheet.getRange(userRowIndex, cols.firstPlan + existingPlans.length + 1).setValue(planName);
+      // Update scadenza if provided (e.g. on renewal)
+      if (scadenza && cols.scadenza != null) {
+        userSheet.getRange(userRowIndex, cols.scadenza + 1).setValue(scadenza);
+      }
       bustUserCache(email);
+      if (source === 'shopify') {
+        try { notifyAdminNewPurchase(email, fullName, planName, orderId, orderTotal, isNewUser); } catch (e) { Logger.log('notify failed: ' + e); }
+      }
       return createResponse({ status: 'success', message: 'Plan added to existing user', email, planName, isNewUser: false });
     } else {
+      isNewUser = true;
       const displayName = fullName || email.split('@')[0];
-      userSheet.appendRow([displayName, email, "", "", "", planName]);
+      // Row layout: [name, email, "", "", scadenza, planName]
+      userSheet.appendRow([displayName, email, "", "", scadenza || "", planName]);
       if (data.tempPassword) sendWelcomeEmail(email, displayName, planName, data.tempPassword);
-      return createResponse({ status: 'success', message: 'New user created with plan', email, planName, isNewUser: true });
+      if (source === 'shopify') {
+        try { notifyAdminNewPurchase(email, displayName, planName, orderId, orderTotal, isNewUser); } catch (e) { Logger.log('notify failed: ' + e); }
+      }
       bustUserCache(email);
+      return createResponse({ status: 'success', message: 'New user created with plan', email, planName, isNewUser: true });
     }
   } catch (error) {
     return createResponse({ status: 'error', message: error.toString() });
   }
+}
+
+// One-shot setter for ADMIN_NOTIFY_EMAIL (run once from Apps Script editor or via clasp run)
+function setAdminNotifyEmail() {
+  PropertiesService.getScriptProperties().setProperty('ADMIN_NOTIFY_EMAIL', 'viltrumfitness@gmail.com');
+  Logger.log('ADMIN_NOTIFY_EMAIL set to viltrumfitness@gmail.com');
+  return 'OK';
+}
+
+// Notify admin of a new Shopify purchase. Set ADMIN_NOTIFY_EMAIL Script Property.
+function notifyAdminNewPurchase(email, fullName, planName, orderId, orderTotal, isNewUser) {
+  const adminEmail = PropertiesService.getScriptProperties().getProperty('ADMIN_NOTIFY_EMAIL');
+  if (!adminEmail) return;
+  const subject = `[Viltrum] Nuovo ordine Shopify: ${fullName || email}`;
+  const body = [
+    'NUOVO ORDINE SHOPIFY',
+    '',
+    'Cliente:   ' + (fullName || '-'),
+    'Email:     ' + email,
+    'Piano:     ' + planName + ' (placeholder — assegna piano reale dopo questionario)',
+    'Order ID:  ' + orderId,
+    'Totale:    ' + orderTotal,
+    'Tipo:      ' + (isNewUser ? 'Nuovo utente (welcome email inviata)' : 'Utente esistente — rinnovo / piano aggiuntivo'),
+    '',
+    'Prossimi step:',
+    '1. Attendi che il cliente compili il questionario',
+    '2. Apri Sheet -> Admin Sync -> Lead / Questionari',
+    '3. Click "Converti + assegna piano" sul lead corrispondente',
+  ].join('\n');
+  GmailApp.sendEmail(adminEmail, subject, body);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1992,6 +2045,8 @@ function onOpen() {
     .addItem('Elimina utente dal foglio', 'adminShowDeleteDialog')
     .addSeparator()
     .addItem('Lead / Questionari', 'adminShowLeadsDialog')
+    .addSeparator()
+    .addItem('Setup: notifica admin email', 'setAdminNotifyEmail')
     .addToUi();
 }
 
