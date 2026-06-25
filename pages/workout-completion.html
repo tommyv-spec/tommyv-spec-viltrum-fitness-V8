@@ -169,6 +169,31 @@
       background: rgba(255, 255, 255, 0.15);
     }
 
+    .weight-input-row {
+      display: flex;
+      gap: 0.35rem;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .kbd-toggle {
+      width: 38px;
+      padding: 0.6rem 0;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 8px;
+      color: #FFFFFF;
+      font-family: 'Staatliches', sans-serif;
+      font-size: 0.75rem;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .kbd-toggle:active {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
     .exercise-weight-input .previous-weight {
       font-family: 'Staatliches', sans-serif;
       font-size: 0.7rem;
@@ -426,14 +451,17 @@
               ${exercise.name}${tipLabel}
               ${previousWeight ? `<br><span class="previous-weight">Ultimo: ${previousWeight}</span>` : ''}
             </label>
-            <input 
-              type="text" 
-              inputmode="decimal"
-              id="weight-${index}" 
-              data-exercise-name="${dataKey}"
-              placeholder="es. 20kg"
-              value="${previousWeight || ''}"
-            >
+            <div class="weight-input-row">
+              <input
+                type="text"
+                inputmode="decimal"
+                id="weight-${index}"
+                data-exercise-name="${dataKey}"
+                placeholder="es. 20kg"
+                value="${previousWeight || ''}"
+              >
+              <button type="button" class="kbd-toggle" data-target="weight-${index}" title="Cambia tastiera">ABC</button>
+            </div>
           `;
           weightContainer.appendChild(div);
         });
@@ -466,6 +494,20 @@
                 document.body.classList.remove('keyboard-open');
               }
             }, 100);
+          });
+        });
+
+        // Keyboard toggle: switch between numeric and full keyboard
+        document.querySelectorAll('.kbd-toggle').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const input = document.getElementById(btn.dataset.target);
+            if (!input) return;
+            const toText = input.getAttribute('inputmode') !== 'text';
+            input.setAttribute('inputmode', toText ? 'text' : 'decimal');
+            btn.textContent = toText ? '123' : 'ABC';
+            // Blur + refocus forces mobile keyboard to re-render with new mode
+            input.blur();
+            input.focus();
           });
         });
       } else {
