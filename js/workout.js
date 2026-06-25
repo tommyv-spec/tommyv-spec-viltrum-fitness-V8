@@ -426,8 +426,12 @@ const ELEVEN_EXERCISE_MAP = {
   'goblet squat no lockout': 'goblet-squat-no-lockout',
   'bench back extension': 'bench-back-extension',
   'bench back extension hold': 'bench-back-extension-hold',
-  'suitcase march dx': 'suitcase-march-dx',
-  'suitcase march sx': 'suitcase-march-sx',
+  'suitcase march dx': 'suitcase-march',
+  'suitcase march sx': 'suitcase-march',
+  'suitcase march': 'suitcase-march',
+  'doppio dumbbell lunges pump': 'doppio-dumbbell-lunges-pump',
+  'doppio dumbbell lunges pump destra': 'doppio-dumbbell-lunges-pump',
+  'doppio dumbbell lunges pump sinistra': 'doppio-dumbbell-lunges-pump',
   'crush grip frontal raise': 'crush-grip-frontal-raise',
   'crush grip overhead hold': 'crush-grip-overhead-hold',
   'crossbody march destra su': 'crossbody-march',
@@ -2426,7 +2430,7 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
             try {
               await speak("prossimo esercizio:", "it-IT");
               // Strip Destra/Sinistra from preview name, but only if the base name has its own audio
-              const strippedName = nextExercise.name.replace(/\s*(destra|sinistra)\s*$/i, '').trim();
+              const strippedName = nextExercise.name.replace(/\s*(destra|sinistra|dx|sx)\s*$/i, '').trim();
               const strippedInMap = ELEVEN_EXERCISE_MAP[strippedName.toLowerCase()];
               const previewName = strippedInMap ? strippedName : nextExercise.name;
               await speak(previewName, detectLang(previewName));
@@ -2486,8 +2490,13 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
       if (upcoming && !upcoming.isLabel && (mode === "eleven" || mode === "voice" || mode === "synth")) {
         if (upcoming.reps) {
           const reps = upcoming.reps.toString().trim();
-          const sideMatch = upcoming.name && upcoming.name.match(/\b(destra|sinistra)\b/i);
-          const side = sideMatch ? sideMatch[1].charAt(0).toUpperCase() + sideMatch[1].slice(1).toLowerCase() : null;
+          const sideMatch = upcoming.name && upcoming.name.match(/\b(destra|sinistra|dx|sx)\b/i);
+          let side = null;
+          if (sideMatch) {
+            const tok = sideMatch[1].toLowerCase();
+            side = (tok === 'dx') ? 'Destra' : (tok === 'sx') ? 'Sinistra'
+                 : tok.charAt(0).toUpperCase() + tok.slice(1);
+          }
           
           // Skip compound reps like "10 - 8 - 6" (forza overview, not a real set)
           const isCompound = reps.includes(' - ') || reps.includes('/');
