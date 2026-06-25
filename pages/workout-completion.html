@@ -323,10 +323,10 @@
 
     <div class="action-buttons-container">
       <div class="action-buttons">
-        <button class="action-button primary" onclick="shareToInstagram()">
+        <button type="button" id="share-btn" class="action-button primary">
           CONDIVIDI SU INSTAGRAM STORY
         </button>
-        <button class="action-button secondary" onclick="saveAndReturn()">
+        <button type="button" id="save-btn" class="action-button secondary">
           SALVA E TORNA ALLA DASHBOARD
         </button>
       </div>
@@ -685,6 +685,31 @@
         window.location.href = '../pages/dashboard.html';
       }
     };
+
+    // Reliable taps for the bottom action buttons.
+    // Problem: while a weight input is focused the keyboard is open and the
+    // sticky button bar switches to position:relative. A normal tap first
+    // blurs the input -> keyboard closes -> layout reflows -> the button jumps
+    // out from under the finger -> the click is lost ("sometimes works").
+    // Fix: prevent the blur on pointerdown so nothing reflows, then fire on
+    // pointerup. Keep click as a deduped desktop/no-pointer fallback.
+    function bindTap(el, fn) {
+      if (!el) return;
+      let firedAt = 0;
+      const run = () => {
+        const now = Date.now();
+        if (now - firedAt < 600) return; // de-dupe pointerup + synthesized click
+        firedAt = now;
+        fn();
+      };
+      // Keep the focused input focused during the press -> no reflow mid-tap.
+      el.addEventListener('pointerdown', (e) => { if (e.cancelable) e.preventDefault(); });
+      el.addEventListener('pointerup', run);
+      el.addEventListener('click', run);
+    }
+
+    bindTap(document.getElementById('save-btn'), () => saveAndReturn());
+    bindTap(document.getElementById('share-btn'), () => shareToInstagram());
   </script>
   <script src="../js/update-notifier.js"></script>
 </body>
