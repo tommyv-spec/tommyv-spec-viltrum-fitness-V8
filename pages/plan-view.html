@@ -615,7 +615,7 @@
 
       <!-- Start Button -->
       <div class="start-section">
-        <button class="start-btn" id="start-btn" onclick="startWorkout()">START</button>
+        <button class="start-btn" id="start-btn" onclick="startWorkout()">AVANTI</button>
       </div>
     </div>
   </div>
@@ -895,7 +895,7 @@
       
       if (selectedWorkoutIndex === nextIndex && nextIndex < planData.workouts.length) {
         btn.disabled = false;
-        btn.textContent = 'START';
+        btn.textContent = 'AVANTI';
       } else if (selectedWorkoutIndex <= planProgress.lastWorkoutIndex) {
         btn.disabled = false;
         btn.textContent = 'RIVEDI';
