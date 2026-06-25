@@ -998,6 +998,34 @@ function initCountdownAudioToggle() {
   }
 }
 
+let coachTipsEnabled = false; // controls spoken coach tips / exercise suggestions audio (default OFF)
+
+// Sync coach-tips (exercise suggestions) toggle between setup and live settings
+function initCoachTipsToggle() {
+  const saved = localStorage.getItem('viltrum-coach-tips');
+  coachTipsEnabled = saved === 'true'; // default false
+
+  const setupToggle = document.getElementById('coach-tips-toggle-setup');
+  const liveToggle = document.getElementById('coach-tips-toggle');
+
+  if (setupToggle) {
+    setupToggle.checked = coachTipsEnabled;
+    setupToggle.addEventListener('change', () => {
+      coachTipsEnabled = setupToggle.checked;
+      localStorage.setItem('viltrum-coach-tips', coachTipsEnabled);
+      if (liveToggle) liveToggle.checked = coachTipsEnabled;
+    });
+  }
+  if (liveToggle) {
+    liveToggle.checked = coachTipsEnabled;
+    liveToggle.addEventListener('change', () => {
+      coachTipsEnabled = liveToggle.checked;
+      localStorage.setItem('viltrum-coach-tips', coachTipsEnabled);
+      if (setupToggle) setupToggle.checked = coachTipsEnabled;
+    });
+  }
+}
+
 function setSoundMode(value) {
   const a = document.getElementById("soundMode");
   const b = document.getElementById("soundMode-setup");
@@ -2483,7 +2511,7 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
         pendingTipTimeout = null;
         const tipKey = getCoachTip(upcoming, exercise);
         const blockKey = `${upcoming.blockNumber}-${tipKey}`;
-        if (tipKey && !tippedBlocks.has(blockKey)) {
+        if (tipKey && coachTipsEnabled && !tippedBlocks.has(blockKey)) {
           tippedBlocks.add(blockKey);
           const TIP_TEXT = {
             "tip-usa-massimo-peso":    "Usa il massimo peso che riesci a gestire",
@@ -3410,6 +3438,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Countdown audio toggle - restore saved preference
   initCountdownAudioToggle();
+  initCoachTipsToggle();
 
   // ===== LOGIN & USER STATE =====
   const headerLoginBtn = document.getElementById("header-login-btn");

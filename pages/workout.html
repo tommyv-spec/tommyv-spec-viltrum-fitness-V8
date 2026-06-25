@@ -181,7 +181,15 @@
               <span>Audio countdown (mancano X sec)</span>
             </label>
           </div>
-          
+
+          <!-- NEW: Coach tips (exercise suggestions) toggle — OFF by default -->
+          <div style="margin-top: 12px;">
+            <label style="display: flex; align-items: center; cursor: pointer;">
+              <input type="checkbox" id="coach-tips-toggle-setup" style="margin-right: 10px; width: 20px; height: 20px; cursor: pointer;">
+              <span>Suggerimenti audio esercizi</span>
+            </label>
+          </div>
+
           <button id="close-setup-settings">Chiudi</button>
         </div>
       </div>
@@ -259,13 +267,21 @@
             </div>
 
             <!-- Countdown audio toggle -->
-            <div style="margin-bottom: 20px;">
+            <div style="margin-bottom: 12px;">
               <label style="display: flex; align-items: center; cursor: pointer;">
                 <input type="checkbox" id="countdown-audio-toggle" checked style="margin-right: 10px; width: 20px; height: 20px; cursor: pointer;">
                 <span>Audio countdown (mancano X sec)</span>
               </label>
             </div>
-            
+
+            <!-- Coach tips (exercise suggestions) toggle — OFF by default -->
+            <div style="margin-bottom: 20px;">
+              <label style="display: flex; align-items: center; cursor: pointer;">
+                <input type="checkbox" id="coach-tips-toggle" style="margin-right: 10px; width: 20px; height: 20px; cursor: pointer;">
+                <span>Suggerimenti audio esercizi</span>
+              </label>
+            </div>
+
             <button id="exit-workout-button">
               Termina Allenamento
             </button>
