@@ -621,12 +621,15 @@ async function playElevenAudio(audioKey) {
     audio.volume = currentVolume;
     // NO crossOrigin = "anonymous" here!
     
+    activeAudioEl = audio; // track for stopAllAudio/flushSpeakQueue
     return new Promise((resolve, reject) => {
       audio.onended = () => {
+        if (activeAudioEl === audio) activeAudioEl = null;
         console.log(`🎙️ ElevenLabs audio played: ${audioKey}`);
         resolve(true);
       };
       audio.onerror = (e) => {
+        if (activeAudioEl === audio) activeAudioEl = null;
         console.warn(`⚠️ ElevenLabs audio failed for ${audioKey}:`, e);
         reject(e);
       };
@@ -763,6 +766,23 @@ let isPaused = false;
 let savedTimeLeft = null;
 let lastSpeakTime = 0;
 let currentSpeakId = 0;
+
+// ── Serial audio queue: only one utterance plays at a time (prevents overlap,
+//    e.g. "fai X ripetizioni" colliding with "mancano X secondi") ──
+let speakChain = Promise.resolve(); // tail of the serial queue
+let activeAudioEl = null;           // currently-playing ElevenLabs <audio> element
+let speakGeneration = 0;            // bump to invalidate utterances still queued
+
+// Drop every queued/active utterance (called on pause and exercise transitions
+// so stale cues don't play late on top of the next exercise).
+function flushSpeakQueue() {
+  speakGeneration++;
+  speakChain = Promise.resolve();
+  if (activeAudioEl) {
+    try { activeAudioEl.pause(); activeAudioEl.currentTime = 0; } catch (e) {}
+    activeAudioEl = null;
+  }
+}
 let wakeLock = null; // Screen wake lock to keep screen on during workout
 let pendingTipTimeout = null; // Only one coach tip at a time
 let tippedBlocks = new Set();       // Track blocks that already received a tip this session
@@ -797,6 +817,9 @@ function stopAllAudio() {
   // Cancel pending tip
   clearTimeout(pendingTipTimeout);
   pendingTipTimeout = null;
+
+  // Drop the serial speak queue so nothing fires after the stop
+  flushSpeakQueue();
 }
 let totalUserWorkouts = 0; // Track total number of workouts available to user
 
@@ -1659,8 +1682,17 @@ async function speakSynth(text, lang = "it-IT") {
   return webSpeechSpeak(text, lang);
 }
 
+/* Public entry: serialize every utterance onto a single queue so two cues
+   never play at once. Stale items (queued before a flush) are skipped. */
+function speak(text, lang = "it-IT") {
+  const gen = speakGeneration;
+  const run = () => (gen === speakGeneration) ? _speakNow(text, lang) : Promise.resolve();
+  speakChain = speakChain.then(run, run); // continue even if a prior utterance rejected
+  return speakChain;
+}
+
 /* Router: With automatic fallback from voice to synth */
-async function speak(text, lang = "it-IT") {
+async function _speakNow(text, lang = "it-IT") {
   const mode = document.getElementById("soundMode")?.value
             || document.getElementById("soundMode-setup")?.value
             || "none";
@@ -2548,6 +2580,10 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
     // done → next
     if (remaining <= 0) {
       clearInterval(interval);
+
+      // Drop any leftover countdown cue from the previous exercise so the
+      // "fai X ripetizioni" announcement isn't delayed or overlapped.
+      flushSpeakQueue();
 
       // cleanup visuals
       timerEl.classList.remove("warning-10", "warning-6", "warning-3");
@@ -3957,6 +3993,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     releaseWakeLock();
+    // Drop queued/active audio so it doesn't burst all at once when the user
+    // returns (mobile suspends timers/audio in background but keeps the queue).
+    if (isWorkoutActive) flushSpeakQueue();
   } else if (isWorkoutActive) {
     // Page became visible again while workout is running → re-acquire
     requestWakeLock();
