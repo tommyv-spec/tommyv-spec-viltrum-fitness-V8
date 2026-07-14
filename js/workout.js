@@ -681,13 +681,104 @@ async function speakEleven(text, lang = "it-IT") {
 
 /* -------------------- Cached Image Loading -------------------- */
 /* -------------------- Smart GIF Preloader -------------------- */
-const gifPreloadCache = new Map(); // url → HTMLImageElement (keeps browser cache alive)
+// The exercise GIFs are ~282x500 with 60-80 frames → ~35-45 MB EACH once decoded.
+// iOS gives the web content process a few hundred MB before it kills it, so the
+// cache is an LRU: holding every GIF ever preloaded is what crashed the PWA.
+const GIF_PRELOAD_MAX = 4;
+const gifPreloadCache = new Map(); // url → HTMLImageElement (LRU: oldest key first)
+
+function disposeImg(img) {
+  if (!img) return;
+  try {
+    img.onload = null;
+    img.onerror = null;
+    img.removeAttribute('src'); // drops the decoded frames
+  } catch {}
+}
 
 function preloadGif(url) {
-  if (!url || gifPreloadCache.has(url)) return;
+  if (!url) return;
+  if (gifPreloadCache.has(url)) {
+    // refresh recency
+    const img = gifPreloadCache.get(url);
+    gifPreloadCache.delete(url);
+    gifPreloadCache.set(url, img);
+    return;
+  }
   const img = new Image();
   img.src = url;
   gifPreloadCache.set(url, img);
+
+  while (gifPreloadCache.size > GIF_PRELOAD_MAX) {
+    const oldest = gifPreloadCache.keys().next().value;
+    disposeImg(gifPreloadCache.get(oldest));
+    gifPreloadCache.delete(oldest);
+  }
+}
+
+function purgeGifCache() {
+  gifPreloadCache.forEach(disposeImg);
+  gifPreloadCache.clear();
+}
+
+// Release the decoded GIF held by a live <img> (and its blob URL, if any).
+function releaseImageElement(imageElement) {
+  if (!imageElement) return;
+  const prev = imageElement.dataset.blobUrl;
+  if (prev) {
+    try { URL.revokeObjectURL(prev); } catch {}
+    delete imageElement.dataset.blobUrl;
+  }
+  try { imageElement.removeAttribute('src'); } catch {}
+}
+
+/* -------------------- Static GIF Thumbnails -------------------- */
+// The rest screen used to render one animated <img> per upcoming exercise —
+// 3-6 GIFs decoding at once (100-250 MB) on top of everything already held.
+// Instead: decode each GIF ONCE, snapshot frame 1 into a 112px JPEG, throw the
+// GIF away. Decodes are serialised so peak memory is one GIF, not all of them.
+const thumbCache = new Map(); // url → dataURL (or null when it can't be made)
+let thumbQueue = Promise.resolve();
+
+function decodeThumb(url, size) {
+  return new Promise(resolve => {
+    if (thumbCache.has(url)) return resolve(thumbCache.get(url));
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // lh3.googleusercontent.com sends ACAO:*
+
+    const finish = (value) => {
+      disposeImg(img);
+      thumbCache.set(url, value);
+      resolve(value);
+    };
+
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const side = Math.min(img.naturalWidth, img.naturalHeight);
+        const sx = (img.naturalWidth - side) / 2;
+        const sy = (img.naturalHeight - side) / 2;
+        ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+        finish(canvas.toDataURL('image/jpeg', 0.75));
+      } catch (e) {
+        console.warn('thumb snapshot failed:', e);
+        finish(null);
+      }
+    };
+    img.onerror = () => finish(null);
+    img.src = url;
+  });
+}
+
+function getStaticThumb(url, size = 112) {
+  if (!url) return Promise.resolve(null);
+  if (thumbCache.has(url)) return Promise.resolve(thumbCache.get(url));
+  const job = thumbQueue.then(() => decodeThumb(url, size));
+  thumbQueue = job.catch(() => {});
+  return job;
 }
 
 // Call after fullWorkoutSequence is built — preloads next N GIFs from currentStep
@@ -709,8 +800,18 @@ async function loadCachedImage(imageElement, url) {
     return;
   }
   
-  // Swap helper — never dims the old GIF
+  // Swap helper — never dims the old GIF.
+  // Revokes the previous blob URL: getCachedImage() mints a new object URL on
+  // every call and nothing used to free them, so each cached GIF stayed pinned
+  // in memory for the whole session.
   const swapIn = (src) => {
+    const prev = imageElement.dataset.blobUrl;
+    if (prev && prev !== src) {
+      try { URL.revokeObjectURL(prev); } catch {}
+    }
+    if (src.startsWith('blob:')) imageElement.dataset.blobUrl = src;
+    else delete imageElement.dataset.blobUrl;
+
     imageElement.style.transition = 'none';
     imageElement.style.opacity = '1';
     imageElement.src = src;
@@ -758,6 +859,7 @@ async function loadCachedImage(imageElement, url) {
 }
 
 /* -------------------- Global State -------------------- */
+let restPreviewToken = 0; // invalidates in-flight thumbnail paints when the step changes
 let workouts = {};
 let selectedWorkout = {};
 let currentStep = 0;
@@ -1998,6 +2100,7 @@ function updateProgressBar() {
 /* -------------------- Session Controls -------------------- */
 function exitWorkout() {
   if (interval) { clearInterval(interval); interval = null; }
+  clearCrumb();
   stopAllAudio();
   tippedBlocks.clear();
   firedTips.clear();
@@ -2009,6 +2112,13 @@ function exitWorkout() {
 
   // Release wake lock - allow screen to turn off
   releaseWakeLock();
+
+  // Give the decoded GIFs back to the OS
+  purgeGifCache();
+  releaseImageElement(document.getElementById("exercise-gif"));
+  restPreviewToken++;
+  const restPreviewEl = document.getElementById("rest-block-preview");
+  if (restPreviewEl) restPreviewEl.innerHTML = "";
 
   const settingsPopup = document.getElementById("settings-popup");
   if (settingsPopup) settingsPopup.style.display = "none";
@@ -2110,6 +2220,52 @@ function startWorkout() {
   if (setupMode && liveMode) liveMode.value = setupMode.value;
 }
 
+/* -------------------- Crash Breadcrumb (diagnostic) -------------------- */
+// iOS kills the web content process silently: the PWA just reloads back to the
+// setup screen. localStorage survives that, so the last step we wrote is the
+// step we died on. Cleared on any clean exit/completion.
+const CRUMB_KEY = 'viltrum_crash_crumb';
+
+function markStep(step, exercise) {
+  try {
+    localStorage.setItem(CRUMB_KEY, JSON.stringify({
+      step,
+      name: exercise?.name || '?',
+      isRest: !!(exercise?.nextBlockPreview?.length),
+      t: Date.now()
+    }));
+  } catch {}
+}
+
+function clearCrumb() {
+  try { localStorage.removeItem(CRUMB_KEY); } catch {}
+}
+
+function showCrumbIfCrashed() {
+  let crumb = null;
+  try { crumb = JSON.parse(localStorage.getItem(CRUMB_KEY) || 'null'); } catch {}
+  if (!crumb) return;
+  clearCrumb();
+
+  console.warn('⚠️ Previous session ended abnormally at step', crumb.step, crumb.name, '| rest screen:', crumb.isRest);
+
+  const chip = document.createElement('div');
+  chip.textContent = `⚠️ Sessione interrotta: ${crumb.name} (step ${crumb.step})${crumb.isRest ? ' — REST' : ''} · tocca per chiudere`;
+  chip.style.cssText = `
+    position:fixed;left:8px;right:8px;bottom:8px;z-index:99998;
+    background:#7a1f1f;color:#fff;font-size:12px;font-weight:700;
+    padding:10px 12px;border-radius:10px;text-align:center;
+  `;
+  chip.addEventListener('click', () => chip.remove());
+  document.body.appendChild(chip);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', showCrumbIfCrashed);
+} else {
+  showCrumbIfCrashed();
+}
+
 async function playExercise(index, exercises, resumeTime = null) {
   // reset the 10s preview trigger for this exercise
   nextPreviewShown = false;
@@ -2120,7 +2276,11 @@ async function playExercise(index, exercises, resumeTime = null) {
   if (index >= exercises.length) {
     console.log('🎉 Workout Complete! Redirecting to completion page...');
     console.log('Index:', index, 'Exercises length:', exercises.length);
-    
+
+    clearCrumb();
+    purgeGifCache();
+    releaseImageElement(document.getElementById("exercise-gif"));
+
     isWorkoutActive = false; // Mark workout as complete
     
     // Calculate workout duration
@@ -2212,6 +2372,8 @@ async function playExercise(index, exercises, resumeTime = null) {
   const exercise = exercises[index];
   const nextExercise = exercises[index + 1];
 
+  markStep(index, exercise);
+
   const hasReps = exercise.reps && !exercise.name.toLowerCase().includes("istruz");
   const hasEquipment = exercise.tipoDiPeso && !exercise.name.toLowerCase().includes("istruz") && !exercise.isLabel;
   const equipDisplay = hasEquipment ? resolveEquipmentDisplay(exercise.tipoDiPeso, exercise.name) : '';
@@ -2273,13 +2435,16 @@ async function playExercise(index, exercises, resumeTime = null) {
       });
     });
 
-    const cardsHtml = grouped.map(g => {
-      const thumbUrl = g.imageUrl || '';
-      const thumbHtml = thumbUrl
-        ? `<img src="${thumbUrl}" alt="" style="
-            width:56px;height:56px;border-radius:10px;object-fit:cover;
+    const cardsHtml = grouped.map((g, i) => {
+      // Placeholder only — the static frame-1 snapshot is painted in after the
+      // cards mount. Rendering the animated GIFs here decoded 3-6 x ~35 MB in
+      // one frame and got the iOS web content process killed.
+      const thumbHtml = g.imageUrl
+        ? `<div class="rest-thumb" data-thumb-idx="${i}" style="
+            width:56px;height:56px;border-radius:10px;
             flex-shrink:0;background:#111;border:1px solid rgba(255,255,255,0.08);
-          " onerror="this.style.display='none'">`
+            background-size:cover;background-position:center;
+          "></div>`
         : '';
 
       // Build set lines
@@ -2319,9 +2484,13 @@ async function playExercise(index, exercises, resumeTime = null) {
       <div style="font-size:20px;font-weight:800;letter-spacing:.5px;margin-top:2px;">${blockLabel}</div>
     `;
 
-    // Hide the GIF image, show cards in the viewport
-    if (exerciseImg) exerciseImg.style.display = "none";
-    
+    // Hide the GIF image AND drop its decoded frames — display:none alone keeps
+    // the ~35 MB decode alive, which is memory we can't spare on the rest screen.
+    if (exerciseImg) {
+      exerciseImg.style.display = "none";
+      releaseImageElement(exerciseImg);
+    }
+
     // Create or reuse the rest preview container
     let restPreview = document.getElementById("rest-block-preview");
     if (!restPreview) {
@@ -2335,9 +2504,19 @@ async function playExercise(index, exercises, resumeTime = null) {
       max-height:100%;overflow-y:auto;
       padding:10px 0;
       scrollbar-width:none;
-      -webkit-overflow-scrolling:touch;
     `;
     restPreview.innerHTML = cardsHtml;
+
+    // Paint the static thumbnails in one at a time (see getStaticThumb).
+    const renderToken = ++restPreviewToken;
+    grouped.forEach((g, i) => {
+      if (!g.imageUrl) return;
+      getStaticThumb(g.imageUrl).then(dataUrl => {
+        if (!dataUrl || renderToken !== restPreviewToken) return;
+        const slot = restPreview.querySelector(`[data-thumb-idx="${i}"]`);
+        if (slot) slot.style.backgroundImage = `url("${dataUrl}")`;
+      });
+    });
 
     // Allow scrolling in the viewport for cards
     if (gifViewport) gifViewport.style.overflow = "visible";
@@ -2362,9 +2541,13 @@ async function playExercise(index, exercises, resumeTime = null) {
     
     // Reset viewport overflow
     if (gifViewport) gifViewport.style.overflow = "hidden";
-    
+
+    restPreviewToken++; // any thumbnail still decoding belongs to a step we left
     const restPreview = document.getElementById("rest-block-preview");
-    if (restPreview) restPreview.style.display = "none";
+    if (restPreview) {
+      restPreview.style.display = "none";
+      restPreview.innerHTML = "";
+    }
   }
   
   const nextPrev = document.getElementById("next-exercise-preview");
