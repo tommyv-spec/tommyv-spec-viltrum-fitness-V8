@@ -435,6 +435,13 @@
             <span class="max-kg">kg</span>
           </div>
         </div>
+        <div class="max-field">
+          <label class="max-label">Push Press</label>
+          <div class="max-input-row">
+            <input type="number" id="max-push_press" placeholder="—" step="0.5" min="0">
+            <span class="max-kg">kg</span>
+          </div>
+        </div>
       </div>
       <p style="color:#666; font-size:1.3vh; text-align:center; margin:1.5vh 0;">Usati per calcolare i pesi nei workout (es. 70% Back Squat)</p>
       <button onclick="saveMaxes()">Salva Massimali</button>
@@ -871,7 +878,7 @@
     // ═══════════════════════════════════════════════════════════════════════════
     
     const MAXES_CACHE_KEY = 'viltrum_user_maxes';
-    const MAXES_IDS = ['front_squat', 'back_squat', 'deadlift', 'bench_press'];
+    const MAXES_IDS = ['front_squat', 'back_squat', 'deadlift', 'sumo_deadlift', 'bench_press', 'strict_press', 'push_press'];
 
     window.openMaxesModal = async function() {
       closeProfileModal();

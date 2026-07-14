@@ -268,7 +268,8 @@ export const AVAILABLE_MAXES = [
   { id: 'deadlift', label: 'Deadlift', unit: 'kg' },
   { id: 'sumo_deadlift', label: 'Sumo Deadlift', unit: 'kg' },
   { id: 'bench_press', label: 'Panca Piana', unit: 'kg' },
-  { id: 'strict_press', label: 'Strict Press', unit: 'kg' }
+  { id: 'strict_press', label: 'Strict Press', unit: 'kg' },
+  { id: 'push_press', label: 'Push Press', unit: 'kg' }
 ];
 
 /**
@@ -389,7 +390,10 @@ export function calculateWeightFromMax(tipoDiPeso) {
     'strictpress': 'strict_press',
     'military press': 'strict_press',
     'overhead press': 'strict_press',
-    'ohp': 'strict_press'
+    'ohp': 'strict_press',
+    'push press': 'push_press',
+    'pushpress': 'push_press',
+    'push-press': 'push_press'
   };
 
   const maxId = maxMapping[maxRef];

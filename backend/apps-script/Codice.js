@@ -1630,12 +1630,15 @@ function normalizeTipoDiPeso(raw, exerciseName) {
 function _exerciseToMaxName(name) {
   if (!name) return null;
   var n = name.toString().toLowerCase().trim();
+  // Dumbbell/kettlebell variants must not resolve against a barbell max
+  if (/\b(dumbbell|manubri|manubrio|kettlebell|kb)\b/.test(n)) return null;
   if (n.includes('bench press') || n === 'bench press') return 'Bench Press';
   if (n.includes('back squat') || n === 'back squat') return 'Back Squat';
   if (n.includes('front squat') || n === 'front squat') return 'Front Squat';
+  if (n.includes('sumo deadlift') || n.includes('stacco sumo')) return 'Sumo Deadlift';
   if (n.includes('deadlift') || n === 'deadlift') return 'Deadlift';
-  if (n.includes('strict press') || n === 'strict press') return 'Bench Press';
-  if (n.includes('push press') || n === 'push press') return 'Bench Press';
+  if (n.includes('strict press') || n === 'strict press' || n.includes('military press') || n.includes('overhead press')) return 'Strict Press';
+  if (n.includes('push press') || n === 'push press') return 'Push Press';
   return null;
 }
 
