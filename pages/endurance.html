@@ -186,6 +186,8 @@
       border-radius: 20px; font-size: 12px; font-weight: bold; color: #000; letter-spacing: 1px;
     }
 
+    .phase-pace-target { font-size: 15px; opacity: 0.85; margin-top: 4px; color: var(--zone-color, #FFF); }
+
     /* phase value: big but capped so it never overflows */
     .phase-value {
       font-size: min(13vw, 11vh, 80px);
@@ -395,6 +397,7 @@
               <span id="phase-target">4 km</span>
             </div>
           </div>
+          <div id="phase-pace-target" class="phase-pace-target" style="display:none;"></div>
         </div>
       </div>
 
@@ -435,6 +438,8 @@
   <script type="module">
     import DataPreloader from '../js/data-preloader.js';
     import { GOOGLE_SCRIPT_URL } from '../js/config.js';
+    import { paceZoneBands, classifyPace, formatPace } from '../js/pace-zones.js';
+    import { getThresholdPace } from '../js/profile-manager.js';
 
     // ═══════════════════════════════════════════════════════════════════════════
     // CONSTANTS
@@ -505,6 +510,18 @@
     let currentPhaseIndex = 0;
     let isPaused = false;
     let v7PlanInfo = null;
+    let paceBands = null; // Array from paceZoneBands, or null if no threshold set
+
+    // Human label for a zone's pace band, e.g. "5:42 – 6:27 /km".
+    // Open-ended zones (Z1 slow, Z5 fast) render one-sided.
+    function paceBandLabel(zone) {
+      if (!paceBands) return '';
+      const b = paceBands.find((x) => x.zone === zone);
+      if (!b) return '';
+      if (b.maxSec === Infinity) return `più lento di ${formatPace(b.minSec)} /km`;
+      if (b.minSec === 0) return `più veloce di ${formatPace(b.maxSec)} /km`;
+      return `${formatPace(b.minSec)} – ${formatPace(b.maxSec)} /km`;
+    }
 
     // GPS State
     let gpsWatchId = null;
@@ -1086,6 +1103,10 @@
       isPaused = false;
       lastAnnouncedWarning = {};
 
+      // Load Friel pace bands (null if user has no threshold pace set)
+      const thresholdSec = await getThresholdPace();
+      paceBands = paceZoneBands(thresholdSec);
+
       // Show workout UI
       document.getElementById('workout-name').textContent = name;
       showView('workout-view');
@@ -1194,6 +1215,15 @@
                          phase.unit === 'min' ? `${phase.value}:00` :
                          `${phase.value} sec`;
       document.getElementById('phase-target').textContent = targetText;
+
+      const paceTargetEl = document.getElementById('phase-pace-target');
+      const paceLabel = paceBandLabel(phase.zone);
+      if (paceLabel) {
+        paceTargetEl.textContent = `🎯 ${paceLabel}`;
+        paceTargetEl.style.display = 'block';
+      } else {
+        paceTargetEl.style.display = 'none';
+      }
 
       if (countdownInterval) clearInterval(countdownInterval);
       
