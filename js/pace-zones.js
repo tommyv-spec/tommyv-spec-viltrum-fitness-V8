@@ -56,6 +56,7 @@ export function classifyPace(currentSec, bands) {
   // Check fastest zone first so a boundary value lands in the faster zone.
   for (let zone = 5; zone >= 1; zone--) {
     const band = bands.find((b) => b.zone === zone);
+    if (!band) continue;
     if (s <= band.maxSec) return zone;
   }
   return 1;
