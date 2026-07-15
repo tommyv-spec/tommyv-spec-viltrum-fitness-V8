@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "viltrum-fitness-v8",
+  "account_id": "fffd1f65890206095a1777dfdade97af",
   "compatibility_date": "2026-07-14",
   "observability": {
     "enabled": true

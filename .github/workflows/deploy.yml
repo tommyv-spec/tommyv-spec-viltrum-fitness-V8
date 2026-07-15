@@ -1,10 +1,10 @@
 name: Deploy to Cloudflare
 
 # Automatic production deploy: every push to main publishes the Cloudflare Worker
-# (viltrum-fitness-v8) via `wrangler deploy`. Requires two repo secrets:
+# (viltrum-fitness-v8) via `wrangler deploy`. Requires ONE repo secret:
 #   CLOUDFLARE_API_TOKEN   - token with "Edit Cloudflare Workers" permission
-#   CLOUDFLARE_ACCOUNT_ID  - your Cloudflare account id
-# Add them at: repo Settings > Secrets and variables > Actions > New repository secret.
+# (account_id is set in wrangler.jsonc, so no account secret is needed.)
+# Add it at: repo Settings > Secrets and variables > Actions > New repository secret.
 
 on:
   push:
@@ -26,5 +26,4 @@ jobs:
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
