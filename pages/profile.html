@@ -449,6 +449,13 @@
       }
     });
 
+    // Auto-insert the colon so the numeric keyboard (no ":") still works.
+    // Type digits only: "500" -> "5:00", "530" -> "5:30", "1200" -> "12:00".
+    document.getElementById('threshold-pace').addEventListener('input', (e) => {
+      const d = e.target.value.replace(/\D/g, '').slice(0, 4);
+      e.target.value = d.length <= 2 ? d : d.slice(0, d.length - 2) + ':' + d.slice(-2);
+    });
+
     // Logout
     window.confirmLogout = async function() {
       if (confirm('Sei sicuro di voler uscire?')) {
