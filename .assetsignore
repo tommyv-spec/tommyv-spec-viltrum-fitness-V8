@@ -1,0 +1,17 @@
+# Files/dirs NOT to publish as public web assets (wrangler assets respects this).
+# Keeps backend source, planning docs, tests and tooling off viltrumfitness.com.
+.git
+.github
+.planning
+docs
+tests
+backend
+graphify-out
+node_modules
+*.ps1
+*.mjs
+package.json
+package-lock.json
+wrangler.jsonc
+.gitignore
+.assetsignore
