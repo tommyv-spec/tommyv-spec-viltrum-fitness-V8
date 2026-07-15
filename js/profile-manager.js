@@ -352,6 +352,80 @@ export async function saveUserMaxes(maxes) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// THRESHOLD PACE (Friel running pace zones anchor)
+// ═══════════════════════════════════════════════════════════════════════════
+
+const THRESHOLD_PACE_CACHE_KEY = 'viltrum_threshold_pace';
+
+/**
+ * Get user threshold pace (FTPa) from cache or Supabase.
+ * @returns {Promise<number|null>} seconds per km, or null if unset
+ */
+export async function getThresholdPace() {
+  try {
+    const cached = localStorage.getItem(THRESHOLD_PACE_CACHE_KEY);
+    if (cached !== null) {
+      const n = parseInt(cached, 10);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    }
+
+    if (supabase) {
+      const { data: { user } } = await supabase.auth.getUser();
+      const sec = user?.user_metadata?.thresholdPace;
+      if (Number.isFinite(sec) && sec > 0) {
+        localStorage.setItem(THRESHOLD_PACE_CACHE_KEY, String(sec));
+        console.log('[Profile Manager] Threshold pace loaded from Supabase');
+        return sec;
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error('[Profile Manager] Error getting threshold pace:', error);
+    return null;
+  }
+}
+
+/**
+ * Save user threshold pace to localStorage + Supabase.
+ * @param {number} seconds - FTPa in seconds per km
+ * @returns {Promise<{success:boolean, warning?:string, error?:string}>}
+ */
+export async function saveThresholdPace(seconds) {
+  try {
+    const sec = parseInt(seconds, 10);
+    if (!Number.isFinite(sec) || sec <= 0) {
+      return { success: false, error: 'Valore non valido' };
+    }
+
+    localStorage.setItem(THRESHOLD_PACE_CACHE_KEY, String(sec));
+    console.log('[Profile Manager] Threshold pace saved to localStorage:', sec);
+
+    if (supabase) {
+      try {
+        const { error } = await supabase.auth.updateUser({
+          data: { thresholdPace: sec },
+        });
+        if (error) {
+          console.error('[Profile Manager] Supabase error saving threshold pace:', error);
+          return { success: true, warning: 'Salvato localmente, sync cloud fallito' };
+        }
+        console.log('[Profile Manager] Threshold pace synced to Supabase');
+        return { success: true };
+      } catch (supabaseError) {
+        console.error('[Profile Manager] Supabase save failed:', supabaseError);
+        return { success: true, warning: 'Salvato localmente' };
+      }
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('[Profile Manager] Error saving threshold pace:', error);
+    return { success: false, error: 'Errore durante il salvataggio' };
+  }
+}
+
 /**
  * Calculate weight from percentage of a max
  * Used during workouts when tipoDiPeso is like "70% BackSquat"
