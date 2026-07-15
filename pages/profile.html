@@ -237,10 +237,11 @@
       <div class="error-message" id="threshold-error"></div>
       <form id="threshold-form">
         <div class="form-group">
-          <label for="threshold-pace">Passo Soglia (test 30 min)</label>
-          <input type="text" id="threshold-pace" inputmode="numeric" placeholder="mm:ss" pattern="\d{1,2}:\d{2}">
+          <label for="threshold-pace">Passo soglia (minuti al km)</label>
+          <input type="text" id="threshold-pace" inputmode="numeric" placeholder="es. 5:00" pattern="\d{1,2}:\d{2}">
+          <p class="maxes-info" style="text-align:left; margin-top:6px;">📱 Scrivi solo i numeri: digita <b>500</b> e diventa <b>5:00</b> — i due punti si aggiungono da soli.</p>
         </div>
-        <p class="maxes-info">Ritmo medio su 30 min a tutto. Usato per le zone di corsa (min/km).</p>
+        <p class="maxes-info" style="text-align:left;"><b>Cos'è:</b> il ritmo (min/km) che riesci a tenere per <b>30 minuti a tutto</b>.<br><b>Come trovarlo:</b> corri 30 minuti al massimo sforzo costante e guarda il passo medio sul GPS.<br>Serve a calcolare le tue zone di corsa.</p>
         <div class="button-group">
           <button type="submit" class="btn btn-primary">Salva</button>
         </div>
