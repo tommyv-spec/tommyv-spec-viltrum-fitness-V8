@@ -47,7 +47,7 @@ Write-Host "══════════════════════�
 Write-Host ""
 
 # ── Update sw.js ──
-Write-Host "[1/4] Updating sw.js..." -ForegroundColor Green
+Write-Host "[1/5] Updating sw.js..." -ForegroundColor Green
 $swContent = $swContent -replace "viltrum-fitness-v\d+\.\d+\.\d+", "viltrum-fitness-$newVersion"
 $swContent = $swContent -replace "viltrum-runtime-v\d+\.\d+\.\d+", "viltrum-runtime-$newVersion"
 $swContent = $swContent -replace "viltrum-preload-v\d+\.\d+\.\d+", "viltrum-preload-$newVersion"
@@ -67,16 +67,16 @@ Set-Content $swPath $swContent -NoNewline
 # ── Update welcome-modal-v2.js ──
 $modalPath = Join-Path (Join-Path $PSScriptRoot "js") "welcome-modal-v2.js"
 if (Test-Path $modalPath) {
-    Write-Host "[2/4] Updating welcome-modal-v2.js..." -ForegroundColor Green
+    Write-Host "[2/5] Updating welcome-modal-v2.js..." -ForegroundColor Green
     $modalContent = Get-Content $modalPath -Raw
     $modalContent = $modalContent -replace "const APP_VERSION = 'v[\d\.]+';", "const APP_VERSION = '$newVersion';"
     Set-Content $modalPath $modalContent -NoNewline
 } else {
-    Write-Host "[2/4] welcome-modal-v2.js not found, skipping" -ForegroundColor Yellow
+    Write-Host "[2/5] welcome-modal-v2.js not found, skipping" -ForegroundColor Yellow
 }
 
 # ── Git add + commit ──
-Write-Host "[3/4] Git commit..." -ForegroundColor Green
+Write-Host "[3/5] Git commit..." -ForegroundColor Green
 if ([string]::IsNullOrWhiteSpace($Message)) {
     $Message = "deploy: $newVersion"
 }
@@ -84,12 +84,26 @@ git add -A
 git commit -m "$Message ($newVersion)"
 
 # ── Git push ──
-Write-Host "[4/4] Git push..." -ForegroundColor Green
+Write-Host "[4/5] Git push..." -ForegroundColor Green
 git push -f origin main
+
+# ── Cloudflare Worker deploy (this is what actually publishes to viltrumfitness.com) ──
+# The site is a Cloudflare Worker (wrangler.jsonc). A git push alone does NOT go live —
+# production only updates when `wrangler deploy` runs. Auth: a cached `wrangler login`
+# (run once) or a CLOUDFLARE_API_TOKEN env var. account_id is in wrangler.jsonc.
+Write-Host "[5/5] Cloudflare deploy (wrangler)..." -ForegroundColor Green
+npx --yes wrangler deploy
+if ($LASTEXITCODE -ne 0) {
+    Write-Host ""
+    Write-Host "  wrangler deploy FAILED - site NOT updated." -ForegroundColor Red
+    Write-Host "    Run 'npx wrangler login' once (opens browser), then re-run .\deploy.ps1." -ForegroundColor Yellow
+    Write-Host "    Or set the CLOUDFLARE_API_TOKEN env var before running." -ForegroundColor Yellow
+    exit 1
+}
 
 Write-Host ""
 Write-Host "═══════════════════════════════════════" -ForegroundColor Green
-Write-Host "  DEPLOYED $newVersion" -ForegroundColor Green
+Write-Host "  DEPLOYED $newVersion to viltrumfitness.com" -ForegroundColor Green
 Write-Host "  build: $buildHash" -ForegroundColor DarkGray
 Write-Host "  $timestamp" -ForegroundColor DarkGray
 Write-Host "═══════════════════════════════════════" -ForegroundColor Green

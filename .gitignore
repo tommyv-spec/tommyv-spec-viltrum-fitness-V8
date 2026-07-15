@@ -15,3 +15,7 @@ audit-*.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Cloudflare wrangler temp
+.wrangler/
+node_modules/
