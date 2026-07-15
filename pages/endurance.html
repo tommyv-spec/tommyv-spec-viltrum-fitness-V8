@@ -186,6 +186,13 @@
       border-radius: 20px; font-size: 12px; font-weight: bold; color: #000; letter-spacing: 1px;
     }
 
+    .phase-pace-target { font-size: 15px; opacity: 0.85; margin-top: 4px; color: var(--zone-color, #FFF); }
+
+    .live-pace { font-size: 34px; font-weight: 700; margin-top: 8px; transition: color 0.3s; }
+    .live-pace-unit { font-size: 16px; font-weight: 400; opacity: 0.7; }
+    .live-pace.on-target { color: #27ae60; }
+    .live-pace.off-target { color: #e67e22; }
+
     /* phase value: big but capped so it never overflows */
     .phase-value {
       font-size: min(13vw, 11vh, 80px);
@@ -395,6 +402,10 @@
               <span id="phase-target">4 km</span>
             </div>
           </div>
+          <div id="phase-pace-target" class="phase-pace-target" style="display:none;"></div>
+          <div id="live-pace" class="live-pace" style="display:none;">
+            <span id="live-pace-value">--:--</span> <span class="live-pace-unit">/km</span>
+          </div>
         </div>
       </div>
 
@@ -435,6 +446,8 @@
   <script type="module">
     import DataPreloader from '../js/data-preloader.js';
     import { GOOGLE_SCRIPT_URL } from '../js/config.js';
+    import { paceZoneBands, classifyPace, formatPace } from '../js/pace-zones.js';
+    import { getThresholdPace } from '../js/profile-manager.js';
 
     // ═══════════════════════════════════════════════════════════════════════════
     // CONSTANTS
@@ -505,6 +518,32 @@
     let currentPhaseIndex = 0;
     let isPaused = false;
     let v7PlanInfo = null;
+    let paceBands = null; // Array from paceZoneBands, or null if no threshold set
+
+    // Rolling window for smoothed live pace. Each entry: {t: ms, lat, lon}.
+    let paceWindow = [];
+    const PACE_WINDOW_MS = 18000;   // ~18s of history
+    const PACE_MIN_MS = 8000;       // need >=8s before showing a pace
+    const GPS_ACCURACY_MAX_M = 25;  // discard fuzzier fixes
+
+    // Human label for a zone's pace band, e.g. "5:42 – 6:27 /km".
+    // Open-ended zones (Z1 slow, Z5 fast) render one-sided.
+    function paceBandLabel(zone) {
+      if (!paceBands) return '';
+      const b = paceBands.find((x) => x.zone === zone);
+      if (!b) return '';
+      if (b.maxSec === Infinity) return `più lento di ${formatPace(b.minSec)} /km`;
+      if (b.minSec === 0) return `più veloce di ${formatPace(b.maxSec)} /km`;
+      return `${formatPace(b.minSec)} – ${formatPace(b.maxSec)} /km`;
+    }
+
+    // "5:42" spoken. Italian TTS reads "5:42" poorly, so convert to words.
+    function speakPace(sec) {
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      if (s === 0) return `${m} minuti al chilometro`;
+      return `${m} minuti e ${s} al chilometro`;
+    }
 
     // GPS State
     let gpsWatchId = null;
@@ -779,6 +818,8 @@
       
       if (mode === 'eleven') {
         // ElevenLabs: play pre-recorded audio sequence
+        // NOTE: pace band intentionally omitted here — no pre-recorded pace-number
+        // clips exist. Pace is spoken only in the synth/voice path below.
         const sequence = [`zona-${phase.zone}`];
         const numKey = getNumKey(phase.value);
         if (numKey) sequence.push(numKey);
@@ -796,6 +837,19 @@
           if (phase.description) text += `, ${phase.description}`;
         } else {
           text += `, ${phase.value} ${getUnitName(phase.unit, phase.value)}`;
+        }
+        // Friel pace band (voice/synth path only — ElevenLabs has no pace-number clips)
+        if (paceBands && !short) {
+          const b = paceBands.find((x) => x.zone === phase.zone);
+          if (b) {
+            if (b.maxSec === Infinity) {
+              text += `, passo più lento di ${speakPace(b.minSec)}`;
+            } else if (b.minSec === 0) {
+              text += `, passo più veloce di ${speakPace(b.maxSec)}`;
+            } else {
+              text += `, passo ${speakPace(b.minSec)} a ${speakPace(b.maxSec)}`;
+            }
+          }
         }
         await speak(text);
       }
@@ -1086,6 +1140,10 @@
       isPaused = false;
       lastAnnouncedWarning = {};
 
+      // Load Friel pace bands (null if user has no threshold pace set)
+      const thresholdSec = await getThresholdPace();
+      paceBands = paceZoneBands(thresholdSec);
+
       // Show workout UI
       document.getElementById('workout-name').textContent = name;
       showView('workout-view');
@@ -1186,6 +1244,9 @@
       }
 
       phaseDistance = 0;
+      paceWindow = [];
+      const lp = document.getElementById('live-pace');
+      if (lp) { document.getElementById('live-pace-value').textContent = '--:--'; lp.classList.remove('on-target','off-target'); }
       document.getElementById('phase-progress-fill').style.width = '0%';
       document.getElementById('phase-current').textContent = '0';
       
@@ -1194,6 +1255,15 @@
                          phase.unit === 'min' ? `${phase.value}:00` :
                          `${phase.value} sec`;
       document.getElementById('phase-target').textContent = targetText;
+
+      const paceTargetEl = document.getElementById('phase-pace-target');
+      const paceLabel = paceBandLabel(phase.zone);
+      if (paceLabel) {
+        paceTargetEl.textContent = `🎯 ${paceLabel}`;
+        paceTargetEl.style.display = 'block';
+      } else {
+        paceTargetEl.style.display = 'none';
+      }
 
       if (countdownInterval) clearInterval(countdownInterval);
       
@@ -1341,6 +1411,51 @@
 
       gpsPositions.push({ latitude, longitude, accuracy, timestamp: Date.now() });
       updatePace();
+      updateLivePace(latitude, longitude, accuracy);
+    }
+
+    function updateLivePace(lat, lon, accuracy) {
+      const el = document.getElementById('live-pace');
+      const valEl = document.getElementById('live-pace-value');
+      if (!el || !valEl) return;
+
+      // No bands -> feature off. Keep readout hidden.
+      if (!paceBands) { el.style.display = 'none'; return; }
+      el.style.display = 'block';
+
+      const now = Date.now();
+      if (typeof accuracy !== 'number' || accuracy <= GPS_ACCURACY_MAX_M) {
+        paceWindow.push({ t: now, lat, lon });
+      }
+      // Drop stale fixes outside the window.
+      paceWindow = paceWindow.filter((p) => now - p.t <= PACE_WINDOW_MS);
+
+      const span = paceWindow.length >= 2 ? now - paceWindow[0].t : 0;
+      if (span < PACE_MIN_MS) {
+        valEl.textContent = '--:--';
+        el.classList.remove('on-target', 'off-target');
+        return;
+      }
+
+      // Distance travelled across the window.
+      let meters = 0;
+      for (let i = 1; i < paceWindow.length; i++) {
+        meters += calcDistance(
+          paceWindow[i - 1].lat, paceWindow[i - 1].lon,
+          paceWindow[i].lat, paceWindow[i].lon
+        );
+      }
+      if (meters < 1) { valEl.textContent = '--:--'; return; }
+
+      // Pace = seconds per km.
+      const secPerKm = (span / 1000) / (meters / 1000);
+      valEl.textContent = formatPace(secPerKm);
+
+      // Color vs the current phase's target zone.
+      const phase = expandedPhases[currentPhaseIndex];
+      const inZone = phase && classifyPace(secPerKm, paceBands) === phase.zone;
+      el.classList.toggle('on-target', inZone);
+      el.classList.toggle('off-target', !inZone);
     }
 
     function handleGPSError(error) {
