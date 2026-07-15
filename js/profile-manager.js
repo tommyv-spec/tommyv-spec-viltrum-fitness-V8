@@ -367,7 +367,8 @@ export async function getThresholdPace() {
     const cached = localStorage.getItem(THRESHOLD_PACE_CACHE_KEY);
     if (cached !== null) {
       const n = parseInt(cached, 10);
-      return Number.isFinite(n) && n > 0 ? n : null;
+      if (Number.isFinite(n) && n > 0) return n;
+      // corrupted cache -> fall through to Supabase
     }
 
     if (supabase) {
