@@ -537,6 +537,14 @@
       return `${formatPace(b.minSec)} – ${formatPace(b.maxSec)} /km`;
     }
 
+    // "5:42" spoken. Italian TTS reads "5:42" poorly, so convert to words.
+    function speakPace(sec) {
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      if (s === 0) return `${m} minuti al chilometro`;
+      return `${m} minuti e ${s} al chilometro`;
+    }
+
     // GPS State
     let gpsWatchId = null;
     let gpsPositions = [];
@@ -810,6 +818,8 @@
       
       if (mode === 'eleven') {
         // ElevenLabs: play pre-recorded audio sequence
+        // NOTE: pace band intentionally omitted here — no pre-recorded pace-number
+        // clips exist. Pace is spoken only in the synth/voice path below.
         const sequence = [`zona-${phase.zone}`];
         const numKey = getNumKey(phase.value);
         if (numKey) sequence.push(numKey);
@@ -827,6 +837,19 @@
           if (phase.description) text += `, ${phase.description}`;
         } else {
           text += `, ${phase.value} ${getUnitName(phase.unit, phase.value)}`;
+        }
+        // Friel pace band (voice/synth path only — ElevenLabs has no pace-number clips)
+        if (paceBands && !short) {
+          const b = paceBands.find((x) => x.zone === phase.zone);
+          if (b) {
+            if (b.maxSec === Infinity) {
+              text += `, passo più lento di ${speakPace(b.minSec)}`;
+            } else if (b.minSec === 0) {
+              text += `, passo più veloce di ${speakPace(b.maxSec)}`;
+            } else {
+              text += `, passo ${speakPace(b.minSec)} a ${speakPace(b.maxSec)}`;
+            }
+          }
         }
         await speak(text);
       }
