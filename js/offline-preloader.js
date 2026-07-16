@@ -241,49 +241,47 @@ const OfflinePreloader = {
 
   async preloadImages(imageUrls, startIndex = 0) {
     console.log(`🖼️ Preloading ${imageUrls.length} images (starting from ${startIndex})...`);
-    
-    for (let i = startIndex; i < imageUrls.length; i++) {
-      const url = imageUrls[i];
-      
-      try {
-        // Check if already cached
-        const cached = await this.getFromDB(this.STORES.IMAGES, url);
-        if (cached && cached.blob) {
-          this.broadcastProgress({ 
-            phase: 'images', 
-            current: i + 1, 
-            total: imageUrls.length,
-            percent: Math.round(((i + 1) / imageUrls.length) * 100)
-          });
-          continue;
+
+    // CONCURRENT pool (was serialized with a 10ms gap every 5 → very slow).
+    // A fixed set of workers drains a shared cursor so N fetches run in parallel.
+    const CONCURRENCY = 6;
+    let cursor = startIndex;
+    let done = startIndex;
+
+    const worker = async () => {
+      while (true) {
+        const i = cursor++;
+        if (i >= imageUrls.length) return;
+        const url = imageUrls[i];
+
+        try {
+          const cached = await this.getFromDB(this.STORES.IMAGES, url);
+          if (!cached || !cached.blob) {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            await this.putInDB(this.STORES.IMAGES, {
+              url: url,
+              blob: blob,
+              timestamp: Date.now()
+            });
+          }
+        } catch (error) {
+          console.warn(`⚠️ Failed to cache image: ${url.substring(0, 50)}...`);
         }
 
-        // Fetch and cache
-        const response = await fetch(url);
-        const blob = await response.blob();
-        
-        await this.putInDB(this.STORES.IMAGES, {
-          url: url,
-          blob: blob,
-          timestamp: Date.now()
-        });
-
-        this.broadcastProgress({ 
-          phase: 'images', 
-          current: i + 1, 
+        done++;
+        this.broadcastProgress({
+          phase: 'images',
+          current: done,
           total: imageUrls.length,
-          percent: Math.round(((i + 1) / imageUrls.length) * 100)
+          percent: Math.round((done / imageUrls.length) * 100)
         });
+      }
+    };
 
-      } catch (error) {
-        console.warn(`⚠️ Failed to cache image: ${url.substring(0, 50)}...`);
-      }
-      
-      // Small delay to not block UI
-      if (i % 5 === 0) {
-        await new Promise(r => setTimeout(r, 10));
-      }
-    }
+    await Promise.all(
+      Array.from({ length: Math.min(CONCURRENCY, imageUrls.length || 1) }, worker)
+    );
 
     console.log(`✅ Images preloaded`);
   },
@@ -674,11 +672,29 @@ const OfflinePreloader = {
   // CACHE GETTERS
   // ═══════════════════════════════════════════════════════════════════════════
 
+  /**
+   * Resolve the Service Worker's preload Cache by PREFIX rather than a hardcoded
+   * version. sw.js bumps PRELOAD_CACHE ('viltrum-preload-vX.Y.Z') on every
+   * release and its activate handler deletes all other viltrum-preload-* caches,
+   * so exactly one exists at a time. Hardcoding the version here silently drifted
+   * (reader was pinned to v8.2.11 while the SW wrote v8.2.31) → every lookup
+   * missed and hit the network. Matching by prefix is version-proof.
+   */
+  async _resolvePreloadCache() {
+    if (!('caches' in window)) return null;
+    try {
+      const keys = await caches.keys();
+      // Sort desc so the highest version wins if more than one lingers.
+      const name = keys.filter(k => k.startsWith('viltrum-preload-')).sort().reverse()[0];
+      return name ? await caches.open(name) : null;
+    } catch (e) { return null; }
+  },
+
   async getCachedImage(url) {
     // V7.1: First check Service Worker cache
-    if ('caches' in window) {
+    const cache = await this._resolvePreloadCache();
+    if (cache) {
       try {
-        const cache = await caches.open('viltrum-preload-v8.2.11');
         const response = await cache.match(url);
         if (response) {
           const blob = await response.blob();
@@ -709,9 +725,9 @@ const OfflinePreloader = {
 
   async getCachedTTS(text) {
     // V7.1: First check Service Worker cache
-    if ('caches' in window) {
+    const cache = await this._resolvePreloadCache();
+    if (cache) {
       try {
-        const cache = await caches.open('viltrum-preload-v8.2.11');
         const response = await cache.match(`tts:${text}`);
         if (response) {
           const blob = await response.blob();
@@ -751,6 +767,42 @@ const OfflinePreloader = {
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // RESUME (runs on EVERY page, not just the dashboard)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Keep the background preload alive across navigation. session-cache.js (the
+   * original driver) only loads on the dashboard, so entering a workout used to
+   * leave nothing feeding the preload — and if the Service Worker was killed
+   * mid-fill by the mobile browser, it never resumed until the user went back to
+   * the dashboard. This runs on every page that includes offline-preloader.js and
+   * re-kicks preloadAll (idempotent: SW/needsUpdate skip already-cached work).
+   */
+  async resumePreload() {
+    try {
+      const state = this.getPreloadState();
+      // A FRESH loading state means another page/SW is actively driving it.
+      if (state && state.status === 'loading' && (Date.now() - (state.timestamp || 0)) < 15000) return;
+      if (state && state.status === 'complete') return;
+
+      // Need the cached user profile to know what to fetch. If it's not there
+      // yet, the dashboard/login flow hasn't run — leave the first fill to them.
+      const userInfo = await this.getCachedUserData();
+      if (!userInfo || !userInfo.email) return;
+
+      const check = await this.needsUpdate(userInfo.email);
+      if (!check.needsUpdate) return; // everything already cached
+
+      console.log('🔁 OfflinePreloader: resuming background preload on this page');
+      // Don't await — let it run in the background while the page is used.
+      this.preloadAll(userInfo, {}).catch(err =>
+        console.warn('⚠️ resumePreload preloadAll failed:', err));
+    } catch (e) {
+      console.warn('⚠️ resumePreload failed:', e);
+    }
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // CLEAR CACHE
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -783,17 +835,21 @@ window.addEventListener('storage', (e) => {
   }
 });
 
-// V8: Auto-setup Service Worker listeners on load for cross-page progress updates
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      OfflinePreloader.setupServiceWorkerListeners();
-    }
-  });
-} else {
+// V8: Auto-setup Service Worker listeners on load for cross-page progress updates.
+// V8.3: Also resume the background preload on every page so it keeps filling while
+// the user navigates into a workout (previously it only ran from the dashboard).
+function _offlinePreloaderPageInit() {
   if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
     OfflinePreloader.setupServiceWorkerListeners();
   }
+  // Give the SW a beat to take control on fresh loads, then resume.
+  setTimeout(() => OfflinePreloader.resumePreload(), 1200);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _offlinePreloaderPageInit);
+} else {
+  _offlinePreloaderPageInit();
 }
 
 // Export

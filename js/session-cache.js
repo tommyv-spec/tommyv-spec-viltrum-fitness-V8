@@ -386,12 +386,21 @@ const SessionCache = {
       return;
     }
     
-    // Check if there's an ongoing preload from another page
+    // Check if there's an ongoing preload from another page.
+    // A 'loading' state is only trustworthy if it's FRESH — mobile browsers kill
+    // the Service Worker on navigation (e.g. entering a workout), leaving the
+    // state stuck at 'loading' with nothing driving it. If the last progress
+    // stamp is stale, the driver is dead: re-kick preloadAll to RESUME (it skips
+    // already-cached resources), instead of silently listening forever.
     const preloadState = OfflinePreloader.getPreloadState();
     if (preloadState && preloadState.status === 'loading') {
-      console.log('📡 Preload in progress from another page, listening for updates...');
-      // Just listen for progress updates
-      return;
+      const stateAge = Date.now() - (preloadState.timestamp || 0);
+      if (stateAge < 15000) {
+        console.log('📡 Preload in progress from another page, listening for updates...');
+        return; // fresh — another page/SW is actively driving it
+      }
+      console.log(`🔁 Preload state stale (${Math.round(stateAge / 1000)}s) — driver likely died, resuming...`);
+      // fall through to re-kick
     }
     
     console.log('🔄 Starting background preload...');

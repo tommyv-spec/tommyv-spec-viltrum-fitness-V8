@@ -1,7 +1,7 @@
-const CACHE_NAME = 'viltrum-fitness-v8.2.34';
-const RUNTIME_CACHE = 'viltrum-runtime-v8.2.34';
-const PRELOAD_CACHE = 'viltrum-preload-v8.2.34';
-const BUILD_HASH = '20260715212312';
+const CACHE_NAME = 'viltrum-fitness-v8.2.35';
+const RUNTIME_CACHE = 'viltrum-runtime-v8.2.35';
+const PRELOAD_CACHE = 'viltrum-preload-v8.2.35';
+const BUILD_HASH = '20260717010102';
 
 const urlsToCache = [
   './',
@@ -76,11 +76,11 @@ let preloadAborted = false;
 // INSTALL EVENT
 // ═══════════════════════════════════════════════════════════════════════════
 self.addEventListener('install', (event) => {
-  console.log('[Service Worker] Installing v8.2.34...');
+  console.log('[Service Worker] Installing v8.2.35...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[Service Worker] Caching app shell v8.2.34');
+        console.log('[Service Worker] Caching app shell v8.2.35');
         return Promise.allSettled(
           urlsToCache.map(url => 
             cache.add(url).catch(err => {
@@ -249,37 +249,48 @@ async function handleBackgroundPreload(data) {
   };
   
   try {
-    // 1. Preload Images
-    for (let i = 0; i < imageUrls.length; i++) {
-      if (preloadAborted) {
-        console.log('[Service Worker] Preload aborted');
-        break;
-      }
-      
-      const url = imageUrls[i];
-      
-      try {
-        // Check if already cached
-        const cached = await cache.match(url);
-        if (cached) {
-          imagesSkipped++;
-        } else {
-          const response = await fetch(url, { mode: 'cors' });
-          if (response.ok) {
-            await cache.put(url, response);
-            imagesLoaded++;
+    // 1. Preload Images — CONCURRENT pool (was one-at-a-time, painfully slow for
+    //    ~1-3 MB GIFs). A fixed pool of workers drains a shared index so N images
+    //    download in parallel without flooding the connection.
+    const IMG_CONCURRENCY = 6;
+    let imgCursor = 0;
+    let imgDone = 0;
+
+    const imageWorker = async () => {
+      while (true) {
+        if (preloadAborted) return;
+        const i = imgCursor++;
+        if (i >= imageUrls.length) return;
+        const url = imageUrls[i];
+
+        try {
+          const cached = await cache.match(url);
+          if (cached) {
+            imagesSkipped++;
+          } else {
+            const response = await fetch(url, { mode: 'cors' });
+            if (response.ok) {
+              await cache.put(url, response);
+              imagesLoaded++;
+            }
           }
+        } catch (e) {
+          // Skip failed images
         }
-      } catch (e) {
-        // Skip failed images
+
+        imgDone++;
+        // Broadcast progress every 5 completions
+        if (imgDone % 5 === 0 || imgDone === imageUrls.length) {
+          broadcastProgress('images', imgDone, imageUrls.length);
+        }
       }
-      
-      // Broadcast progress every 5 images
-      if (i % 5 === 0 || i === imageUrls.length - 1) {
-        broadcastProgress('images', i + 1, imageUrls.length);
-      }
-    }
-    
+    };
+
+    await Promise.all(
+      Array.from({ length: Math.min(IMG_CONCURRENCY, imageUrls.length || 1) }, imageWorker)
+    );
+    if (preloadAborted) console.log('[Service Worker] Preload aborted');
+
     console.log(`[Service Worker] Images: ${imagesLoaded} loaded, ${imagesSkipped} already cached`);
     
     // 2. Preload TTS Audio
@@ -371,7 +382,7 @@ async function handleBackgroundPreload(data) {
 // ACTIVATE EVENT
 // ═══════════════════════════════════════════════════════════════════════════
 self.addEventListener('activate', (event) => {
-  console.log('[Service Worker] Activating v8.2.34...');
+  console.log('[Service Worker] Activating v8.2.35...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
