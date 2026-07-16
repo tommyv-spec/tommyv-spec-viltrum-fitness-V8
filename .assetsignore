@@ -6,6 +6,8 @@
 docs
 tests
 backend
+supabase
+.wrangler
 graphify-out
 node_modules
 *.ps1
