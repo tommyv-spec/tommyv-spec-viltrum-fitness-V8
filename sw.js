@@ -1,7 +1,10 @@
-const CACHE_NAME = 'viltrum-fitness-v8.2.35';
-const RUNTIME_CACHE = 'viltrum-runtime-v8.2.35';
-const PRELOAD_CACHE = 'viltrum-preload-v8.2.35';
-const BUILD_HASH = '20260717010102';
+const CACHE_NAME = 'viltrum-fitness-v8.2.36';
+const RUNTIME_CACHE = 'viltrum-runtime-v8.2.36';
+const PRELOAD_CACHE = 'viltrum-preload-v8.2.36';
+// Instructor voice clips. Intentionally NOT version-suffixed and never purged on
+// activate: the mp3s are immutable, so re-downloading them each release is waste.
+const AUDIO_CACHE = 'viltrum-audio-v1';
+const BUILD_HASH = '20260717020621';
 
 const urlsToCache = [
   './',
@@ -12,6 +15,7 @@ const urlsToCache = [
   './pages/dashboard-v7.html',
   './pages/plan-view.html',
   './pages/workout.html',
+  './pages/endurance.html',
   './pages/nutrition.html',
   './pages/workout-completion.html',
   './pages/profile.html',
@@ -19,6 +23,7 @@ const urlsToCache = [
   
   // JavaScript - Core
   './js/config.js',
+  './js/api.js',
   './js/state.js',
   './js/auth.js',
   './js/access-control.js',
@@ -76,11 +81,11 @@ let preloadAborted = false;
 // INSTALL EVENT
 // ═══════════════════════════════════════════════════════════════════════════
 self.addEventListener('install', (event) => {
-  console.log('[Service Worker] Installing v8.2.35...');
+  console.log('[Service Worker] Installing v8.2.36...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[Service Worker] Caching app shell v8.2.35');
+        console.log('[Service Worker] Caching app shell v8.2.36');
         return Promise.allSettled(
           urlsToCache.map(url => 
             cache.add(url).catch(err => {
@@ -382,15 +387,18 @@ async function handleBackgroundPreload(data) {
 // ACTIVATE EVENT
 // ═══════════════════════════════════════════════════════════════════════════
 self.addEventListener('activate', (event) => {
-  console.log('[Service Worker] Activating v8.2.35...');
+  console.log('[Service Worker] Activating v8.2.36...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          // Keep current caches and preload cache
-          if (cacheName !== CACHE_NAME && 
-              cacheName !== RUNTIME_CACHE && 
-              cacheName !== PRELOAD_CACHE) {
+          // Keep current caches, preload cache, and the permanent audio cache
+          // (AUDIO_CACHE is unversioned - purging it would re-download ~80 mp3s
+          // on every release).
+          if (cacheName !== CACHE_NAME &&
+              cacheName !== RUNTIME_CACHE &&
+              cacheName !== PRELOAD_CACHE &&
+              cacheName !== AUDIO_CACHE) {
             console.log('[Service Worker] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
@@ -479,6 +487,28 @@ self.addEventListener('fetch', (event) => {
 
   // Handle external CDN domains
   if (url.origin !== self.location.origin) {
+    // Instructor voice clips (endurance): cache-first, permanent AUDIO_CACHE.
+    // Kept out of the versioned caches so a version bump doesn't force an ~80-file
+    // re-download. Must be raw.githubusercontent.com — github.com/.../raw/ 302s and
+    // the Cache API refuses redirected responses.
+    if (url.origin.includes('raw.githubusercontent.com') &&
+        url.pathname.includes('viltrum-audio-istruttore')) {
+      event.respondWith(
+        caches.open(AUDIO_CACHE).then(cache =>
+          cache.match(request).then(cached => {
+            if (cached) return cached;
+            return fetch(request).then(response => {
+              if (response && response.status === 200) {
+                cache.put(request, response.clone());
+              }
+              return response;
+            }).catch(() => new Response('Offline', { status: 503 }));
+          })
+        )
+      );
+      return;
+    }
+
     if (url.origin.includes('cdn.jsdelivr.net') ||
         url.origin.includes('fonts.googleapis.com') ||
         url.origin.includes('fonts.gstatic.com')) {

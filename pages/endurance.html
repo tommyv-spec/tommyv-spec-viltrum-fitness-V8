@@ -446,6 +446,7 @@
   <script type="module">
     import DataPreloader from '../js/data-preloader.js';
     import { GOOGLE_SCRIPT_URL } from '../js/config.js';
+    import { apiPost } from '../js/api.js';
     import { paceZoneBands, classifyPace, formatPace } from '../js/pace-zones.js';
     import { getThresholdPace } from '../js/profile-manager.js';
 
@@ -454,9 +455,14 @@
     // ═══════════════════════════════════════════════════════════════════════════
     const TTS_SERVER_URL = 'https://google-tts-server.onrender.com/speak';
     
-    // ElevenLabs Audio (pre-generated, hosted on GitHub)
-    const ELEVEN_BASE_URL = 'https://github.com/tommyv-spec/viltrum-audio-istruttore/raw/main/elevenlabs';
+    // ElevenLabs Audio (pre-generated, hosted on GitHub).
+    // NOTE: must be raw.githubusercontent.com, NOT github.com/.../raw/ — the latter
+    // 302-redirects and the Cache API refuses to store redirected responses, which
+    // would break offline audio caching.
+    const ELEVEN_BASE_URL = 'https://raw.githubusercontent.com/tommyv-spec/viltrum-audio-istruttore/main/elevenlabs';
     const ELEVEN_AUDIO = {
+      // Cue di passo (fuori range)
+      'vai-piu-forte': 'vai-piu-forte.mp3', 'vai-piu-piano': 'vai-piu-piano.mp3',
       // Zone
       'zona-1': 'zona-1.mp3', 'zona-2': 'zona-2.mp3', 'zona-3': 'zona-3.mp3',
       'zona-4': 'zona-4.mp3', 'zona-5': 'zona-5.mp3',
@@ -525,6 +531,17 @@
     const PACE_WINDOW_MS = 18000;   // ~18s of history
     const PACE_MIN_MS = 8000;       // need >=8s before showing a pace
     const GPS_ACCURACY_MAX_M = 25;  // discard fuzzier fixes
+
+    // Pace cue ("vai più forte" / "vai più piano") throttling.
+    let lastPaceCueAt = 0;          // ms of the last spoken cue
+    let lastPaceCueDir = null;      // 'vai-piu-forte' | 'vai-piu-piano' | null
+    let offTargetSince = null;      // ms when the current off-target streak began
+    let phaseStartedAt = 0;         // ms when the current phase began
+    let isAnnouncing = false;       // true while any announcement is playing
+    const PACE_CUE_MARGIN_SEC = 8;      // sec/km outside the band before it counts
+    const PACE_CUE_GRACE_MS = 15000;    // quiet window after a phase change
+    const PACE_CUE_SUSTAIN_MS = 10000;  // must be off-target this long
+    const PACE_CUE_COOLDOWN_MS = 25000; // min gap between cues
 
     // Human label for a zone's pace band, e.g. "5:42 – 6:27 /km".
     // Open-ended zones (Z1 slow, Z5 fast) render one-sided.
@@ -720,24 +737,66 @@
     // ELEVENLABS AUDIO PLAYER
     // ═══════════════════════════════════════════════════════════════════════════
     
+    // ═══════════════════════════════════════════════════════════════════════════
+    // AUDIO CACHE - pre-fetch every endurance clip so runs never wait on network
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Cache name is NOT version-suffixed: clips rarely change and re-downloading
+    // ~80 mp3s on every app version bump would be wasteful. sw.js serves this
+    // cache-first and preserves it across activations.
+    const AUDIO_CACHE_NAME = 'viltrum-audio-v1';
+
+    async function warmAudioCache() {
+      if (!('caches' in window)) return;
+      try {
+        const cache = await caches.open(AUDIO_CACHE_NAME);
+        const urls = [...new Set(Object.values(ELEVEN_AUDIO))]
+          .map((file) => `${ELEVEN_BASE_URL}/${file}`);
+
+        let added = 0, already = 0, failed = 0;
+        let cursor = 0;
+        const CONCURRENCY = 6;
+
+        const worker = async () => {
+          while (cursor < urls.length) {
+            const url = urls[cursor++];
+            try {
+              if (await cache.match(url)) { already++; continue; }
+              // add() per-file: addAll() is all-or-nothing, so one missing clip
+              // would throw away the whole batch.
+              await cache.add(url);
+              added++;
+            } catch (e) {
+              failed++; // clip not on the host yet - fine, playback falls back to TTS
+            }
+          }
+        };
+        await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+        console.log(`[Audio cache] ${added} new, ${already} cached, ${failed} missing (${urls.length} clips)`);
+      } catch (e) {
+        console.warn('[Audio cache] warm-up failed:', e);
+      }
+    }
+
+    // Resolves true if the clip actually played, false if it is missing / failed.
+    // Callers that need a fallback (e.g. pace cues) can speak() when it returns false.
     async function playElevenAudio(key) {
       if (!ELEVEN_AUDIO[key]) {
         console.warn(`⚠️ ElevenLabs audio not found: ${key}`);
-        return;
+        return false;
       }
-      
+
       await ensureAudioUnlocked();
       const url = `${ELEVEN_BASE_URL}/${ELEVEN_AUDIO[key]}`;
       const audio = document.getElementById('tts-audio');
-      
+
       return Promise.race([
         new Promise((resolve) => {
           audio.src = url;
-          audio.onended = resolve;
-          audio.onerror = () => { console.warn(`❌ Failed: ${key}`); resolve(); };
-          audio.play().catch(() => resolve());
+          audio.onended = () => resolve(true);
+          audio.onerror = () => { console.warn(`❌ Failed: ${key}`); resolve(false); };
+          audio.play().catch(() => resolve(false));
         }),
-        new Promise(r => setTimeout(r, 5000)) // 5s max per clip
+        new Promise(r => setTimeout(() => r(true), 5000)) // 5s max per clip
       ]);
     }
     
@@ -805,17 +864,21 @@
     async function announcePhaseStart(phase) {
       const mode = getSoundMode();
       if (mode === 'none') return;
-      
+
       playBeep();
       vibrate();
-      
+
       if (mode === 'bip') return;
-      
+
       // Reset warnings for new phase
       lastAnnouncedWarning = {};
-      
+
       const short = isShortPhase(phase);
-      
+
+      // Block pace cues while this plays - both use the same <audio> element.
+      isAnnouncing = true;
+      try {
+
       if (mode === 'eleven') {
         // ElevenLabs: play pre-recorded audio sequence
         // NOTE: pace band intentionally omitted here — no pre-recorded pace-number
@@ -852,6 +915,10 @@
           }
         }
         await speak(text);
+      }
+
+      } finally {
+        isAnnouncing = false;
       }
     }
 
@@ -1026,7 +1093,11 @@
         
         runWorkouts = DataPreloader.getAllRunWorkouts();
         dbg('RunWorkouts: ' + Object.keys(runWorkouts).length + ' trovati');
-        
+
+        // Pre-fetch the voice clips in the background (fire-and-forget, never blocks
+        // the run). Subsequent workouts play instantly and work offline.
+        warmAudioCache();
+
         // Check if coming from plan-view
         const planWorkout = sessionStorage.getItem('currentWorkout');
         if (planWorkout) {
@@ -1245,6 +1316,10 @@
 
       phaseDistance = 0;
       paceWindow = [];
+      // New phase: restart the pace-cue grace period and clear the off-target streak.
+      phaseStartedAt = Date.now();
+      offTargetSince = null;
+      lastPaceCueDir = null;
       const lp = document.getElementById('live-pace');
       if (lp) { document.getElementById('live-pace-value').textContent = '--:--'; lp.classList.remove('on-target','off-target'); }
       document.getElementById('phase-progress-fill').style.width = '0%';
@@ -1456,6 +1531,70 @@
       const inZone = phase && classifyPace(secPerKm, paceBands) === phase.zone;
       el.classList.toggle('on-target', inZone);
       el.classList.toggle('off-target', !inZone);
+
+      maybeAnnouncePaceCue(secPerKm, phase, now);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PACE CUE — "vai più forte" / "vai più piano" when outside the target band
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GPS fires ~1 Hz, so a naive check would spam. Three guards:
+    //   1. GRACE      - stay quiet for the first seconds of a phase (let them settle)
+    //   2. SUSTAINED  - must be off-target continuously before speaking (ignore blips)
+    //   3. COOLDOWN   - minimum gap between cues
+    // Plus a MARGIN so a pace sitting a hair outside the band doesn't trigger.
+    function maybeAnnouncePaceCue(secPerKm, phase, now) {
+      const mode = getSoundMode();
+      if (mode === 'none' || mode === 'bip') return;
+      if (!paceBands || !phase || isAnnouncing) return;
+
+      const band = paceBands.find((b) => b.zone === phase.zone);
+      if (!band) return;
+
+      // Direction, with a margin so borderline pace doesn't flap.
+      // Bigger seconds = slower. Z1 has no slow bound, Z5 no fast bound.
+      let dir = null;
+      if (Number.isFinite(band.maxSec) && secPerKm > band.maxSec + PACE_CUE_MARGIN_SEC) {
+        dir = 'vai-piu-forte';  // too slow -> speed up
+      } else if (band.minSec > 0 && secPerKm < band.minSec - PACE_CUE_MARGIN_SEC) {
+        dir = 'vai-piu-piano';  // too fast -> ease off
+      }
+
+      // Back in range (or within margin): reset the sustain timer, stay quiet.
+      if (!dir) { offTargetSince = null; lastPaceCueDir = null; return; }
+
+      // 1. grace period after a phase change
+      if (now - phaseStartedAt < PACE_CUE_GRACE_MS) return;
+
+      // 2. must be off-target continuously. Direction flip restarts the timer.
+      if (offTargetSince === null || dir !== lastPaceCueDir) {
+        offTargetSince = now;
+        lastPaceCueDir = dir;
+        return;
+      }
+      if (now - offTargetSince < PACE_CUE_SUSTAIN_MS) return;
+
+      // 3. cooldown between cues
+      if (now - lastPaceCueAt < PACE_CUE_COOLDOWN_MS) return;
+
+      lastPaceCueAt = now;
+      speakPaceCue(dir, mode);
+    }
+
+    async function speakPaceCue(dir, mode) {
+      const text = dir === 'vai-piu-forte' ? 'Vai più forte' : 'Vai più piano';
+      isAnnouncing = true;
+      try {
+        if (mode === 'eleven') {
+          // Falls back to TTS if the clip isn't on the audio host yet.
+          const played = await playElevenAudio(dir);
+          if (!played) await speak(text);
+        } else {
+          await speak(text);
+        }
+      } finally {
+        isAnnouncing = false;
+      }
     }
 
     function handleGPSError(error) {
@@ -1632,11 +1771,12 @@
       };
       localStorage.setItem(progressKey, JSON.stringify(progress));
 
-      const email = localStorage.getItem('loggedUser');
-      if (email) {
-        const url = `${GOOGLE_SCRIPT_URL}?action=saveLastWorkout&email=${encodeURIComponent(email)}&planName=${encodeURIComponent(v7PlanInfo.planName)}&lastWorkoutIndex=${v7PlanInfo.workoutIndex}&totalWorkouts=${v7PlanInfo.totalWorkouts}`;
-        fetch(url).catch(e => console.warn('Cloud sync failed:', e));
-      }
+      // V9: server writes the token owner's row.
+      apiPost('saveLastWorkout', {
+        planName: v7PlanInfo.planName,
+        lastWorkoutIndex: v7PlanInfo.workoutIndex,
+        totalWorkouts: v7PlanInfo.totalWorkouts
+      }).catch(e => console.warn('Cloud sync failed:', e));
 
       sessionStorage.removeItem('currentWorkout');
     }
