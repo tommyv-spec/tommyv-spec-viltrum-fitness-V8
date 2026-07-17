@@ -446,7 +446,6 @@
   <script type="module">
     import DataPreloader from '../js/data-preloader.js';
     import { GOOGLE_SCRIPT_URL } from '../js/config.js';
-    import { apiPost } from '../js/api.js';
     import { paceZoneBands, classifyPace, formatPace } from '../js/pace-zones.js';
     import { getThresholdPace } from '../js/profile-manager.js';
 
@@ -1771,12 +1770,23 @@
       };
       localStorage.setItem(progressKey, JSON.stringify(progress));
 
-      // V9: server writes the token owner's row.
-      apiPost('saveLastWorkout', {
-        planName: v7PlanInfo.planName,
-        lastWorkoutIndex: v7PlanInfo.workoutIndex,
-        totalWorkouts: v7PlanInfo.totalWorkouts
-      }).catch(e => console.warn('Cloud sync failed:', e));
+      // HOTFIX 2026-07-17: back to the legacy call on purpose.
+      //
+      // v8.2.36 shipped the V9 authenticated version of this line ahead of the
+      // V9 backend. apiPost sends no `email`, but the live backend still reads
+      // params.email — so this returned {"status":"error","message":"Invalid
+      // email"} and endurance progress stopped syncing to the cloud, silently
+      // (the .catch only warns). Local progress was unaffected.
+      //
+      // This matches what every other client file still does today. It returns
+      // to apiPost as part of the single coordinated V9 deploy (branch
+      // v9-auth), where the client and the Apps Script backend ship together.
+      // See backend/V9-AUTH-RUNBOOK.md.
+      const email = localStorage.getItem('loggedUser');
+      if (email) {
+        const url = `${GOOGLE_SCRIPT_URL}?action=saveLastWorkout&email=${encodeURIComponent(email)}&planName=${encodeURIComponent(v7PlanInfo.planName)}&lastWorkoutIndex=${v7PlanInfo.workoutIndex}&totalWorkouts=${v7PlanInfo.totalWorkouts}`;
+        fetch(url).catch(e => console.warn('Cloud sync failed:', e));
+      }
 
       sessionStorage.removeItem('currentWorkout');
     }
