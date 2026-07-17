@@ -1423,6 +1423,7 @@ const USER_ACTIONS = {
   'getAllProgress': getAllUserProgress,
   'ensureUserInSheet': ensureUserInSheet,
   'addTrialUser': addTrialUser,
+  'getQuestionnaireStatus': getQuestionnaireStatus,
   'getBootstrap': getBootstrap
 };
 
@@ -1515,6 +1516,9 @@ function addTrialUser(data) {
   // a user who is in fact fully created.
   try { sendTrialWelcomeEmail(email, name, trialEndDate); } catch (e) { Logger.log('trial welcome failed: ' + e); }
   try { notifyAdminNewSignup(email, name, defaultPlan, trialEndDate); } catch (e) { Logger.log('notify signup failed: ' + e); }
+  // Seeds the reminder clock from the real signup time rather than from whenever
+  // the daily sweep first notices them.
+  try { seedQuestionnaireReminder(email); } catch (e) { Logger.log('seed reminder failed: ' + e); }
   return createResponse({ status: 'success', message: 'Trial activated', email });
 }
 
@@ -1863,6 +1867,40 @@ function notifyAdminNewSignup(email, name, planName, scadenza) {
     'Data:      ' + _fmtAdminDate(new Date()),
     '',
   ].concat(_NEXT_STEPS));
+}
+
+// Notify admin that a questionnaire landed. Carries the fields the coach needs to
+// decide a plan, so the common case needs no trip to the sheet; the full 24-column
+// row is always there for the rest.
+function notifyAdminNewLead(data, email) {
+  const g = function (k) { return (data[k] != null && data[k] !== '') ? data[k].toString() : '-'; };
+  _sendAdminNotice('admin-lead', `[Viltrum] Questionario compilato: ${g('fullname')}`, [
+    'QUESTIONARIO COMPILATO',
+    '',
+    'Nome:       ' + g('fullname'),
+    'Email:      ' + email,
+    'Telefono:   ' + g('phone'),
+    'Eta:        ' + g('age'),
+    'Citta:      ' + g('city'),
+    '',
+    'Obiettivo:  ' + g('goal'),
+    'Gara:       ' + g('race'),
+    'Esperienza: ' + g('experience'),
+    'Km/sett:    ' + g('km_week'),
+    'Passo:      ' + g('pace'),
+    'Giorni:     ' + g('days'),
+    'Palestra:   ' + g('gym'),
+    '',
+    'Infortuni:  ' + g('injuries'),
+    'Patologie:  ' + g('conditions'),
+    'Certif.:    ' + g('medical'),
+    '',
+    'Data:       ' + _fmtAdminDate(new Date()),
+    '',
+    'Prossimi step:',
+    '1. Apri Sheet -> Admin Sync -> Lead / Questionari',
+    '2. Click "Converti + assegna piano" sul lead corrispondente',
+  ]);
 }
 
 // Notify admin when a real plan lands on a user's row (lead conversion, manual
@@ -2560,7 +2598,203 @@ function submitQuestionnaire(data) {
   });
   sheet.appendRow(row);
 
+  // The form tells the customer "il coach ti contattera' a breve": make that true.
+  // Without this the lead sits in the sheet until someone thinks to look.
+  try { notifyAdminNewLead(data, email); } catch (e) { Logger.log('notify lead failed: ' + e); }
   return createResponse({ status: 'success', email: email, mode: 'submitted' });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// QUESTIONNAIRE REMINDERS
+// Nudge users who signed up but never filled the questionnaire: every 2 days,
+// 3 times max, stopping the moment they submit.
+//
+// State lives in its own sheet rather than as extra Users columns on purpose:
+// parseUserHeaders treats every column after `scadenza` as a plan name, so a
+// bolted-on column there would be silently read as a plan the user owns.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const REMINDER_SHEET = 'QuestionnaireReminders';
+const REMINDER_COLS  = ['email', 'signup_at', 'sent_count', 'last_sent_at', 'done_at'];
+const REMINDER_MAX   = 3;
+const REMINDER_GAP_DAYS = 2;
+// Consumer Gmail allows ~100 sends/day and welcome/renewal/admin mail shares that
+// budget. Cap a run rather than let a backlog swallow the day's quota silently.
+const REMINDER_MAX_PER_RUN = 40;
+
+function _ensureRemindersSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(REMINDER_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(REMINDER_SHEET);
+    sheet.appendRow(REMINDER_COLS);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+// Called at signup so the first reminder is measured from the real signup moment.
+// Users who predate this feature get seeded lazily by the sweep instead, which
+// measures from first sight — later, but never wrong.
+function seedQuestionnaireReminder(email) {
+  const sheet = _ensureRemindersSheet();
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if ((rows[i][0] || '').toString().trim().toLowerCase() === email) return;
+  }
+  sheet.appendRow([email, new Date(), 0, '', '']);
+}
+
+function _daysBetween(a, b) {
+  return Math.abs(b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24);
+}
+
+// Trigger target. Runs daily; the 2-day spacing is enforced per user, not by the
+// schedule, so a missed or double run cannot double-send.
+function sendQuestionnaireReminders() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const now = new Date();
+
+  const submitted = {};
+  const leads = _ensureLeadsSheet().getDataRange().getValues();
+  const emailIdx = LEAD_COLS.indexOf('email');
+  for (let i = 1; i < leads.length; i++) {
+    const e = (leads[i][emailIdx] || '').toString().trim().toLowerCase();
+    if (e) submitted[e] = true;
+  }
+
+  const userSheet = ss.getSheetByName('Users');
+  const userRows  = userSheet.getDataRange().getValues();
+  const cols      = parseUserHeaders(userRows[0]);
+  const users     = [];
+  for (let i = 1; i < userRows.length; i++) {
+    const e = (userRows[i][cols.email] || '').toString().trim().toLowerCase();
+    if (e && e.indexOf('@') !== -1) {
+      users.push({ email: e, name: (userRows[i][cols.name] || '').toString() });
+    }
+  }
+
+  const sheet = _ensureRemindersSheet();
+  const rows  = sheet.getDataRange().getValues();
+  const index = {};
+  for (let i = 1; i < rows.length; i++) {
+    const e = (rows[i][0] || '').toString().trim().toLowerCase();
+    if (e) index[e] = i + 1;
+  }
+
+  let sent = 0, skippedQuota = 0, markedDone = 0;
+
+  users.forEach(function (u) {
+    let rowNum = index[u.email];
+    if (!rowNum) {
+      sheet.appendRow([u.email, now, 0, '', '']);
+      rowNum = sheet.getLastRow();
+      index[u.email] = rowNum;
+      return; // seeded this run; first nudge comes REMINDER_GAP_DAYS later
+    }
+
+    const row      = sheet.getRange(rowNum, 1, 1, REMINDER_COLS.length).getValues()[0];
+    const doneAt   = row[4];
+    const count    = Number(row[2]) || 0;
+    const signupAt = row[1] ? new Date(row[1]) : null;
+    const lastSent = row[3] ? new Date(row[3]) : null;
+
+    if (submitted[u.email]) {
+      if (!doneAt) { sheet.getRange(rowNum, 5).setValue(now); markedDone++; }
+      return;
+    }
+    if (doneAt) return;
+    if (count >= REMINDER_MAX) return;
+
+    const since = lastSent || signupAt;
+    if (!since || isNaN(since.getTime())) return;
+    if (_daysBetween(since, now) < REMINDER_GAP_DAYS) return;
+
+    if (sent >= REMINDER_MAX_PER_RUN) { skippedQuota++; return; }
+
+    sendQuestionnaireReminderEmail(u.email, u.name, count + 1);
+    sheet.getRange(rowNum, 3).setValue(count + 1);
+    sheet.getRange(rowNum, 4).setValue(now);
+    sent++;
+  });
+
+  const summary = 'reminders sent=' + sent + ' done=' + markedDone + ' deferred_over_cap=' + skippedQuota;
+  Logger.log(summary);
+  if (skippedQuota > 0) {
+    Logger.log('NOTE: ' + skippedQuota + ' users hit REMINDER_MAX_PER_RUN and were NOT mailed. They retry tomorrow.');
+  }
+  return summary;
+}
+
+function sendQuestionnaireReminderEmail(email, name, attempt) {
+  _logEmailAttempt('questionnaire-reminder', email, 'attempting', 'attempt=' + attempt);
+  try {
+    const qUrl = 'https://viltrumfitness.com/pages/questionario.html?email=' + encodeURIComponent(email);
+    const displayName = name || email.split('@')[0];
+    const htmlBody = `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#000;color:#fff;padding:40px;border-radius:12px;">
+        <div style="text-align:center;margin-bottom:30px;">
+          <h1 style="font-size:28px;margin:0;letter-spacing:2px;">VILTRUM FITNESS</h1>
+          <p style="color:#888;font-size:12px;margin-top:5px;">NO SHORTCUTS. ALL SWEAT. NO TALKS, JUST REPS.</p>
+        </div>
+        <h2 style="color:#4CAF50;">Ciao ${displayName}!</h2>
+        <p>Il tuo piano personalizzato ti sta aspettando, ma manca ancora un passaggio: il questionario.</p>
+        <p>Sono 2 minuti. Senza, il coach non puo' cucire il piano su di te.</p>
+        <div style="text-align:center;margin:30px 0;">
+          <a href="${qUrl}" style="display:inline-block;background:#FFD700;color:#000;padding:14px 40px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">
+            COMPILA IL QUESTIONARIO →
+          </a>
+        </div>
+        <p style="font-size:12px;color:#666;text-align:center;">Se l'hai gia' compilato, ignora questa email.</p>
+      </div>`;
+    const sender = _sendAsBrand(email, "Manca solo il questionario - Viltrum Fitness", "", { htmlBody });
+    _logEmailAttempt('questionnaire-reminder', email, 'sent', 'attempt=' + attempt + ' from=' + sender);
+  } catch (error) {
+    _logEmailAttempt('questionnaire-reminder', email, 'failed', error.toString());
+    Logger.log('sendQuestionnaireReminderEmail failed for ' + email + ': ' + error);
+  }
+}
+
+// Idempotent: drops any existing reminder trigger before creating one, so running
+// it twice from the menu cannot end up sending twice a day.
+function installQuestionnaireReminderTrigger() {
+  let removed = 0;
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'sendQuestionnaireReminders') {
+      ScriptApp.deleteTrigger(t); removed++;
+    }
+  });
+  ScriptApp.newTrigger('sendQuestionnaireReminders').timeBased().everyDays(1).atHour(9).create();
+  const msg = 'Reminder trigger installed (daily ~09:00). Removed ' + removed + ' old trigger(s).';
+  Logger.log(msg);
+  try {
+    SpreadsheetApp.getUi().alert('Promemoria questionario', msg +
+      '\n\nOgni utente riceve al massimo ' + REMINDER_MAX + ' promemoria, uno ogni ' +
+      REMINDER_GAP_DAYS + ' giorni, e si fermano appena compila.', SpreadsheetApp.getUi().ButtonSet.OK);
+  } catch (e) { Logger.log('UI alert skipped: ' + e); }
+  return msg;
+}
+
+// Backs the in-app banner: "does this user still owe us a questionnaire?".
+// A USER_ACTION, so doPost has already replaced data.email with the address
+// Supabase vouched for — a caller can only ever ask about themselves.
+function getQuestionnaireStatus(data) {
+  const email = (data.email || '').toString().trim().toLowerCase();
+  if (!email || email.indexOf('@') === -1) {
+    return createResponse({ status: 'error', message: 'Invalid email' });
+  }
+  const leads    = _ensureLeadsSheet().getDataRange().getValues();
+  const emailIdx = LEAD_COLS.indexOf('email');
+  for (let i = 1; i < leads.length; i++) {
+    if ((leads[i][emailIdx] || '').toString().trim().toLowerCase() === email) {
+      return createResponse({ status: 'success', submitted: true });
+    }
+  }
+  return createResponse({
+    status: 'success',
+    submitted: false,
+    url: 'https://viltrumfitness.com/pages/questionario.html?email=' + encodeURIComponent(email)
+  });
 }
 
 function adminListLeads() {
@@ -2677,6 +2911,9 @@ function onOpen() {
     .addItem('Setup: notifica admin email', 'setAdminNotifyEmail')
     .addItem('Setup: autorizza invio email Gmail', 'setupAuthorizeGmail')
     .addItem('Debug: mittente email (alias)', 'debugBrandSender')
+    .addSeparator()
+    .addItem('Setup: promemoria questionario (giornaliero)', 'installQuestionnaireReminderTrigger')
+    .addItem('Esegui ora: promemoria questionario', 'sendQuestionnaireReminders')
     .addToUi();
 }
 

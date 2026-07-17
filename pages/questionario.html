@@ -426,6 +426,10 @@
         // Public on purpose: the prospect has no account yet.
         const body = await apiPostPublic('submitQuestionnaire', payload);
         if (body.status === 'success') {
+          // Kills the in-app banner immediately. Without this it lingers until
+          // the next getQuestionnaireStatus call, telling a user who just
+          // submitted that they still need to submit.
+          try { localStorage.setItem('questionnaireSubmitted', 'true'); } catch (e) {}
           msg.className = 'q-message success';
           msg.textContent = '✓ Risposte inviate! Il coach ti contattera\' a breve via WhatsApp per personalizzare il piano.';
           msg.style.display = 'block';
