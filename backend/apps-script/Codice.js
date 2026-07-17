@@ -733,6 +733,20 @@ function parseUserHeaders(headers) {
   return { name, email, nutritionPdf, nutritionScadenza, scadenza, firstPlan };
 }
 
+// A user "has a real plan" once a paid/assigned plan lands in any plan column.
+// "Free Trial" and "Pending" are placeholders the trial signup and the Shopify
+// webhook write before the coach assigns anything, so they do NOT count. Drives
+// who still needs the questionnaire: nudge until a real plan exists, then stop.
+// Shared by the in-app banner and the reminder sweep so the two can't diverge.
+const _PLACEHOLDER_PLANS = { 'free trial': 1, 'pending': 1, 'trial plan': 1 };
+function _hasRealPlan(userRow, cols) {
+  for (let c = cols.firstPlan; c < userRow.length; c++) {
+    const v = (userRow[c] || '').toString().trim().toLowerCase();
+    if (v && !_PLACEHOLDER_PLANS[v]) return true;
+  }
+  return false;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // FAST USER DATA ENDPOINT (V8)
 // Returns only data needed for a specific user
@@ -2670,6 +2684,9 @@ function sendQuestionnaireReminders() {
   for (let i = 1; i < userRows.length; i++) {
     const e = (userRows[i][cols.email] || '').toString().trim().toLowerCase();
     if (e && e.indexOf('@') !== -1) {
+      // Skip anyone who already has a real plan: the coach has what they need,
+      // so reminding them to fill the questionnaire is noise.
+      if (_hasRealPlan(userRows[i], cols)) continue;
       users.push({ email: e, name: (userRows[i][cols.name] || '').toString() });
     }
   }
@@ -2783,6 +2800,23 @@ function getQuestionnaireStatus(data) {
   if (!email || email.indexOf('@') === -1) {
     return createResponse({ status: 'error', message: 'Invalid email' });
   }
+  // Users with a real plan don't need the questionnaire prompt: the coach has
+  // already built for them. Report submitted:true so the app suppresses the
+  // banner exactly as it does for someone who actually filled it — the client
+  // needs no new branch. Placeholder plans (Free Trial / Pending) still qualify.
+  const ss        = SpreadsheetApp.getActiveSpreadsheet();
+  const userSheet = ss.getSheetByName('Users');
+  const userRows  = userSheet.getDataRange().getValues();
+  const cols      = parseUserHeaders(userRows[0]);
+  for (let i = 1; i < userRows.length; i++) {
+    if ((userRows[i][cols.email] || '').toString().trim().toLowerCase() === email) {
+      if (_hasRealPlan(userRows[i], cols)) {
+        return createResponse({ status: 'success', submitted: true, reason: 'has_plan' });
+      }
+      break;
+    }
+  }
+
   const leads    = _ensureLeadsSheet().getDataRange().getValues();
   const emailIdx = LEAD_COLS.indexOf('email');
   for (let i = 1; i < leads.length; i++) {
