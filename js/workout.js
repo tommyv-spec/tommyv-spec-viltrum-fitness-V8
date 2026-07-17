@@ -12,6 +12,7 @@
 
 // Import configuration
 import { GOOGLE_SCRIPT_URL } from './config.js';
+import { apiPost } from './api.js';
 
 // Import workout history functions
 import { getExerciseWeight, syncLastWorkoutToCloud, setLastWorkoutIndexLocal } from './workout-history.js';
@@ -2350,14 +2351,12 @@ async function playExercise(index, exercises, resumeTime = null) {
       // Store V7 info for completion page
       sessionStorage.setItem('v7PlanInfo', JSON.stringify(planInfo));
       
-      // Sync to cloud (non-blocking)
-      const email = localStorage.getItem('loggedUser');
-      if (email) {
-        import('./config.js').then(({ GOOGLE_SCRIPT_URL }) => {
-          const url = `${GOOGLE_SCRIPT_URL}?action=saveLastWorkout&email=${encodeURIComponent(email)}&planName=${encodeURIComponent(planInfo.planName)}&lastWorkoutIndex=${planInfo.workoutIndex}&totalWorkouts=${planInfo.totalWorkouts}`;
-          fetch(url).catch(e => console.warn('V7 cloud sync failed:', e));
-        });
-      }
+      // Sync to cloud (non-blocking). V9: server writes the token owner's row.
+      apiPost('saveLastWorkout', {
+        planName: planInfo.planName,
+        lastWorkoutIndex: planInfo.workoutIndex,
+        totalWorkouts: planInfo.totalWorkouts
+      }).catch(e => console.warn('V7 cloud sync failed:', e));
       
       // Clear the currentWorkout so we don't reload it
       sessionStorage.removeItem('currentWorkout');
@@ -2850,59 +2849,19 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
 }
 
 /* -------------------- UI / App Wiring -------------------- */
-function login() {
-  warmUpServer();
-  const username = document.getElementById("username").value.trim();
-  const password = document.getElementById("password").value.trim();
-  const errorBox = document.getElementById("login-error");
-
-  if (!username || !password) {
-    if (errorBox) {
-      errorBox.textContent = "Inserisci username e password.";
-      errorBox.style.display = "block";
-    }
-    return;
-  }
-
-  fetch(`${GOOGLE_SCRIPT_URL}?username=${username}&password=${password}`)
-    .then(res => res.json())
-    .then(data => {
-      if (data.status === "success") {
-        localStorage.setItem("loggedUser", username);
-        
-        // Hide login UI (works for both index.html and other pages)
-        const loginScreen = document.getElementById("login-screen");
-        const loginModal = document.getElementById("login-modal");
-        const mainApp = document.getElementById("main-app");
-        const trainingSelector = document.getElementById("training-selector");
-        const headerLoginBtn = document.getElementById("header-login-btn");
-        const headerDashboardBtn = document.getElementById("header-dashboard-btn");
-        
-        if (loginScreen) loginScreen.style.display = "none";
-        if (loginModal) loginModal.classList.remove("active");
-        if (mainApp) mainApp.style.display = "block";
-        if (trainingSelector) trainingSelector.style.display = "block";
-        
-        // Switch header buttons: hide login, show dashboard
-        if (headerLoginBtn) headerLoginBtn.style.display = "none";
-        if (headerDashboardBtn) headerDashboardBtn.style.display = "flex";
-        
-        loadUserData(username);
-      } else {
-        if (errorBox) {
-          errorBox.textContent = data.message;
-          errorBox.style.display = "block";
-        }
-      }
-    })
-    .catch(err => {
-      console.error("Login error", err);
-      if (errorBox) {
-        errorBox.textContent = "Errore durante il login.";
-        errorBox.style.display = "block";
-      }
-    });
-}
+// V9: the legacy pre-Supabase login() was REMOVED here.
+//
+// It was already dead code — nothing called it, it was never exported or bound
+// to window, and no page has had #username / #password inputs for a long time,
+// so getElementById would have thrown before it did anything. Login goes
+// through Supabase in js/auth.js.
+//
+// It is deleted rather than left alone because of what it did if it ever ran
+// again: `fetch(GOOGLE_SCRIPT_URL + '?username=' + u + '&password=' + p)` —
+// sending credentials in a URL query string, where they land in Apps Script
+// execution logs and browser history — and that same request hit the old
+// no-action doGet, which returned the entire Users sheet to the caller.
+// Do not reintroduce it.
 
 function logout() {
   localStorage.removeItem("loggedUser");
@@ -2964,13 +2923,9 @@ function loadUserData(username) {
   
   // Only fetch if NO cache exists at all
   console.log('🔄 No cache found, fetching from server...');
-  fetch(GOOGLE_SCRIPT_URL)
-    .then(res => {
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-      return res.json();
-    })
+  // V9: getBootstrap returns the same shape as the old no-action GET, but
+  // userWorkouts holds only the authenticated caller's own entry.
+  apiPost('getBootstrap')
     .then(data => {
       // Save to localStorage
       try {

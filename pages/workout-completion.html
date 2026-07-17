@@ -341,7 +341,7 @@
   <script type="module">
     import { addWorkoutToHistory, shareWorkoutCompletion } from '../js/workout-history.js';
     import { getExerciseWeight } from '../js/workout-history.js';
-    import { GOOGLE_SCRIPT_URL } from '../js/config.js';
+    import { apiPost } from '../js/api.js';
 
     // ========== KEYBOARD HANDLING ==========
     // Detect when keyboard opens/closes and adjust layout
@@ -606,19 +606,11 @@
           const workoutIndex = parseInt(completedWorkoutIndex);
           console.log('📤 Syncing last workout to cloud:', workoutIndex, workoutName);
           
-          const progressUrl = new URL(GOOGLE_SCRIPT_URL);
-          progressUrl.searchParams.append('action', 'saveLastWorkout');
-          progressUrl.searchParams.append('email', userEmail);
-          progressUrl.searchParams.append('lastWorkoutIndex', workoutIndex.toString());
-          progressUrl.searchParams.append('lastWorkoutName', workoutName);
-          
-          const progressResponse = await fetch(progressUrl.toString(), { 
-            method: 'GET',
-            redirect: 'follow',
-            keepalive: true 
+          // V9: POST + session token; server writes the token owner's row.
+          await apiPost('saveLastWorkout', {
+            lastWorkoutIndex: workoutIndex,
+            lastWorkoutName: workoutName
           });
-          
-          console.log('📥 Last workout sync response:', progressResponse.status);
           console.log('✅ Last workout synced to cloud');
           
           // Also save locally
@@ -643,22 +635,10 @@
           if (userEmail) {
             // Get full weights from localStorage (merged)
             const allWeights = JSON.parse(localStorage.getItem('viltrum_exercise_weights') || '{}');
-            const url = new URL(GOOGLE_SCRIPT_URL);
-            url.searchParams.append('action', 'saveWeights');
-            url.searchParams.append('email', userEmail);
-            url.searchParams.append('weights', JSON.stringify(allWeights));
-            
             console.log('📤 Syncing weights to cloud before redirect...');
-            console.log('📤 URL:', url.toString().substring(0, 100) + '...');
-            
-            // Use redirect: follow for Google Apps Script, keepalive for navigation
-            const response = await fetch(url.toString(), { 
-              method: 'GET',
-              redirect: 'follow',
-              keepalive: true 
-            });
-            
-            console.log('📥 Response status:', response.status);
+            // V9: POST + session token. Also removes the old ~2000-char GET URL
+            // ceiling, which silently truncated large weight payloads.
+            await apiPost('saveWeights', { weights: JSON.stringify(allWeights) });
             console.log('✅ Weights synced to cloud');
           }
         } catch (e) {

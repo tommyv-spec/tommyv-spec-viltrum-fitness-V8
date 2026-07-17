@@ -849,21 +849,19 @@
       
       // Fetch fresh data only if needed
       try {
-        // Import URL from config (single source of truth)
-        const { GOOGLE_SCRIPT_URL } = await import('../js/config.js');
-        const response = await fetch(GOOGLE_SCRIPT_URL);
-        if (response.ok) {
-          const data = await response.json();
-          const dataStr = JSON.stringify(data);
-          const timestamp = Date.now().toString();
-          
-          // Save to both storages
-          sessionStorage.setItem('viltrum_session_data', dataStr);
-          sessionStorage.setItem('viltrum_session_timestamp', timestamp);
-          localStorage.setItem('workoutData', dataStr);
-          localStorage.setItem('workoutDataTimestamp', timestamp);
-          console.log('✅ Fresh workout data cached (valid for 24 hours)');
-        }
+        // V9: authenticated call. Same response shape as the old bare GET, but
+        // userWorkouts contains only this user's own entry.
+        const { apiPost } = await import('../js/api.js');
+        const data = await apiPost('getBootstrap');
+        const dataStr = JSON.stringify(data);
+        const timestamp = Date.now().toString();
+
+        // Save to both storages
+        sessionStorage.setItem('viltrum_session_data', dataStr);
+        sessionStorage.setItem('viltrum_session_timestamp', timestamp);
+        localStorage.setItem('workoutData', dataStr);
+        localStorage.setItem('workoutDataTimestamp', timestamp);
+        console.log('✅ Fresh workout data cached (valid for 24 hours)');
       } catch (e) {
         console.warn('⚠️ Preload fetch failed:', e);
       }

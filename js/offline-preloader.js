@@ -391,14 +391,14 @@ const OfflinePreloader = {
   // PRELOAD USER PROGRESS FROM CLOUD
   // ═══════════════════════════════════════════════════════════════════════════
 
+  // scriptUrl is unused since V9 (ViltrumAPI owns the endpoint + token).
+  // Kept in the signature so existing callers need no change.
   async preloadUserProgress(email, scriptUrl) {
     try {
       console.log('📊 Syncing user progress from cloud...');
-      
-      const url = `${scriptUrl}?action=getAllProgress&email=${encodeURIComponent(email)}`;
-      const response = await fetch(url);
-      const data = await response.json();
-      
+
+      const data = await window.ViltrumAPI.apiPost('getAllProgress');
+
       if (data.status === 'success' && data.progress) {
         await this.putInDB(this.STORES.PROGRESS, {
           id: email,

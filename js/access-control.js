@@ -14,6 +14,35 @@ const ACCESS_LEVELS = {
 const TRIAL_DURATION_DAYS = 7; // Free trial period
 
 // ============================================================================
+// HTML ESCAPING
+//
+// Plan and workout names come from the Google Sheet and are interpolated into
+// innerHTML below. Anything reaching innerHTML from the sheet MUST go through
+// this first: a name containing markup would otherwise execute in the user's
+// session, and the Supabase session token lives in localStorage — i.e. XSS
+// here is account takeover, not just a defacement.
+// ============================================================================
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// For a value used inside a single-quoted JS string in an inline handler,
+// e.g. onclick="startWorkout('...')". escapeHtml alone is not enough there.
+function escapeJsString(value) {
+  return String(value == null ? '' : value)
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '\\"')
+    .replace(/</g, '\\x3C')
+    .replace(/\r?\n/g, '\\n');
+}
+
+// ============================================================================
 // GET USER ACCESS LEVEL
 // ============================================================================
 async function getUserAccessLevel() {
@@ -228,7 +257,7 @@ async function displayUserWorkoutsWithAccess() {
         <div class="workout-preview-locked">
           ${accessInfo.workouts.map(name => `
             <div class="workout-card locked">
-              <h3>🔒 ${name}</h3>
+              <h3>🔒 ${escapeHtml(name)}</h3>
               <p>Renew to unlock</p>
             </div>
           `).join('')}
@@ -250,16 +279,16 @@ async function displayUserWorkoutsWithAccess() {
         return `
           <div class="workout-card trial">
             <div class="trial-badge">Trial Access</div>
-            <h3>${workoutName}</h3>
+            <h3>${escapeHtml(workoutName)}</h3>
             <p class="exercise-count">${workout.exercises.length} exercises</p>
-            <button onclick="startWorkout('${workoutName}')" class="start-button">Start Workout</button>
+            <button onclick="startWorkout('${escapeHtml(escapeJsString(workoutName))}')" class="start-button">Start Workout</button>
           </div>
         `;
       } else {
         return `
           <div class="workout-card locked">
             <div class="lock-badge">🔒 Premium</div>
-            <h3>${workoutName}</h3>
+            <h3>${escapeHtml(workoutName)}</h3>
             <p class="exercise-count">${workout.exercises.length} exercises</p>
             <button onclick="showSubscriptionPlans()" class="upgrade-button">Upgrade to Unlock</button>
           </div>
@@ -291,9 +320,9 @@ async function displayUserWorkoutsWithAccess() {
       
       return `
         <div class="workout-card active">
-          <h3>${workoutName}</h3>
+          <h3>${escapeHtml(workoutName)}</h3>
           <p class="exercise-count">${workout.exercises.length} exercises</p>
-          <button onclick="startWorkout('${workoutName}')" class="start-button">Start Workout</button>
+          <button onclick="startWorkout('${escapeHtml(escapeJsString(workoutName))}')" class="start-button">Start Workout</button>
         </div>
       `;
     }).join('');

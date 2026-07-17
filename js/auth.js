@@ -6,6 +6,7 @@
 // Import configuration from centralized config file
 import { SUPABASE_URL, SUPABASE_ANON_KEY, GOOGLE_SCRIPT_URL } from './config.js';
 import DataPreloader from './data-preloader.js';
+import { apiPost } from './api.js';
 
 // Initialize Supabase client
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -53,19 +54,14 @@ async function signUp(email, password, fullName, username) {
             
             // ✨ AUTOMATICALLY ADD USER TO GOOGLE SHEETS
             try {
-                
-                // Use GET request with URL parameters to bypass CORS
-                const url = new URL(GOOGLE_SCRIPT_URL);
-                url.searchParams.append('action', 'addTrialUser');
-                url.searchParams.append('email', userEmail);
-                url.searchParams.append('name', fullName);
-                
-                const response = await fetch(url.toString(), {
-                    method: 'GET'
-                });
-                
-                const result = await response.json();
-                
+                // V9: authenticated POST. No email sent — the server writes the
+                // row for whoever the session token belongs to.
+                // Relies on signUp returning a session (email confirmation is
+                // off, see emailRedirectTo above). If confirmation is ever
+                // turned on there is no session here and this call will fail —
+                // ensureUserRowInSheet on first login covers that case.
+                const result = await apiPost('addTrialUser', { name: fullName });
+
                 if (result.status === 'success' || result.status === 'info') {
                 } else {
                     console.warn('⚠️ Google Sheets response:', result.message);
@@ -143,12 +139,11 @@ async function signIn(email, password) {
  */
 async function ensureUserRowInSheet(email, fullName) {
     try {
-        const res = await fetch(GOOGLE_SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'ensureUserInSheet', email: email, name: fullName || '' }),
-        });
-        const body = await res.json().catch(() => null);
+        // V9: was POST with Content-Type: application/json, which triggers a
+        // CORS preflight that Apps Script cannot answer — so this call was
+        // very likely failing silently in the browser all along (the catch
+        // below only warns). apiPost uses text/plain, which needs no preflight.
+        const body = await apiPost('ensureUserInSheet', { name: fullName || '' });
         if (body && body.status === 'success') {
             console.log(`Sheet self-heal: ${body.mode} (${email})`);
         } else {
