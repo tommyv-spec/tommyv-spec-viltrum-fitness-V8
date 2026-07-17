@@ -1703,6 +1703,74 @@ function setAdminNotifyEmail() {
   return got;
 }
 
+// Diagnostic: answers "why is mail still going out from the wrong address?".
+// Run from the editor or the Admin Sync menu and read the execution log.
+// getAliases() is the ground truth — Gmail accepts `from` only for addresses it
+// lists here, and silently ignores any other value rather than failing loudly.
+function debugBrandSender() {
+  let effective = '(unknown)';
+  try { effective = Session.getEffectiveUser().getEmail(); } catch (e) { effective = 'getEffectiveUser failed: ' + e; }
+  Logger.log('script sends as (effective user): ' + effective);
+  Logger.log('BRAND_FROM_EMAIL   = ' + PropertiesService.getScriptProperties().getProperty('BRAND_FROM_EMAIL'));
+  Logger.log('ADMIN_NOTIFY_EMAIL = ' + PropertiesService.getScriptProperties().getProperty('ADMIN_NOTIFY_EMAIL'));
+  const brand = _brandFrom();
+  Logger.log('_brandFrom() resolves to: ' + brand);
+
+  let aliases = null;
+  try {
+    aliases = GmailApp.getAliases();
+    Logger.log('GmailApp.getAliases() -> ' + JSON.stringify(aliases));
+  } catch (e) {
+    Logger.log('GmailApp.getAliases() THREW (likely missing scope): ' + e);
+  }
+
+  if (aliases) {
+    if (aliases.indexOf(brand) !== -1) {
+      Logger.log('VERDICT: alias "' + brand + '" IS available. `from` will be honoured.');
+    } else {
+      Logger.log('VERDICT: alias "' + brand + '" NOT in the alias list of ' + effective + '.');
+      Logger.log('         Gmail will IGNORE `from` and send as ' + effective + ' instead.');
+      Logger.log('         Add it under Gmail Settings -> Accounts and Import -> "Send mail as",');
+      Logger.log('         signed in as ' + effective + ', and click the confirmation link.');
+    }
+  }
+  return { effectiveUser: effective, brandFrom: brand, aliases: aliases };
+}
+
+// Definitive alias test: sends one real mail through the same `from` path the
+// production mail uses. Throwing means Gmail refuses the address (wrong spelling
+// or unverified); not throwing means it accepted it, and the delivered From
+// header is then the ground truth. Kept separate from setupAuthorizeGmail, which
+// deliberately sends unaliased to prove baseline Gmail auth.
+function testBrandSend() {
+  const brand = _brandFrom();
+  Logger.log('BRAND resolves to: "' + brand + '" (len=' + brand.length + ')');
+  if (!brand) {
+    Logger.log('ABORT: no brand address configured.');
+    return;
+  }
+  try {
+    GmailApp.sendEmail(
+      brand,
+      '[Viltrum] TEST mittente alias',
+      'Se il mittente di questa email e\' "Viltrum Fitness <' + brand + '>", l\'alias funziona.\n\n' +
+      'Se invece arriva da tommaso.vinattieri.online@gmail.com, Gmail sta ignorando il parametro from.',
+      { from: brand, name: 'Viltrum Fitness' }
+    );
+    Logger.log('RESULT: aliased send did NOT throw — Gmail accepted from="' + brand + '".');
+    Logger.log('        Now open the mail just delivered to ' + brand + ' and read its From header.');
+    Logger.log('        From = Viltrum Fitness  -> alias works, nothing left to fix.');
+    Logger.log('        From = tommaso...       -> Gmail silently ignored `from`, tell Claude.');
+  } catch (e) {
+    Logger.log('RESULT: aliased send THREW -> ' + e);
+    Logger.log('        Read the exception above; do not assume the cause. Two seen so far:');
+    Logger.log('        "permissions are not sufficient" -> manifest is missing gmail.settings.basic,');
+    Logger.log('           which `from` needs to resolve the alias list. Re-authorize after adding it.');
+    Logger.log('        "Invalid from address"           -> alias missing/unverified on ' + brand + ',');
+    Logger.log('           or spelled differently than the configured address.');
+  }
+}
+
 // The address mail is sent FROM. Deliberately a separate knob from
 // ADMIN_NOTIFY_EMAIL (where admin notices are sent TO): re-pointing admin
 // notifications at someone's personal inbox must never change what paying
@@ -2608,6 +2676,7 @@ function onOpen() {
     .addSeparator()
     .addItem('Setup: notifica admin email', 'setAdminNotifyEmail')
     .addItem('Setup: autorizza invio email Gmail', 'setupAuthorizeGmail')
+    .addItem('Debug: mittente email (alias)', 'debugBrandSender')
     .addToUi();
 }
 
