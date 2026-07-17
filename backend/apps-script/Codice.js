@@ -1704,9 +1704,21 @@ function _sendAdminNotice(type, subject, lines) {
     return;
   }
   _logEmailAttempt(type, adminEmail, 'attempting', subject);
+  const body = lines.join('\n');
   try {
-    GmailApp.sendEmail(adminEmail, subject, lines.join('\n'));
-    _logEmailAttempt(type, adminEmail, 'sent', subject);
+    // Send from the brand address to itself rather than from whichever Google
+    // account happens to own the script. Gmail only allows `from` addresses that
+    // are verified "Send mail as" aliases on the sending account, so this throws
+    // until that alias exists — fall back to the default sender rather than drop
+    // the notice, and log which sender actually carried it.
+    try {
+      GmailApp.sendEmail(adminEmail, subject, body, { from: adminEmail, name: 'Viltrum Fitness' });
+      _logEmailAttempt(type, adminEmail, 'sent', 'from=' + adminEmail + ' | ' + subject);
+    } catch (aliasErr) {
+      Logger.log('alias send failed, falling back to default sender: ' + aliasErr);
+      GmailApp.sendEmail(adminEmail, subject, body);
+      _logEmailAttempt(type, adminEmail, 'sent-default-sender', 'alias missing: ' + aliasErr.toString().slice(0, 150));
+    }
   } catch (e) {
     _logEmailAttempt(type, adminEmail, 'failed', e.toString());
     Logger.log('_sendAdminNotice failed (' + type + '): ' + e);
