@@ -1509,6 +1509,8 @@ function addTrialUser(data) {
   const trialEndDate = new Date();
   trialEndDate.setDate(trialEndDate.getDate() + 7);
   userSheet.appendRow([name, email, "", "", trialEndDate, defaultPlan]);
+  // Fires only past the duplicate-email guard above, so one mail per real signup.
+  try { notifyAdminNewSignup(email, name, defaultPlan, trialEndDate); } catch (e) { Logger.log('notify signup failed: ' + e); }
   return createResponse({ status: 'success', message: 'Trial activated', email });
 }
 
@@ -1691,12 +1693,43 @@ function setAdminNotifyEmail() {
   return got;
 }
 
+// Every admin notice funnels through here: one place resolves ADMIN_NOTIFY_EMAIL,
+// writes the EmailLog row, and swallows send failures. Callers are all in
+// user-facing write paths — a bounced admin mail must never fail the signup or
+// the plan assignment that triggered it.
+function _sendAdminNotice(type, subject, lines) {
+  const adminEmail = PropertiesService.getScriptProperties().getProperty('ADMIN_NOTIFY_EMAIL');
+  if (!adminEmail) {
+    Logger.log('admin notice skipped, ADMIN_NOTIFY_EMAIL unset: ' + type);
+    return;
+  }
+  _logEmailAttempt(type, adminEmail, 'attempting', subject);
+  try {
+    GmailApp.sendEmail(adminEmail, subject, lines.join('\n'));
+    _logEmailAttempt(type, adminEmail, 'sent', subject);
+  } catch (e) {
+    _logEmailAttempt(type, adminEmail, 'failed', e.toString());
+    Logger.log('_sendAdminNotice failed (' + type + '): ' + e);
+  }
+}
+
+function _fmtAdminDate(d) {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return '';
+  return Utilities.formatDate(dt, Session.getScriptTimeZone(), 'dd/MM/yyyy');
+}
+
+const _NEXT_STEPS = [
+  'Prossimi step:',
+  '1. Attendi che il cliente compili il questionario',
+  '2. Apri Sheet -> Admin Sync -> Lead / Questionari',
+  '3. Click "Converti + assegna piano" sul lead corrispondente',
+];
+
 // Notify admin of a new Shopify purchase. Set ADMIN_NOTIFY_EMAIL Script Property.
 function notifyAdminNewPurchase(email, fullName, planName, orderId, orderTotal, isNewUser) {
-  const adminEmail = PropertiesService.getScriptProperties().getProperty('ADMIN_NOTIFY_EMAIL');
-  if (!adminEmail) return;
-  const subject = `[Viltrum] Nuovo ordine Shopify: ${fullName || email}`;
-  const body = [
+  _sendAdminNotice('admin-purchase', `[Viltrum] Nuovo ordine Shopify: ${fullName || email}`, [
     'NUOVO ORDINE SHOPIFY',
     '',
     'Cliente:   ' + (fullName || '-'),
@@ -1706,12 +1739,39 @@ function notifyAdminNewPurchase(email, fullName, planName, orderId, orderTotal, 
     'Totale:    ' + orderTotal,
     'Tipo:      ' + (isNewUser ? 'Nuovo utente (welcome email inviata)' : 'Utente esistente — rinnovo / piano aggiuntivo'),
     '',
-    'Prossimi step:',
-    '1. Attendi che il cliente compili il questionario',
-    '2. Apri Sheet -> Admin Sync -> Lead / Questionari',
-    '3. Click "Converti + assegna piano" sul lead corrispondente',
-  ].join('\n');
-  GmailApp.sendEmail(adminEmail, subject, body);
+  ].concat(_NEXT_STEPS));
+}
+
+// Notify admin of a free-trial signup from the app login screen ("prova gratis").
+function notifyAdminNewSignup(email, name, planName, scadenza) {
+  _sendAdminNotice('admin-signup', `[Viltrum] Nuova iscrizione: ${name || email}`, [
+    'NUOVA ISCRIZIONE — PROVA GRATIS',
+    '',
+    'Nome:      ' + (name || '-'),
+    'Email:     ' + email,
+    'Piano:     ' + (planName || '-'),
+    'Scadenza:  ' + (_fmtAdminDate(scadenza) || '-'),
+    'Origine:   registrazione dall\'app (prova gratis)',
+    'Data:      ' + _fmtAdminDate(new Date()),
+    '',
+  ].concat(_NEXT_STEPS));
+}
+
+// Notify admin when a real plan lands on a user's row (lead conversion, manual
+// re-add, or the sync API). Distinct from notifyAdminNewPurchase, which fires at
+// payment time when the plan is still a placeholder.
+function notifyAdminPlanAssigned(email, name, planName, scadenza, mode, via) {
+  _sendAdminNotice('admin-plan', `[Viltrum] Piano assegnato: ${name || email} -> ${planName}`, [
+    'PIANO ASSEGNATO',
+    '',
+    'Nome:      ' + (name || '-'),
+    'Email:     ' + email,
+    'Piano:     ' + (planName || '-'),
+    'Scadenza:  ' + (_fmtAdminDate(scadenza) || '-'),
+    'Riga:      ' + (mode === 'inserted' ? 'nuovo utente creato' : 'utente esistente aggiornato'),
+    'Origine:   ' + (via || '-'),
+    'Data:      ' + _fmtAdminDate(new Date()),
+  ]);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2282,10 +2342,12 @@ function syncReAddUser(data) {
       userSheet.getRange(i + 1, 1).setValue(name);
       userSheet.getRange(i + 1, 5).setValue(scadenza);
       userSheet.getRange(i + 1, 6).setValue(plan);
+      try { notifyAdminPlanAssigned(email, name, plan, scadenza, 'updated', 'sync API (re-add-user)'); } catch (e) { Logger.log('notify plan failed: ' + e); }
       return createResponse({ status: 'success', mode: 'updated', email: email });
     }
   }
   userSheet.appendRow([name, email, '', '', scadenza, plan]);
+  try { notifyAdminPlanAssigned(email, name, plan, scadenza, 'inserted', 'sync API (re-add-user)'); } catch (e) { Logger.log('notify plan failed: ' + e); }
   return createResponse({ status: 'success', mode: 'inserted', email: email });
 }
 
@@ -2629,10 +2691,14 @@ function adminReAddUser(payload) {
       userSheet.getRange(i + 1, 1).setValue(name);
       userSheet.getRange(i + 1, 5).setValue(scadenza);
       userSheet.getRange(i + 1, 6).setValue(plan);
+      // Never throw from here: this returns straight to the AdminLeads dialog via
+      // google.script.run, and a mail hiccup must not read as a failed conversion.
+      try { notifyAdminPlanAssigned(email, name, plan, scadenza, 'updated', 'Admin Sheet (Converti / Riallinea)'); } catch (e) { Logger.log('notify plan failed: ' + e); }
       return { mode: 'updated', email: email };
     }
   }
   userSheet.appendRow([name, email, '', '', scadenza, plan]);
+  try { notifyAdminPlanAssigned(email, name, plan, scadenza, 'inserted', 'Admin Sheet (Converti / Riallinea)'); } catch (e) { Logger.log('notify plan failed: ' + e); }
   return { mode: 'inserted', email: email };
 }
 
