@@ -2,7 +2,24 @@
 
 Closes the anonymous-read/write holes in the Apps Script backend. Written 2026-07-17.
 
-**Nothing is live yet.** Production still serves Apps Script `@32` (the vulnerable version). The V9 code is pushed to HEAD only.
+**Nothing is live yet.** Production still serves Apps Script `@32` (the vulnerable version).
+The V9 code is pushed to Apps Script HEAD, and the client lives on the **`v9-auth` branch**.
+
+## ⚠️ Read this before running deploy.ps1
+
+The V9 client is on branch `v9-auth`, **not** on `main`. This is deliberate.
+
+`deploy.ps1` runs `git add -A` and deploys whatever is in the working tree. The V9 client
+talks only to the V9 backend, so deploying it while production serves `@32` breaks the whole
+app. Keep V9 on its branch until Step 1 is done and Step 2 has promoted the backend.
+
+This already bit us once: `v8.2.36` was deployed mid-session and swept up a half-finished V9
+change to `pages/endurance.html`. It shipped an authenticated call to the old backend, which
+still required an `email` it no longer received — endurance cloud progress sync failed
+silently for every user until `v8.2.37` reverted it. Local progress was unaffected and no data
+was lost, but nothing warned: the call is wrapped in a `.catch()` that only logs.
+
+**Only ever deploy `main`. Merge `v9-auth` into it as part of Step 4, not before.**
 
 ---
 
