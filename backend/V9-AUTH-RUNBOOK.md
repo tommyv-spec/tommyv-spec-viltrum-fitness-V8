@@ -1,199 +1,126 @@
-# V9 Auth Fix — Deploy Runbook
+# V9 Auth — SHIPPED 2026-07-17
 
-Closes the anonymous-read/write holes in the Apps Script backend. Written 2026-07-17.
-
-**Nothing is live yet.** Production still serves Apps Script `@32` (the vulnerable version).
-The V9 code is pushed to Apps Script HEAD, and the client lives on the **`v9-auth` branch**.
-
-## ⚠️ Read this before running deploy.ps1
-
-The V9 client is on branch `v9-auth`, **not** on `main`. This is deliberate.
-
-`deploy.ps1` runs `git add -A` and deploys whatever is in the working tree. The V9 client
-talks only to the V9 backend, so deploying it while production serves `@32` breaks the whole
-app. Keep V9 on its branch until Step 1 is done and Step 2 has promoted the backend.
-
-This already bit us once: `v8.2.36` was deployed mid-session and swept up a half-finished V9
-change to `pages/endurance.html`. It shipped an authenticated call to the old backend, which
-still required an `email` it no longer received — endurance cloud progress sync failed
-silently for every user until `v8.2.37` reverted it. Local progress was unaffected and no data
-was lost, but nothing warned: the call is wrapped in a `.catch()` that only logs.
-
-**Only ever deploy `main`. Merge `v9-auth` into it as part of Step 4, not before.**
+The Apps Script backend authenticated every user endpoint with a Supabase JWT. **Live in
+production**: Apps Script deployment `@34`, client `v8.2.38`.
 
 ---
 
-## What the fix is, in one line
+## What was wrong
 
-`doPost` verifies the caller's Supabase token and **overwrites `data.email` with the verified address**, so a caller can no longer name whose data they want. Endpoints live in three tables — public / sync-token / user-token — and anything not in a table is denied.
+The web app is deployed `ANYONE_ANONYMOUS` and took the caller's identity from an `email`
+query parameter. The endpoint URL is not a secret — it ships to every browser in
+`js/config.js`. So the login screen protected nothing.
 
----
-
-## State
-
-| Item | Status |
+| Hole | Was |
 |---|---|
-| Backend V9 code | ✅ written, pushed to Apps Script **HEAD** (production `@32` untouched) |
-| Staging deployment | ✅ `AKfycbwuh2hrho__RELvXqvSfBYmF61zXwBL76n2W5NNNEf3jZvveCU8B1k-sln9AtMHhFw6Rg` @33 |
-| `SYNC_TOKEN` — Supabase edge secret | ✅ set to a NEW value (fingerprint `tNyJ…YO`, 48 chars) |
-| `SYNC_TOKEN` — value on disk | ✅ `backend/.env.sync` (gitignored, verified) |
-| `SYNC_TOKEN` — **Script Property** | ⚠️ **exists, but holds a DIFFERENT value — see Step 1** |
-| `SUPABASE_ANON_KEY` Script Property | ✅ not needed — hardcoded (it's public by design) |
-| Client code migrated (11 call sites) | ✅ written, **not deployed** |
-| Regression test | ✅ `node backend/tests/test-auth-routing.cjs` → 28/28 |
-| Supabase rejects forged JWTs | ✅ verified live (403 `bad_jwt`, signature enforced) |
-| CORS (`text/plain` POST, no preflight) | ✅ verified live — `access-control-allow-origin: *` |
-| **IDOR closed — real tokens vs staging** | ✅ verified: B with a valid token could not read or write A |
-| Revenue bypass closed | ✅ verified: user token → `addPlanToUser` → `Unauthorized` |
-| Browser page-load / module wiring | ❌ not tested (see Step 3) |
-| Production promotion | ❌ not done |
+| **C1** full customer dump | bare `GET <url>` returned every customer's email, full name, expiry and nutrition PDF link |
+| **C2** IDOR on every read | `?action=getUserData&email=<anyone>` — only validation was `includes('@')` |
+| **C3** unauthenticated writes | `saveWeights` / `saveLastWorkout` over GET; **`addPlanToUser` = free subscriptions** |
+| **C4** health data | `submitQuestionnaire` public, unrate-limited, stores GDPR Art. 9 data |
+| + | `list-email-log` ungated (customer emails); `bustCache` ungated (quota DoS) |
+| + | dead pre-Supabase `login()` put **credentials in a URL query string** |
+| + | sheet strings → `innerHTML` (stored XSS → session token in localStorage) |
 
-### Evidence for the security claims
+## The fix
 
-Run against the staging deployment with two real throwaway Supabase sessions:
+`doPost` verifies the caller's Supabase token and **overwrites `data.email` with the verified
+address** before dispatch. A caller can no longer name whose data they want.
 
-| Test | Result |
-|---|---|
-| bare `GET` (the old full dump) | `{"status":"error","code":"gone"}` — no data |
-| `GET ?action=getUserData&email=…` (old IDOR) | `{"status":"error","code":"gone"}` — no data |
-| `POST getUserData` no token | `unauthorized: Missing session token` |
-| `POST getUserData` forged token | `unauthorized: Invalid or expired session` |
-| A reads own row with valid token | `success`, returns A's email ✅ (app works) |
-| **B (valid token) requests `email=A`** | **`User not found` — B could not read A** |
-| **B (valid token) writes `email=A`** | **write landed in B's own row; A unaffected** |
-| B (valid token) calls `addPlanToUser` | `Unauthorized` |
-| unlisted action | `Unknown action` |
+Endpoints live in one of three tables — `PUBLIC_ACTIONS` / `SYNC_ACTIONS` / `USER_ACTIONS`.
+**Anything not in a table is denied.** Adding an endpoint without choosing its auth is now
+impossible.
 
-### Test leftovers to delete
+Transport is POST + `Content-Type: text/plain` — a CORS "simple request". Apps Script cannot
+answer a preflight (there is no `doOptions`), so an `Authorization` header is impossible
+cross-origin. The token rides in the body, which also keeps it out of URLs and execution logs.
+**Do not "improve" this to a header or a `?token=` param.**
 
-Two throwaway Supabase auth users were created and **already deleted automatically**. These sheet
-rows remain and should be removed by hand (both are inert — no plan means no access):
+## Verified in production
 
-- **`Users` sheet** → row for `v9-authtest-a-mro5l7y9@example.com`
-- **`UserWeights` sheet** → row for `v9-authtest-b-mro5l7y9@example.com`
+8/8 holes confirmed closed against the live endpoint, and 19/19 in a real Chromium browser
+with a real Supabase session:
+
+- user B holding a **valid** token asked for user A's row → `User not found`
+- user B wrote with `email=A` → the write landed in **B's own row**
+- user B called `addPlanToUser` → `Unauthorized`
+- bare `GET` → `{"code":"gone"}`, no data
+- forged JWT → rejected (Supabase answers **403 `bad_jwt`**, not 401 — do not assert 401)
+
+Regression suite (71 checks): `node backend/tests/test-auth-routing.cjs` (32),
+`test-client-api.mjs` (28), `test-wiring.mjs` (11). Browser: `test-browser-e2e.cjs` (19,
+needs `NODE_PATH` set to `node_modules` and `npm i --no-save playwright`).
 
 ---
 
-## Step 1 — Reconcile SYNC_TOKEN (only you can do this) ← **BLOCKING**
+## ⚠️ Outstanding — please do these
 
-### What we know for certain
+### 1. Check for evidence of exploitation
 
-`SYNC_TOKEN` **already exists** as a Script Property. Proven empirically: calling `addPlanToUser`
-against staging returned `"Unauthorized"`, and `_checkSyncToken` only reaches that branch when the
-property is set (an unset property returns `"SYNC_TOKEN not configured in Script Properties"`).
+`clasp logs` needs a GCP project, so this is manual: Apps Script editor → **Executions**. Look
+for `doGet` calls that don't match app traffic.
 
-Its value is **unknown to us** and cannot be read: `clasp run` fails because the script's GCP project
-doesn't match clasp's OAuth client, and Script Properties aren't exposed by any API clasp can reach.
+This decides whether this was a close call or a breach. **GDPR Art. 33 gives 72 hours from
+awareness.** Exposed fields: every customer's email, full name, subscription expiry, nutrition
+PDF link.
 
-**A new value was already written to the Supabase edge secret `SYNC_TOKEN`** (fingerprint `tNyJ…YO`,
-48 chars, full value in `backend/.env.sync`). The two therefore **do not match right now.**
+### 2. Audit Drive sharing on the nutrition PDFs
 
-That mismatch is harmless today — production `@32` doesn't check the token at all. It becomes a
-**revenue outage the moment v33 is promoted**: the Shopify webhook would be rejected and purchases
-would silently stop granting plans.
+If `nutrition_pdf_url` files are "anyone with the link", those links were in the anonymous
+dump — and the PDFs are health data (Art. 9).
 
-### Pick one, before Step 2
+### 3. Revert the service-worker `skipWaiting()`
 
-**Option A — adopt the new token (recommended; rotates the secret, which is good hygiene after an audit)**
+`sw.js` install calls `self.skipWaiting()` as a **one-off** for this rollout, because pre-V9
+clients could not talk to the V9 backend at all and waiting for consent would have stranded
+them. Put the original comment back and drop the call so users regain control of updates. The
+`SKIP_WAITING` message handler is untouched and still drives the "Aggiorna" banner.
 
-1. Apps Script editor (`clasp open-script` from `backend/apps-script/`, or script.google.com).
-2. **Project Settings** → **Script Properties** → edit `SYNC_TOKEN`.
-3. Paste the value from the `SYNC_TOKEN=` line in `backend/.env.sync`. Save.
-4. If you run `audit-sync.js` / `admin-readd-user.js` from any machine, update their env to match.
+### 4. Delete the test rows (all inert — no plan means no access)
 
-**Option B — keep the existing token**
+- `Users` sheet: `v9-authtest-a-mro5l7y9@example.com`, `v9-browser-mro69el7@example.com`,
+  `v9-browser-mro6ajxm@example.com`, `v9-browser-mro8135e@example.com`
+- `UserWeights` sheet: `v9-authtest-b-mro5l7y9@example.com`
+- `UserProgress` sheet: any row named `HotfixProbe`
 
-1. Read the current `SYNC_TOKEN` from Script Properties.
-2. `supabase secrets set SYNC_TOKEN=<that existing value>` (overwrites what we set).
-3. Nothing else changes; your audit tooling keeps working untouched.
+Throwaway Supabase auth users were deleted automatically.
 
-### Verify either way
+### 5. Consider rate-limiting `submitQuestionnaire`
 
-In the editor run `v9AuthDiagnostics` → expect `syncTokenConfigured: true`, `syncTokenLength: 48`
-(Option A) or your existing length (Option B).
-Run `v9CheckSupabaseReachable` → expect `healthy: true`. Supabase answers **403** for a bad token,
-not 401 — verified against the live project. Do not "fix" that assertion to 401.
-
-Final check that they match, after promotion, is Step 3's purchase test.
+Still public by necessity (prospects have no account) and it stores health data. Consider a
+CAPTCHA, a retention period, and restricting the `Leads` sheet ACL.
 
 ---
 
-## Step 2 — Promote the backend
+## Things worth knowing
 
-```bash
-cd backend/apps-script
-clasp deploy --deploymentId AKfycbziZcFyYVVoK4w8jvHEnd0Fi6cD9ZaIGnBwDQc0Dhf1wx7tZ1uWgW8e74O5jR2c8YodGg -d "v33: V9 auth - Supabase JWT on all user endpoints"
-```
+**`SYNC_TOKEN` was the literal string `openssl rand -hex 32`** — the command was pasted instead
+of run. It now holds a real 256-bit hex token (`backend/.env.sync`, gitignored). It must match
+in three places: the Script Property, the Supabase edge secret (`supabase secrets set
+SYNC_TOKEN=...`), and `backend/.env.sync` for `audit-sync.js`. **Rotating means updating all
+three or Shopify purchases stop granting plans.** It cannot be set from `clasp` — Script
+Properties have no API clasp can reach and `clasp run` needs a GCP OAuth client this project
+doesn't have. That field is human-only.
 
-That deployment ID is the live URL in `js/config.js`. Promoting it is the moment the holes close — **and the moment every un-updated client breaks** (old cached JS calls GET endpoints that no longer exist).
+**The anon key is hardcoded in `Codice.js`** with a Script Property override. It's public by
+design (already in `js/config.js`), so this needs no setup. Keep it in sync with `config.js` —
+`test-wiring.mjs` asserts they match.
 
-Rollback: re-deploy the same ID pinned to version 32.
+**Never cache an error response per user.** `_cacheIfSuccess` exists because caching
+`"User not found"` for 5 minutes left new signups staring at an empty dashboard long after
+their row existed. Pre-V9 bug, found via a flaky e2e run.
 
----
+**Stale caches on user devices.** Pre-V9 clients cached the *entire* backend response — every
+customer's email and name — into each user's `localStorage`. `js/api.js` runs a one-shot purge
+(flag `viltrum_v9_legacy_purged`) on import. Leave it until every install has loaded once.
 
-## Step 3 — Test before trusting it
+## Two ways this bit us — worth remembering
 
-The HTTP contract, the Supabase round-trip, CORS, and IDOR closure are all **verified against real
-deployed code** (see the evidence table above). What is **not** verified is the browser page itself:
-module load order, `window.ViltrumAPI` being present when `index.html` and `offline-preloader.js`
-reach for it, and the service-worker precache picking up the new `js/api.js`.
+**`deploy.ps1` runs `git add -A`.** It ran mid-session and swept up a half-finished V9 change
+to `endurance.html`, shipping an authenticated call to the old backend: endurance cloud sync
+failed silently for every user (`.catch` only warns) until `v8.2.37` reverted it. If work is in
+progress, it is on a branch or it is not in the tree.
 
-**Recommended: test against staging before promoting anything.** Point the client at the staging
-deployment and run the app locally:
-
-1. In `js/config.js`, temporarily set `GOOGLE_SCRIPT_URL` to the staging URL
-   (`.../AKfycbwuh2hrho__RELvXqvSfBYmF61zXwBL76n2W5NNNEf3jZvveCU8B1k-sln9AtMHhFw6Rg/exec`).
-2. Serve the folder (`npx serve .`) and log in with a real account.
-3. Check: dashboard loads, a workout starts and completes, progress survives a reload,
-   and the console shows no CORS errors and no `ViltrumAPI is undefined`.
-4. **Revert `config.js`** before deploying.
-
-If that passes, Steps 2 and 4 are low-risk. If it fails, nothing in production was touched.
-
-### After promotion
-
-Make one real (or test-mode) Shopify purchase and confirm the plan is granted. That is the only
-end-to-end proof that the Step 1 token reconciliation is correct.
-
-## Step 3b — Delete the staging deployment when done
-
-It serves the same spreadsheet and is anonymous-accessible (secured by V9, but it is extra surface):
-
-```bash
-cd backend/apps-script
-clasp undeploy AKfycbwuh2hrho__RELvXqvSfBYmF61zXwBL76n2W5NNNEf3jZvveCU8B1k-sln9AtMHhFw6Rg
-```
-
----
-
-## Step 4 — Deploy the client
-
-```powershell
-.\deploy.ps1 -Message "v9: authenticated backend"
-```
-
-Bumps `sw.js`, commits, pushes, runs `wrangler deploy`. (A git push alone does **not** publish; wrangler does.)
-
-### The cutover window
-
-`sw.js` deliberately does **not** `skipWaiting()` — users get an "Aggiorna" banner and stay on old code until they tap it. Between step 2 and a user tapping that banner, **their app is broken**, because old JS talks to endpoints V9 removed.
-
-Recommendation: for this one release, call `self.skipWaiting()` in the SW `install` handler so clients update without asking. Waiting for consent to leave a broken state is the wrong trade here. Open pages still need a reload either way.
-
----
-
-## Step 5 — Check for evidence of exploitation
-
-`clasp logs` needs a GCP project, so this is manual: Apps Script editor → **Executions**. Look for `doGet` executions that don't correspond to app traffic.
-
-This is what separates "we fixed a hole" from "we had a breach". If real customer data was pulled, GDPR Art. 33 gives you **72 hours from awareness** to assess notifiability. The exposed fields were: every customer's email, full name, subscription expiry, and nutrition PDF link.
-
-Also audit Drive sharing on the `nutrition_pdf_url` files — if they're "anyone with the link", those links were in the anonymous dump, and the PDFs are health data.
-
----
-
-## Note on stale client caches
-
-Pre-V9 clients cached the **entire** backend response — every customer's email, name and PDF link — into each user's `localStorage`. Closing the endpoint does not remove those copies.
-
-`js/api.js` runs a one-shot purge (flag `viltrum_v9_legacy_purged`) on import to wipe them. Leave it in place until you're confident every install has loaded once.
+**Grep for the capability, not one syntax for it.** The first sweep searched for the literal
+`?action=` and so missed `js/workout-history.js`, which built the same URLs with
+`searchParams.append` — four live IDOR endpoints that survived. `test-wiring.mjs` now matches
+on anything touching `GOOGLE_SCRIPT_URL` outside `js/api.js`.
