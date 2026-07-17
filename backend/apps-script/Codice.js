@@ -1509,7 +1509,11 @@ function addTrialUser(data) {
   const trialEndDate = new Date();
   trialEndDate.setDate(trialEndDate.getDate() + 7);
   userSheet.appendRow([name, email, "", "", trialEndDate, defaultPlan]);
-  // Fires only past the duplicate-email guard above, so one mail per real signup.
+  // Both fire only past the duplicate-email guard above, so one mail each per
+  // real signup. Neither may throw: the account already exists in Supabase and
+  // the row is already written, so failing here would report a broken signup for
+  // a user who is in fact fully created.
+  try { sendTrialWelcomeEmail(email, name, trialEndDate); } catch (e) { Logger.log('trial welcome failed: ' + e); }
   try { notifyAdminNewSignup(email, name, defaultPlan, trialEndDate); } catch (e) { Logger.log('notify signup failed: ' + e); }
   return createResponse({ status: 'success', message: 'Trial activated', email });
 }
@@ -1826,6 +1830,61 @@ function _logEmailAttempt(type, email, status, detail) {
     sheet.appendRow([new Date(), type, email || '', status || '', detail || '']);
   } catch (e) {
     Logger.log('logEmailAttempt failed: ' + e);
+  }
+}
+
+// Free-trial welcome. Distinct from sendWelcomeEmail: a trial user picked their
+// own password during Supabase signup, so there is no temp password to hand over
+// and printing credentials here would be both wrong and needless exposure.
+function sendTrialWelcomeEmail(email, name, trialEndDate) {
+  _logEmailAttempt('trial-welcome', email, 'attempting', '');
+  try {
+    const qUrl   = 'https://viltrumfitness.com/pages/questionario.html?email=' + encodeURIComponent(email);
+    const appUrl = 'https://viltrumfitness.com/';
+    const scadenzaStr = trialEndDate
+      ? Utilities.formatDate(new Date(trialEndDate), Session.getScriptTimeZone(), 'dd MMMM yyyy')
+      : '';
+    const displayName = name || email.split('@')[0];
+    const htmlBody = `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#000;color:#fff;padding:40px;border-radius:12px;">
+        <div style="text-align:center;margin-bottom:30px;">
+          <h1 style="font-size:28px;margin:0;letter-spacing:2px;">VILTRUM FITNESS</h1>
+          <p style="color:#888;font-size:12px;margin-top:5px;">NO SHORTCUTS. ALL SWEAT. NO TALKS, JUST REPS.</p>
+        </div>
+        <h2 style="color:#4CAF50;">Ciao ${displayName}!</h2>
+        <p>La tua <strong style="color:#4CAF50;">prova gratuita di 7 giorni</strong> e' attiva.</p>
+
+        <div style="background:#111;border:1px solid #333;border-radius:8px;padding:20px;margin:25px 0;">
+          <h3 style="color:#FFD700;margin-top:0;">Step 1 &mdash; Personalizza il tuo piano</h3>
+          <p>Compila il questionario per ricevere un piano cucito su di te. Il coach lo rivede entro 24h.</p>
+          <div style="text-align:center;margin:15px 0;">
+            <a href="${qUrl}" style="display:inline-block;background:#FFD700;color:#000;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+              COMPILA QUESTIONARIO →
+            </a>
+          </div>
+        </div>
+
+        <div style="background:#111;border:1px solid #333;border-radius:8px;padding:20px;margin:25px 0;">
+          <h3 style="color:#4CAF50;margin-top:0;">Step 2 &mdash; Inizia ad allenarti</h3>
+          <p><strong>Email:</strong> ${email}</p>
+          <p>Accedi con la password che hai scelto in fase di registrazione.</p>
+          <div style="text-align:center;margin:15px 0;">
+            <a href="${appUrl}" style="display:inline-block;background:#4CAF50;color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+              APRI VILTRUM FITNESS
+            </a>
+          </div>
+          <p style="font-size:12px;color:#888;text-align:center;margin-top:10px;">I workout appariranno appena il coach attiva il tuo piano personalizzato.</p>
+        </div>
+
+        ${scadenzaStr ? `<p style="text-align:center;">La prova gratuita scade il <strong style="color:#FFD700;">${scadenzaStr}</strong>.</p>` : ''}
+        <p style="font-size:12px;color:#666;text-align:center;">Viltrum Fitness — Il tuo percorso inizia ora.</p>
+      </div>`;
+    const sender = _sendAsBrand(email, "Benvenuto in Viltrum Fitness - la tua prova gratuita e' attiva", "", { htmlBody });
+    Logger.log('✅ Trial welcome sent to ' + email + ' from=' + sender);
+    _logEmailAttempt('trial-welcome', email, 'sent', 'from=' + sender);
+  } catch (error) {
+    _logEmailAttempt('trial-welcome', email, 'failed', error.toString());
+    Logger.log('sendTrialWelcomeEmail failed for ' + email + ': ' + error.toString());
   }
 }
 
