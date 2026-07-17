@@ -1667,18 +1667,24 @@ function sendRenewalEmail(email, name, newScadenza) {
         </div>
         <p style="font-size:12px;color:#666;text-align:center;">Per qualsiasi richiesta, scrivi al coach su WhatsApp.</p>
       </div>`;
-    GmailApp.sendEmail(email, "Rinnovo confermato - Viltrum Fitness", "", { htmlBody });
+    const sender = _sendAsBrand(email, "Rinnovo confermato - Viltrum Fitness", "", { htmlBody });
+    _logEmailAttempt('renewal', email, 'sent', 'from=' + sender);
   } catch (error) {
+    _logEmailAttempt('renewal', email, 'failed', error.toString());
     Logger.log("sendRenewalEmail failed: " + error.toString());
   }
 }
 
 // One-shot setter for ADMIN_NOTIFY_EMAIL — invoked from the Sheet menu.
+// Also seeds BRAND_FROM_EMAIL (the sender). They start equal; split them only if
+// admin notices should ever land somewhere other than the brand inbox.
 function setAdminNotifyEmail() {
   const targetEmail = 'viltrumfitness@gmail.com';
   PropertiesService.getScriptProperties().setProperty('ADMIN_NOTIFY_EMAIL', targetEmail);
+  PropertiesService.getScriptProperties().setProperty('BRAND_FROM_EMAIL', targetEmail);
   const got = PropertiesService.getScriptProperties().getProperty('ADMIN_NOTIFY_EMAIL');
   Logger.log('ADMIN_NOTIFY_EMAIL set; verify-read=' + got);
+  Logger.log('BRAND_FROM_EMAIL set; verify-read=' + PropertiesService.getScriptProperties().getProperty('BRAND_FROM_EMAIL'));
   try {
     SpreadsheetApp.getUi().alert(
       'Setup completato',
@@ -1693,6 +1699,36 @@ function setAdminNotifyEmail() {
   return got;
 }
 
+// The address mail is sent FROM. Deliberately a separate knob from
+// ADMIN_NOTIFY_EMAIL (where admin notices are sent TO): re-pointing admin
+// notifications at someone's personal inbox must never change what paying
+// customers see as the sender. Falls back to ADMIN_NOTIFY_EMAIL when unset.
+function _brandFrom() {
+  const props = PropertiesService.getScriptProperties();
+  return props.getProperty('BRAND_FROM_EMAIL') || props.getProperty('ADMIN_NOTIFY_EMAIL') || '';
+}
+
+// Every outbound mail goes through here. GmailApp sends as whoever owns the
+// script, so without `from` these arrive from a personal Google account. Gmail
+// only accepts a `from` that is a verified "Send mail as" alias on that account,
+// so the aliased send throws until the alias exists — fall back to the default
+// sender rather than drop the mail. Returns the address that actually carried
+// it, so callers can log which path was taken.
+function _sendAsBrand(to, subject, body, options) {
+  const base = options || {};
+  const brand = _brandFrom();
+  if (brand) {
+    try {
+      GmailApp.sendEmail(to, subject, body, Object.assign({}, base, { from: brand, name: 'Viltrum Fitness' }));
+      return brand;
+    } catch (aliasErr) {
+      Logger.log('brand alias send failed, using default sender: ' + aliasErr);
+    }
+  }
+  GmailApp.sendEmail(to, subject, body, base);
+  return 'default-sender';
+}
+
 // Every admin notice funnels through here: one place resolves ADMIN_NOTIFY_EMAIL,
 // writes the EmailLog row, and swallows send failures. Callers are all in
 // user-facing write paths — a bounced admin mail must never fail the signup or
@@ -1704,21 +1740,9 @@ function _sendAdminNotice(type, subject, lines) {
     return;
   }
   _logEmailAttempt(type, adminEmail, 'attempting', subject);
-  const body = lines.join('\n');
   try {
-    // Send from the brand address to itself rather than from whichever Google
-    // account happens to own the script. Gmail only allows `from` addresses that
-    // are verified "Send mail as" aliases on the sending account, so this throws
-    // until that alias exists — fall back to the default sender rather than drop
-    // the notice, and log which sender actually carried it.
-    try {
-      GmailApp.sendEmail(adminEmail, subject, body, { from: adminEmail, name: 'Viltrum Fitness' });
-      _logEmailAttempt(type, adminEmail, 'sent', 'from=' + adminEmail + ' | ' + subject);
-    } catch (aliasErr) {
-      Logger.log('alias send failed, falling back to default sender: ' + aliasErr);
-      GmailApp.sendEmail(adminEmail, subject, body);
-      _logEmailAttempt(type, adminEmail, 'sent-default-sender', 'alias missing: ' + aliasErr.toString().slice(0, 150));
-    }
+    const sender = _sendAsBrand(adminEmail, subject, lines.join('\n'));
+    _logEmailAttempt(type, adminEmail, 'sent', 'from=' + sender + ' | ' + subject);
   } catch (e) {
     _logEmailAttempt(type, adminEmail, 'failed', e.toString());
     Logger.log('_sendAdminNotice failed (' + type + '): ' + e);
@@ -1846,9 +1870,9 @@ function sendWelcomeEmail(email, name, planName, tempPassword) {
       </div>`;
     let quotaInfo = '';
     try { quotaInfo = 'quota=' + MailApp.getRemainingDailyQuota(); } catch (e) {}
-    GmailApp.sendEmail(email, "Benvenuto in Viltrum Fitness - Step 1: questionario", "", { htmlBody });
-    Logger.log('✅ Welcome email sent to ' + email + ' ' + quotaInfo);
-    _logEmailAttempt('welcome', email, 'sent', quotaInfo);
+    const sender = _sendAsBrand(email, "Benvenuto in Viltrum Fitness - Step 1: questionario", "", { htmlBody });
+    Logger.log('✅ Welcome email sent to ' + email + ' from=' + sender + ' ' + quotaInfo);
+    _logEmailAttempt('welcome', email, 'sent', 'from=' + sender + ' ' + quotaInfo);
   } catch (error) {
     const msg = error.toString() + ' :: ' + (error.stack || '');
     Logger.log("❌ Failed to send welcome email to " + email + ": " + msg);
