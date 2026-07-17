@@ -1273,11 +1273,11 @@
     // Stores result in sessionStorage so DataPreloader picks it up instantly
     // ═══════════════════════════════════════════════════════════════════════════
     function prefetchUserData(email) {
-      const GAS_URL = 'https://script.google.com/macros/s/AKfycbziZcFyYVVoK4w8jvHEnd0Fi6cD9ZaIGnBwDQc0Dhf1wx7tZ1uWgW8e74O5jR2c8YodGg/exec';
-      const url = `${GAS_URL}?action=getUserData&email=${encodeURIComponent(email.toLowerCase())}`;
+      // V9: authenticated. The email arg is no longer sent — identity comes
+      // from the session token. (This also drops a hardcoded copy of the GAS
+      // URL that had drifted from config.js, the stated single source of truth.)
       console.log('🚀 Pre-fetching user data...');
-      fetch(url)
-        .then(r => r.json())
+      window.ViltrumAPI.apiPost('getUserData')
         .then(data => {
           if (data.status === 'success') {
             sessionStorage.setItem('viltrum_prefetch', JSON.stringify(data));

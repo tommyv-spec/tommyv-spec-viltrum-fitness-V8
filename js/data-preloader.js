@@ -6,7 +6,7 @@
  * Cached users still get instant loads from localStorage.
  */
 
-import { GOOGLE_SCRIPT_URL } from './config.js';
+import { apiPost, AuthError } from './api.js';
 
 const CACHE_KEY_USER = 'viltrum_user_info_v2';
 const CACHE_KEY_WORKOUTS = 'viltrum_workout_data_v2';
@@ -190,16 +190,17 @@ const DataPreloader = {
   // FETCH ENDPOINTS
   // ═══════════════════════════════════════════════════════════════════════════
   
+  // V9: identity comes from the session token attached by apiPost, NOT from
+  // the `email` argument. The email params below are kept only because callers
+  // pass them for logging/cache keys — the server ignores any email it is sent.
+
   async _fetchUserInfo(email) {
     const startTime = Date.now();
-    
+
     // Try new light endpoint first
     try {
-      const url = `${GOOGLE_SCRIPT_URL}?action=getUserInfo&email=${encodeURIComponent(email)}`;
       console.log('🌐 DataPreloader: fetching user info (light)...');
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
+      const data = await apiPost('getUserInfo');
       // Check if we got a valid split response (has user.plans)
       if (data.status === 'success' && data.user) {
         console.log(`📡 DataPreloader: user info in ${Date.now() - startTime}ms (server: ${data.loadTime}ms)`);
@@ -208,34 +209,35 @@ const DataPreloader = {
       // GAS returned something unexpected (old version?) — fall through
       console.log('⚠️ getUserInfo returned unexpected format, falling back to getUserData');
     } catch (err) {
+      // A dead session must not be retried against another endpoint — it will
+      // fail identically. Let it out so the caller can bounce to login.
+      if (err instanceof AuthError) throw err;
       console.warn('⚠️ getUserInfo failed, falling back to getUserData:', err.message);
     }
-    
+
     // Fallback: use old monolithic endpoint
     const data = await this._fetchUserDataLegacy(email);
     console.log(`📡 DataPreloader: user info via legacy in ${Date.now() - startTime}ms`);
     return data;
   },
-  
+
   async _fetchWorkoutData(email) {
     const startTime = Date.now();
-    
+
     // Try new heavy endpoint first
     try {
-      const url = `${GOOGLE_SCRIPT_URL}?action=getWorkoutData&email=${encodeURIComponent(email)}`;
       console.log('🌐 DataPreloader: fetching workout data (heavy)...');
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
+      const data = await apiPost('getWorkoutData');
       if (data.status === 'success' && data.workouts) {
         console.log(`📡 DataPreloader: workout data in ${Date.now() - startTime}ms (server: ${data.loadTime}ms)`);
         return data;
       }
       console.log('⚠️ getWorkoutData returned unexpected format, falling back to getUserData');
     } catch (err) {
+      if (err instanceof AuthError) throw err;
       console.warn('⚠️ getWorkoutData failed, falling back to getUserData:', err.message);
     }
-    
+
     // Fallback: use old monolithic endpoint
     const data = await this._fetchUserDataLegacy(email);
     console.log(`📡 DataPreloader: workout data via legacy in ${Date.now() - startTime}ms`);
@@ -243,10 +245,7 @@ const DataPreloader = {
   },
 
   async _fetchUserDataLegacy(email) {
-    const url = `${GOOGLE_SCRIPT_URL}?action=getUserData&email=${encodeURIComponent(email)}`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
+    const data = await apiPost('getUserData');
     if (data.status === 'error') throw new Error(data.message || 'Server error');
     return data;
   },
@@ -600,14 +599,12 @@ const DataPreloader = {
   
   async savePlanProgress(planName, lastWorkoutIndex, totalWorkouts) {
     this.updateLocalProgress(planName, lastWorkoutIndex, totalWorkouts);
-    const email = this._cache.userData?.email || localStorage.getItem('loggedUser');
-    if (email) {
-      try {
-        const url = `${GOOGLE_SCRIPT_URL}?action=saveLastWorkout&email=${encodeURIComponent(email)}&planName=${encodeURIComponent(planName)}&lastWorkoutIndex=${lastWorkoutIndex}&totalWorkouts=${totalWorkouts}`;
-        fetch(url).catch(err => console.warn('⚠️ Failed to sync progress to cloud:', err));
-      } catch (e) {
-        console.warn('⚠️ Failed to sync progress:', e);
-      }
+    // V9: no email sent — the server writes to whichever row the token owns.
+    try {
+      apiPost('saveLastWorkout', { planName, lastWorkoutIndex, totalWorkouts })
+        .catch(err => console.warn('⚠️ Failed to sync progress to cloud:', err));
+    } catch (e) {
+      console.warn('⚠️ Failed to sync progress:', e);
     }
   },
   

@@ -28,6 +28,9 @@ const SHOPIFY_WEBHOOK_SECRET = Deno.env.get("SHOPIFY_WEBHOOK_SECRET") || "";
 const GOOGLE_SCRIPT_URL = Deno.env.get("GOOGLE_SCRIPT_URL") || "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SB_SERVICE_ROLE_KEY") || "";
+// V9: addPlanToUser is now sync-token gated. Must match the SYNC_TOKEN Script
+// Property on the Apps Script side, or purchases will not grant plans.
+const SYNC_TOKEN = Deno.env.get("SYNC_TOKEN") || "";
 
 // ── Shopify Product → Plan Name mapping ──
 // Keys: Shopify product title (lowercase) or product ID
@@ -172,6 +175,7 @@ async function processOrder(order: any): Promise<void> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         action: "addPlanToUser",
+        token: SYNC_TOKEN,
         email,
         planName,
         fullName,

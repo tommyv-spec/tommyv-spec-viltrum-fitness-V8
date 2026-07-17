@@ -11,38 +11,102 @@
 // - UserWeights:  col 0=Email, 1=Weights(JSON), 2=LastUpdated
 // - UserProgress: col 0=Email, 1=PlanName, 2=LastWorkoutIndex, 3=TotalWorkouts, 4=LastUpdated
 
-function doGet(e) {
-  Logger.log("=== doGet called V8 ===");
+// ═══════════════════════════════════════════════════════════════════════════
+// V9 AUTH — Supabase JWT verification
+//
+// This web app is deployed ANYONE_ANONYMOUS (required: our users are not
+// Google account holders). Identity therefore CANNOT come from Apps Script.
+// It comes from the Supabase access token the client already holds after
+// login, verified here against Supabase on every call.
+//
+// HARD RULE: never trust a caller-supplied `email`. The only trustworthy
+// email is the one returned by _verifyUser(). doPost overwrites data.email
+// with the verified value before dispatch, so individual handlers keep
+// reading params.email and cannot accidentally be left unguarded.
+//
+// Requests are POST with Content-Type: text/plain (a CORS "simple request").
+// This is deliberate: Apps Script cannot answer a CORS preflight (there is no
+// doOptions), so an Authorization header is impossible cross-origin. The token
+// travels in the POST body instead — which also keeps it out of URLs and
+// execution logs. Do not "improve" this to a header or a GET param.
+// ═══════════════════════════════════════════════════════════════════════════
 
-  if (e && e.parameter) {
-    const action = e.parameter.action;
+const AUTH_TOKEN_TTL = 300; // seconds to cache a verified token -> email
 
-    if (action === 'addTrialUser')    return addTrialUser({ email: e.parameter.email, name: e.parameter.name });
-    if (action === 'saveWeights')     return saveUserWeights(e.parameter);
-    if (action === 'getWeights')      return getUserWeights(e.parameter);
-    if (action === 'saveLastWorkout') return saveLastWorkout(e.parameter);
-    if (action === 'getLastWorkout')  return getLastWorkout(e.parameter);
-    if (action === 'getAllProgress')  return getAllUserProgress(e.parameter);
-    if (action === 'getUserData')     return getUserDataCached(e.parameter);
-    if (action === 'addPlanToUser')   return addPlanToUser(e.parameter);
+// These two are PUBLIC values, not secrets: the anon key is already shipped to
+// every browser in js/config.js — that is what an anon key is for. They are
+// hardcoded so verification works with zero Script Property setup, and can
+// still be overridden via Script Properties (e.g. to point at a staging
+// project) without a code push. Keep in sync with js/config.js.
+const SUPABASE_URL_DEFAULT = 'https://nvdrvqamxoqezmfrnjcw.supabase.co';
+const SUPABASE_ANON_KEY_DEFAULT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im52ZHJ2cWFteG9xZXptZnJuamN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2NDA3NjIsImV4cCI6MjA3ODIxNjc2Mn0.xyxX2L2mDto9hyWBsEGOqL1Ip73thC8E81V54UAKNEg';
 
-    // V8.2: Split endpoints for fast dashboard loading
-    if (action === 'getUserInfo')     return getUserInfoCached(e.parameter);
-    if (action === 'getWorkoutData')  return getWorkoutDataCached(e.parameter);
-    if (action === 'bustCache')       return bustAllCache(e.parameter);
+function _unauthorized(message) {
+  return createResponse({ status: 'error', code: 'unauthorized', message: message || 'Unauthorized' });
+}
+
+/**
+ * Verify a Supabase access token and return the authenticated email.
+ * @param {object} data - request payload; reads data.token
+ * @return {{ok: boolean, email?: string, response?: object}}
+ */
+function _verifyUser(data) {
+  const token = (data && data.token || '').toString().trim();
+  if (!token) return { ok: false, response: _unauthorized('Missing session token') };
+
+  // Cache by token DIGEST, never by the raw token (cache keys leak into logs).
+  const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, token);
+  const cacheKey = 'tok_' + Utilities.base64EncodeWebSafe(digest);
+  const cache = CacheService.getScriptCache();
+
+  const cachedEmail = cache.get(cacheKey);
+  if (cachedEmail) return { ok: true, email: cachedEmail };
+
+  const props = PropertiesService.getScriptProperties();
+  const supabaseUrl = (props.getProperty('SUPABASE_URL') || SUPABASE_URL_DEFAULT).replace(/\/+$/, '');
+  const anonKey = props.getProperty('SUPABASE_ANON_KEY') || SUPABASE_ANON_KEY_DEFAULT;
+
+  let res;
+  try {
+    res = UrlFetchApp.fetch(supabaseUrl + '/auth/v1/user', {
+      method: 'get',
+      headers: { Authorization: 'Bearer ' + token, apikey: anonKey },
+      muteHttpExceptions: true
+    });
+  } catch (err) {
+    // Network failure: fail CLOSED. Never fall back to trusting the caller.
+    Logger.log('Auth verify network error: ' + err);
+    return { ok: false, response: _unauthorized('Could not verify session') };
   }
 
-  // Full data load
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const exerciseLibrary = loadExerciseLibrary(ss);
-  const workouts        = loadAllMuscleWorkouts(ss, exerciseLibrary);
-  const runWorkouts     = loadAllRunWorkouts(ss);
-  const plans           = loadAllPlans(ss, workouts, runWorkouts);
-  const userWorkouts    = loadAllUsers(ss, plans);
+  if (res.getResponseCode() !== 200) {
+    return { ok: false, response: _unauthorized('Invalid or expired session') };
+  }
 
-  return ContentService
-    .createTextOutput(JSON.stringify({ workouts, runWorkouts, plans, userWorkouts }))
-    .setMimeType(ContentService.MimeType.JSON);
+  let email = '';
+  try {
+    email = (JSON.parse(res.getContentText()).email || '').toString().trim().toLowerCase();
+  } catch (err) {
+    return { ok: false, response: _unauthorized('Invalid session') };
+  }
+  if (!email) return { ok: false, response: _unauthorized('Session has no email') };
+
+  cache.put(cacheKey, email, AUTH_TOKEN_TTL);
+  return { ok: true, email: email };
+}
+
+function doGet(e) {
+  Logger.log("=== doGet called V9 ===");
+
+  // V9: doGet serves NOTHING. Every former GET action moved to doPost so the
+  // session token travels in the body. The old no-action fall-through here
+  // returned the entire Users sheet (every customer email, name, expiry and
+  // nutrition PDF link) to any anonymous caller — it is deleted, not gated.
+  return createResponse({
+    status: 'error',
+    code: 'gone',
+    message: 'This endpoint is POST-only. Update the app to the latest version.'
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -170,6 +234,29 @@ function _getSharedData(ss) {
   return { exerciseLib: exerciseLib, allWorkouts: allWorkouts, allRunWorkouts: allRunWorkouts, mesoIndex: { mesoTimingMap: mesoTimingMap, runMesoMap: runMesoMap } };
 }
 
+/**
+ * Cache a per-user response — but NEVER an error.
+ *
+ * Was: cache.put(...) unconditionally. That cached "User not found" for
+ * USER_RESP_TTL (5 min). On signup the client fires the login preload while
+ * ensureUserRowInSheet is still in flight (it is deliberately not awaited), so
+ * the miss got cached and a brand-new user saw an empty dashboard for five
+ * minutes *after* their row existed. Pre-V9 bug; surfaced as a flaky e2e run.
+ *
+ * Only successful responses are worth caching anyway — a miss is cheap to redo.
+ */
+function _cacheIfSuccess(cache, cacheKey, response, ttl) {
+  try {
+    var s = response.getContent();
+    if (s.length >= 100000) return;
+    var parsed = JSON.parse(s);
+    if (!parsed || parsed.status === 'error') return;
+    cache.put(cacheKey, s, ttl);
+  } catch (e) {
+    // Unparseable: don't cache it.
+  }
+}
+
 function getUserDataCached(params) {
   var email = (params.email || "").trim().toLowerCase();
   if (!email || !email.includes('@')) return createResponse({ status: 'error', message: 'Invalid email' });
@@ -178,7 +265,7 @@ function getUserDataCached(params) {
   var cached = cache.get(cacheKey);
   if (cached) { Logger.log("⚡ getUserData CACHE HIT"); return ContentService.createTextOutput(cached).setMimeType(ContentService.MimeType.JSON); }
   var response = getUserDataFromShared(params);
-  try { var s = response.getContent(); if (s.length < 100000) cache.put(cacheKey, s, USER_RESP_TTL); } catch(e) {}
+  _cacheIfSuccess(cache, cacheKey, response, USER_RESP_TTL);
   return response;
 }
 
@@ -259,7 +346,7 @@ function getUserInfoCached(params) {
   var cached = cache.get(cacheKey);
   if (cached) { Logger.log("⚡ getUserInfo CACHE HIT"); return ContentService.createTextOutput(cached).setMimeType(ContentService.MimeType.JSON); }
   var response = getUserInfoLight(params);
-  try { var s = response.getContent(); if (s.length < 100000) cache.put(cacheKey, s, USER_RESP_TTL); } catch(e) {}
+  _cacheIfSuccess(cache, cacheKey, response, USER_RESP_TTL);
   return response;
 }
 
@@ -271,7 +358,7 @@ function getWorkoutDataCached(params) {
   var cached = cache.get(cacheKey);
   if (cached) { Logger.log("⚡ getWorkoutData CACHE HIT"); return ContentService.createTextOutput(cached).setMimeType(ContentService.MimeType.JSON); }
   var response = getWorkoutDataHeavy(params);
-  try { var s = response.getContent(); if (s.length < 100000) cache.put(cacheKey, s, USER_RESP_TTL); } catch(e) {}
+  _cacheIfSuccess(cache, cacheKey, response, USER_RESP_TTL);
   return response;
 }
 
@@ -294,6 +381,40 @@ function bustAllCache(params) {
 // CORE LOADERS
 // ═══════════════════════════════════════════════════════════════════════════
 
+/**
+ * Normalize an Exercises!F image URL to the canonical direct form
+ * https://lh3.googleusercontent.com/d/<FILE_ID>
+ *
+ * Col F is hand-edited, so it arrives in several shapes:
+ *   - already canonical .../d/<ID>                          -> unchanged
+ *   - a Drive share link  .../file/d/<ID>/view?usp=sharing  -> rewritten
+ *   - a share link pasted ONTO the canonical prefix, i.e.
+ *     https://lh3.googleusercontent.com/d/https://drive.google.com/file/d/<ID>/view
+ *     which is what silently broke FRONT SQUAT (lh3 answered 400).
+ *
+ * Every shape carries the real file ID in the LAST /d/<ID> run, so take the
+ * last match. The {10,} guard is what skips the bogus "/d/https" in the
+ * pasted-on case (Drive IDs are 28-44 chars; "https" is 5).
+ *
+ * Anything unrecognized is returned untouched rather than blanked — a visibly
+ * wrong URL is far easier to debug than a silently missing image.
+ */
+function normalizeImageUrl(raw) {
+  const s = (raw || "").toString().trim();
+  if (!s) return "";
+
+  let id = "";
+  const dMatches = s.match(/\/d\/([A-Za-z0-9_-]{10,})/g);
+  if (dMatches && dMatches.length) {
+    id = dMatches[dMatches.length - 1].replace("/d/", "");
+  } else {
+    const idParam = s.match(/[?&]id=([A-Za-z0-9_-]{10,})/);
+    if (idParam) id = idParam[1];
+  }
+
+  return id ? "https://lh3.googleusercontent.com/d/" + id : s;
+}
+
 // Returns { exerciseName: { imageUrl, audio, audioCambio } }
 function loadExerciseLibrary(ss) {
   const data = ss.getSheetByName("Exercises").getDataRange().getValues();
@@ -302,7 +423,7 @@ function loadExerciseLibrary(ss) {
     const name = (data[i][0] || "").toString().trim();
     if (!name) continue;
     lib[name] = {
-      imageUrl:    data[i][5] || "",
+      imageUrl:    normalizeImageUrl(data[i][5]),
       audio:       data[i][8] || "",
       audioCambio: data[i][9] || ""
     };
@@ -555,11 +676,17 @@ function sortTiming(a, b) {
 }
 
 // Returns { email: { fullName, scadenza, nutritionPdfUrl, nutritionScadenza, plans: [...] } }
-function loadAllUsers(ss, plans) {
+/**
+ * @param {string} [onlyEmail] - when set, build a map containing ONLY this
+ *   user's row. Callers serving a browser MUST pass it: the full map is every
+ *   customer's name, email, expiry and nutrition PDF link.
+ */
+function loadAllUsers(ss, plans, onlyEmail) {
   const sheet    = ss.getSheetByName("Users");
   const data     = sheet.getDataRange().getValues();
   const headers  = data[0];
   const userMap  = {};
+  const filter   = (onlyEmail || "").toString().trim().toLowerCase();
 
   const cols = parseUserHeaders(headers);
 
@@ -567,6 +694,7 @@ function loadAllUsers(ss, plans) {
     const row       = data[k];
     const userEmail = (row[cols.email] || "").toString().trim().toLowerCase();
     if (!userEmail) continue;
+    if (filter && userEmail !== filter) continue;
 
     const userPlans = [];
     for (let col = cols.firstPlan; col < row.length; col++) {
@@ -1247,22 +1375,117 @@ function getAllUserProgress(params) {
 // POST / USER MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════════
+// V9 ROUTING TABLE
+//
+// Every action MUST be listed in exactly one bucket. An action that is in no
+// bucket is rejected. This is deliberate: adding an endpoint without deciding
+// its auth is now impossible — the default is "denied", not "public".
+// ═══════════════════════════════════════════════════════════════════════════
+
+// No auth. Callers are anonymous visitors by design.
+const PUBLIC_ACTIONS = {
+  // Prospect fills the questionnaire before any account exists.
+  'submitQuestionnaire': submitQuestionnaire,
+  // Plan NAMES only — no user data. Already public to any logged-in user.
+  'list-plans': syncListPlans
+};
+
+// Server-to-server + operator tooling. Gated by SYNC_TOKEN (a shared secret
+// held only by the Shopify webhook and admin CLI scripts). NEVER user-gated:
+// a user must not be able to grant themselves a plan or read the user list.
+const SYNC_ACTIONS = {
+  'list-users': syncListUsers,
+  're-add-user': syncReAddUser,
+  'delete-user': syncDeleteUser,
+  'list-email-log': function (data) {
+    return createResponse(Object.assign({ status: 'success' }, _adminListEmailLog(Number(data.limit) || 20)));
+  },
+  // Grants a subscription. Called by the Shopify webhook after a real payment.
+  'addPlanToUser': addPlanToUser,
+  'updateSubscription': updateSubscription,
+  // Flushes the SHARED cache, forcing a ~7s rebuild. Sync-gated, not
+  // user-gated: repeated calls burn the Apps Script quota for everyone.
+  'bustCache': bustAllCache
+};
+
+// Logged-in users. Gated by Supabase JWT. The verified email is forced into
+// data.email before dispatch, so these handlers only ever act on the caller's
+// own row regardless of what the caller put in the payload.
+const USER_ACTIONS = {
+  'getUserData': getUserDataCached,
+  'getUserInfo': getUserInfoCached,
+  'getWorkoutData': getWorkoutDataCached,
+  'getWeights': getUserWeights,
+  'saveWeights': saveUserWeights,
+  'getLastWorkout': getLastWorkout,
+  'saveLastWorkout': saveLastWorkout,
+  'getAllProgress': getAllUserProgress,
+  'ensureUserInSheet': ensureUserInSheet,
+  'addTrialUser': addTrialUser,
+  'getBootstrap': getBootstrap
+};
+
+/**
+ * V9 replacement for the old no-action doGet full dump.
+ *
+ * Returns the SAME response shape the legacy callers already parse
+ * ({ workouts, runWorkouts, plans, userWorkouts }) — but `userWorkouts`
+ * contains exactly one entry: the authenticated caller's own. Downstream
+ * code doing `data.userWorkouts[myEmail]` keeps working unchanged.
+ *
+ * data.email is the Supabase-verified address injected by doPost.
+ */
+function getBootstrap(data) {
+  const email = (data.email || '').toString().trim().toLowerCase();
+  if (!email) return _unauthorized('No verified email');
+
+  const ss              = SpreadsheetApp.getActiveSpreadsheet();
+  const exerciseLibrary = loadExerciseLibrary(ss);
+  const workouts        = loadAllMuscleWorkouts(ss, exerciseLibrary);
+  const runWorkouts     = loadAllRunWorkouts(ss);
+  const plans           = loadAllPlans(ss, workouts, runWorkouts);
+
+  // Filtered at the source: the full user map is never built in memory.
+  const userWorkouts = loadAllUsers(ss, plans, email);
+
+  return ContentService
+    .createTextOutput(JSON.stringify({ workouts, runWorkouts, plans, userWorkouts }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
 function doPost(e) {
   try {
+    if (!e || !e.postData || !e.postData.contents) {
+      return createResponse({ status: 'error', message: 'Missing request body' });
+    }
+
     const data = JSON.parse(e.postData.contents);
-    if (data.action === 'addTrialUser')      return addTrialUser(data);
-    if (data.action === 'updateSubscription') return updateSubscription(data);
-    if (data.action === 'saveLastWorkout')   return saveLastWorkout(data);
-    if (data.action === 'addPlanToUser')     return addPlanToUser(data);
-    if (data.action === 'list-users')        return syncListUsers(data);
-    if (data.action === 're-add-user')       return syncReAddUser(data);
-    if (data.action === 'delete-user')       return syncDeleteUser(data);
-    if (data.action === 'ensureUserInSheet') return ensureUserInSheet(data);
-    if (data.action === 'list-plans')        return syncListPlans(data);
-    if (data.action === 'submitQuestionnaire') return submitQuestionnaire(data);
-    if (data.action === 'list-email-log')      return createResponse(Object.assign({ status: 'success' }, _adminListEmailLog(Number(data.limit) || 20)));
+    const action = (data.action || '').toString();
+
+    if (PUBLIC_ACTIONS[action]) {
+      return PUBLIC_ACTIONS[action](data);
+    }
+
+    if (SYNC_ACTIONS[action]) {
+      const auth = _checkSyncToken(data);
+      if (!auth.ok) return auth.response;
+      return SYNC_ACTIONS[action](data);
+    }
+
+    if (USER_ACTIONS[action]) {
+      const auth = _verifyUser(data);
+      if (!auth.ok) return auth.response;
+      // THE load-bearing line. Whatever email the caller sent is discarded and
+      // replaced with the one Supabase vouched for. Removing this reopens IDOR
+      // on every user endpoint at once.
+      data.email = auth.email;
+      return USER_ACTIONS[action](data);
+    }
+
     return createResponse({ status: 'error', message: 'Unknown action' });
   } catch (error) {
+    Logger.log('doPost error: ' + error);
     return createResponse({ status: 'error', message: error.toString() });
   }
 }
@@ -1935,6 +2158,66 @@ function setupTriggers() {
   Logger.log("✅ Installed: warmUpCache trigger (every 30 min)");
   
   Logger.log("🎉 All triggers installed! Cache will stay warm automatically.");
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// V9 SETUP / DIAGNOSTICS
+//
+// Run from the Apps Script editor or `clasp run`. NOT reachable over HTTP:
+// neither is listed in PUBLIC_ACTIONS / SYNC_ACTIONS / USER_ACTIONS, and
+// doPost rejects anything not in a table.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Reports auth config state. Deliberately returns NO secret values. */
+function v9AuthDiagnostics() {
+  const props = PropertiesService.getScriptProperties();
+  const syncToken = props.getProperty('SYNC_TOKEN');
+  const out = {
+    syncTokenConfigured: !!syncToken,
+    syncTokenLength: syncToken ? syncToken.length : 0,
+    supabaseUrlEffective: props.getProperty('SUPABASE_URL') || SUPABASE_URL_DEFAULT,
+    anonKeyOverridden: !!props.getProperty('SUPABASE_ANON_KEY'),
+    userActions: Object.keys(USER_ACTIONS),
+    syncActions: Object.keys(SYNC_ACTIONS),
+    publicActions: Object.keys(PUBLIC_ACTIONS)
+  };
+  Logger.log(JSON.stringify(out));
+  return out;
+}
+
+/** Sets SYNC_TOKEN. Returns length only, never the value. */
+function v9SetSyncToken(token) {
+  const t = (token || '').toString().trim();
+  if (t.length < 24) throw new Error('Refusing to set a SYNC_TOKEN shorter than 24 chars');
+  PropertiesService.getScriptProperties().setProperty('SYNC_TOKEN', t);
+  const got = PropertiesService.getScriptProperties().getProperty('SYNC_TOKEN');
+  return { ok: got === t, length: t.length };
+}
+
+/** End-to-end check that Supabase token verification is reachable from here. */
+function v9CheckSupabaseReachable() {
+  const props = PropertiesService.getScriptProperties();
+  const url = (props.getProperty('SUPABASE_URL') || SUPABASE_URL_DEFAULT).replace(/\/+$/, '');
+  const key = props.getProperty('SUPABASE_ANON_KEY') || SUPABASE_ANON_KEY_DEFAULT;
+  // A deliberately invalid token. A healthy endpoint answers with a rejection
+  // (Supabase sends 403 "bad_jwt"; 401 is also fine) rather than a network
+  // error or, catastrophically, a 200. Verified against the live project:
+  // GET /auth/v1/user with a forged HS256 JWT -> 403 "invalid JWT: unable to
+  // parse or verify signature". Do NOT assert == 401; that is not what it sends.
+  const res = UrlFetchApp.fetch(url + '/auth/v1/user', {
+    method: 'get',
+    headers: { Authorization: 'Bearer not-a-real-token', apikey: key },
+    muteHttpExceptions: true
+  });
+  const code = res.getResponseCode();
+  const out = {
+    httpCode: code,
+    // The only outcome that would break the security model is 200.
+    rejectsBadToken: code !== 200,
+    healthy: code === 401 || code === 403
+  };
+  Logger.log(JSON.stringify(out));
+  return out;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

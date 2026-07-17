@@ -5,6 +5,7 @@
  */
 
 import { GOOGLE_SCRIPT_URL } from './config.js';
+import { apiPost } from './api.js';
 
 const SessionCache = {
   GOOGLE_SCRIPT_URL: GOOGLE_SCRIPT_URL,
@@ -35,13 +36,10 @@ const SessionCache = {
     // Fetch fresh data
     console.log('🔄 Loading fresh data from server...');
     try {
-      const response = await fetch(this.GOOGLE_SCRIPT_URL);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
+      // V9: was a bare GET returning the whole Users sheet. getBootstrap has
+      // the same shape but only the caller's own userWorkouts entry.
+      const data = await apiPost('getBootstrap');
+
       // Cache in sessionStorage
       sessionStorage.setItem(cacheKey, JSON.stringify(data));
       sessionStorage.setItem(timestampKey, Date.now().toString());
@@ -171,10 +169,8 @@ const SessionCache = {
     
     // Fetch from cloud
     try {
-      const url = `${this.GOOGLE_SCRIPT_URL}?action=getLastWorkout&email=${encodeURIComponent(email)}&planName=${encodeURIComponent(planName)}`;
-      const response = await fetch(url);
-      const data = await response.json();
-      
+      const data = await apiPost('getLastWorkout', { planName });
+
       if (data.status === 'success') {
         const progress = {
           lastWorkoutIndex: data.lastWorkoutIndex ?? -1,
@@ -214,8 +210,7 @@ const SessionCache = {
     
     // Sync to cloud
     try {
-      const url = `${this.GOOGLE_SCRIPT_URL}?action=saveLastWorkout&email=${encodeURIComponent(email)}&planName=${encodeURIComponent(planName)}&lastWorkoutIndex=${workoutIndex}&totalWorkouts=${totalWorkouts}`;
-      await fetch(url);
+      await apiPost('saveLastWorkout', { planName, lastWorkoutIndex: workoutIndex, totalWorkouts });
       console.log(`✅ Progress saved for ${planName}: ${workoutIndex + 1}/${totalWorkouts}`);
     } catch (error) {
       console.warn('Failed to sync progress to cloud:', error);
@@ -230,10 +225,8 @@ const SessionCache = {
     if (!email) return {};
     
     try {
-      const url = `${this.GOOGLE_SCRIPT_URL}?action=getAllProgress&email=${encodeURIComponent(email)}`;
-      const response = await fetch(url);
-      const data = await response.json();
-      
+      const data = await apiPost('getAllProgress');
+
       if (data.status === 'success') {
         return data.progress || {};
       }

@@ -6,7 +6,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 // Import Google Script URL for cloud sync
-import { GOOGLE_SCRIPT_URL } from './config.js';
+import { apiPost } from './api.js';
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -46,57 +46,20 @@ async function syncWeightsToCloud(weights) {
     const weightsJson = JSON.stringify(weights);
     console.log('📤 Weights to sync:', Object.keys(weights).length, 'exercises');
     console.log('📤 JSON length:', weightsJson.length, 'chars');
-    
-    const url = new URL(GOOGLE_SCRIPT_URL);
-    url.searchParams.append('action', 'saveWeights');
-    url.searchParams.append('email', userEmail);
-    url.searchParams.append('weights', weightsJson);
 
-    const fullUrl = url.toString();
-    console.log('📤 Full URL length:', fullUrl.length, 'chars');
-    
-    // Warn if URL is too long (GET limit is ~2000 chars)
-    if (fullUrl.length > 2000) {
-      console.warn('⚠️ URL may be too long for GET request');
+    // V9: POST with the session token; the server writes the token owner's row.
+    // Was a GET with ?email=<caller-supplied>, i.e. anyone could overwrite
+    // anyone's weights. Also removes the ~2000-char URL length ceiling that
+    // silently truncated large weight payloads.
+    const result = await apiPost('saveWeights', { weights: weightsJson });
+
+    if (result.status === 'success') {
+      console.log('✅ Weights synced to cloud');
+      localStorage.setItem(STORAGE_KEYS.WEIGHTS_SYNCED, new Date().toISOString());
+      return true;
     }
-    
-    const response = await fetch(fullUrl, { 
-      method: 'GET',
-      redirect: 'follow'
-    });
-    
-    console.log('📥 Response status:', response.status, response.statusText);
-    
-    // Check if response is OK
-    if (!response.ok) {
-      console.warn('⚠️ Cloud sync HTTP error:', response.status);
-      return false;
-    }
-    
-    // Try to parse JSON response
-    const text = await response.text();
-    console.log('📥 Cloud response:', text.substring(0, 300));
-    
-    try {
-      const result = JSON.parse(text);
-      if (result.status === 'success') {
-        console.log('✅ Weights synced to cloud');
-        localStorage.setItem(STORAGE_KEYS.WEIGHTS_SYNCED, new Date().toISOString());
-        return true;
-      } else {
-        console.warn('⚠️ Cloud sync failed:', result.message || 'Unknown error');
-        return false;
-      }
-    } catch (parseError) {
-      // If response isn't JSON, might still have worked (Google sometimes returns HTML on success)
-      if (text.includes('success') || response.ok) {
-        console.log('✅ Weights likely synced (non-JSON response)');
-        localStorage.setItem(STORAGE_KEYS.WEIGHTS_SYNCED, new Date().toISOString());
-        return true;
-      }
-      console.warn('⚠️ Could not parse response:', parseError);
-      return false;
-    }
+    console.warn('⚠️ Cloud sync failed:', result.message || 'Unknown error');
+    return false;
   } catch (error) {
     console.error('❌ Failed to sync weights to cloud:', error);
     return false;
@@ -118,12 +81,8 @@ async function loadWeightsFromCloud() {
   }
 
   try {
-    const url = new URL(GOOGLE_SCRIPT_URL);
-    url.searchParams.append('action', 'getWeights');
-    url.searchParams.append('email', userEmail);
-
-    const response = await fetch(url.toString(), { method: 'GET' });
-    const result = await response.json();
+    // V9: POST + token. Was GET ?action=getWeights&email=<anyone>.
+    const result = await apiPost('getWeights');
 
     if (result.status === 'success' && result.weights && Object.keys(result.weights).length > 0) {
       console.log('✅ Weights loaded from cloud');
@@ -198,51 +157,24 @@ export async function syncLastWorkoutToCloud(workoutIndex, workoutName, totalWor
     
     console.log('📤 Syncing last workout to cloud:', workoutIndex, workoutName, 'total:', totalWorkouts);
     
-    const url = new URL(GOOGLE_SCRIPT_URL);
-    url.searchParams.append('action', 'saveLastWorkout');
-    url.searchParams.append('email', userEmail);
-    url.searchParams.append('lastWorkoutIndex', workoutIndex.toString());
-    url.searchParams.append('lastWorkoutName', workoutName);
-    url.searchParams.append('totalWorkouts', totalWorkouts.toString());
-
-    const response = await fetch(url.toString(), { 
-      method: 'GET',
-      redirect: 'follow'
+    // V9: POST + token. Was GET ?action=saveLastWorkout&email=<anyone>.
+    const result = await apiPost('saveLastWorkout', {
+      lastWorkoutIndex: workoutIndex,
+      lastWorkoutName: workoutName,
+      totalWorkouts: totalWorkouts
     });
-    
-    console.log('📥 Response status:', response.status, response.statusText);
-    
-    if (!response.ok) {
-      console.warn('⚠️ Last workout sync HTTP error:', response.status);
-      return false;
-    }
-    
-    const text = await response.text();
-    console.log('📥 Cloud response:', text.substring(0, 300));
-    
-    try {
-      const result = JSON.parse(text);
-      if (result.status === 'success') {
-        console.log('✅ Last workout synced to cloud, total:', result.totalWorkouts);
-        localStorage.setItem(STORAGE_KEYS.LAST_WORKOUT_SYNCED, new Date().toISOString());
-        // Also save totalWorkouts locally
-        if (result.totalWorkouts) {
-          localStorage.setItem('viltrum_total_workouts', result.totalWorkouts.toString());
-        }
-        return true;
-      } else {
-        console.warn('⚠️ Last workout sync failed:', result.message || 'Unknown error');
-        return false;
+
+    if (result.status === 'success') {
+      console.log('✅ Last workout synced to cloud, total:', result.totalWorkouts);
+      localStorage.setItem(STORAGE_KEYS.LAST_WORKOUT_SYNCED, new Date().toISOString());
+      // Also save totalWorkouts locally
+      if (result.totalWorkouts) {
+        localStorage.setItem('viltrum_total_workouts', result.totalWorkouts.toString());
       }
-    } catch (parseError) {
-      if (text.includes('success') || response.ok) {
-        console.log('✅ Last workout likely synced (non-JSON response)');
-        localStorage.setItem(STORAGE_KEYS.LAST_WORKOUT_SYNCED, new Date().toISOString());
-        return true;
-      }
-      console.warn('⚠️ Could not parse response:', parseError);
-      return false;
+      return true;
     }
+    console.warn('⚠️ Last workout sync failed:', result.message || 'Unknown error');
+    return false;
   } catch (error) {
     console.error('❌ Failed to sync last workout to cloud:', error);
     return false;
@@ -273,12 +205,8 @@ export async function loadLastWorkoutFromCloud() {
   try {
     console.log('🔄 Loading last workout from cloud...');
     
-    const url = new URL(GOOGLE_SCRIPT_URL);
-    url.searchParams.append('action', 'getLastWorkout');
-    url.searchParams.append('email', userEmail);
-
-    const response = await fetch(url.toString(), { method: 'GET' });
-    const result = await response.json();
+    // V9: POST + token. Was GET ?action=getLastWorkout&email=<anyone>.
+    const result = await apiPost('getLastWorkout');
 
     if (result.status === 'success') {
       const cloudIndex = result.lastWorkoutIndex !== undefined ? result.lastWorkoutIndex : -1;

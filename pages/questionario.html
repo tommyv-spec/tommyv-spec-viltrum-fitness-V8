@@ -348,7 +348,7 @@
   </div>
 
   <script type="module">
-    import { GOOGLE_SCRIPT_URL } from '../js/config.js';
+    import { apiPostPublic } from '../js/api.js';
 
     const form = document.getElementById('q-form');
     const submitBtn = document.getElementById('q-submit-btn');
@@ -419,12 +419,12 @@
       submitBtn.textContent = 'INVIO IN CORSO...';
 
       try {
-        const res = await fetch(GOOGLE_SCRIPT_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        const body = await res.json();
+        // V9: was POST with Content-Type: application/json, which triggers a
+        // CORS preflight that Apps Script cannot answer (no doOptions) — this
+        // submission was likely being blocked by the browser. apiPostPublic
+        // uses text/plain, a CORS simple request, so no preflight happens.
+        // Public on purpose: the prospect has no account yet.
+        const body = await apiPostPublic('submitQuestionnaire', payload);
         if (body.status === 'success') {
           msg.className = 'q-message success';
           msg.textContent = '✓ Risposte inviate! Il coach ti contattera\' a breve via WhatsApp per personalizzare il piano.';
