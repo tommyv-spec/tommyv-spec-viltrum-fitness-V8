@@ -731,12 +731,14 @@ async function warmElevenCache(audioKeys) {
   const endAll = AudioTrace.start("warm", keys.length + " clips");
   try {
     const cache = await caches.open(ELEVEN_CACHE_NAME);
-    let added = 0, already = 0, failed = 0, cursor = 0;
+    let added = 0, already = 0, cursor = 0;
+    const missingClips = [];
     const CONCURRENCY = 6;
 
     const worker = async () => {
       while (cursor < keys.length) {
-        const url = `${ELEVEN_BASE_URL}/${keys[cursor++]}.mp3`;
+        const key = keys[cursor++];
+        const url = `${ELEVEN_BASE_URL}/${key}.mp3`;
         try {
           if (await cache.match(url)) { already++; continue; }
           // add() per file: addAll() is all-or-nothing, so one clip missing from the
@@ -744,27 +746,96 @@ async function warmElevenCache(audioKeys) {
           await cache.add(url);
           added++;
         } catch (e) {
-          failed++; // not uploaded yet — playback falls back to TTS/synth for that cue
+          // Mapped to a clip that isn't in the repo. Named explicitly: this is the
+          // other half of the gap the audit can't see (audit checks the map, this
+          // checks the files actually exist).
+          missingClips.push(key);
         }
       }
     };
     await Promise.all(Array.from({ length: CONCURRENCY }, worker));
-    endAll("warm:done", `+${added} new, ${already} cached, ${failed} missing,`);
+    endAll("warm:done", `+${added} new, ${already} cached, ${missingClips.length} absent,`);
+    for (const k of missingClips) AudioTrace.log("warm:NOFILE", k);
+    if (missingClips.length) {
+      console.warn(`⚠️ ${missingClips.length} clip(s) mapped but not in the repo:`, missingClips);
+      window.__audioAudit = Object.assign(window.__audioAudit || {}, { missingClips });
+    }
   } catch (e) {
     endAll("warm:fail", String(e && e.message || e));
   }
 }
 
-/* Collect every clip this session can possibly need: the fixed phrase bank (small,
-   and any of it can fire) plus the exercise names actually in this workout. */
-function collectSessionElevenKeys(sequence) {
-  const keys = Object.values(ELEVEN_AUDIO_MAP);
-  for (const step of (sequence || [])) {
-    const name = (step?.name || step?.exerciseName || "").toLowerCase().trim();
-    if (!name) continue;
-    const k = ELEVEN_EXERCISE_MAP[name];
-    if (k) keys.push(k);
+/* Single source of truth for the "fai N ripetizioni" announcement. The countdown code
+   and the pre-flight audit both call this, so what gets audited is exactly what gets
+   spoken. Returns null when there is nothing to announce. */
+function buildRepsPhrase(item) {
+  if (!item || !item.reps) return null;
+  const reps = item.reps.toString().trim();
+
+  const sideMatch = item.name && item.name.match(/\b(destra|sinistra|dx|sx)\b/i);
+  let side = null;
+  if (sideMatch) {
+    const tok = sideMatch[1].toLowerCase();
+    side = (tok === 'dx') ? 'Destra' : (tok === 'sx') ? 'Sinistra'
+         : tok.charAt(0).toUpperCase() + tok.slice(1);
   }
+
+  // Skip compound reps like "10 - 8 - 6" (forza overview, not a real set)
+  if (reps.includes(' - ') || reps.includes('/')) return null;
+
+  if (reps.toLowerCase() === 'max') {
+    return side ? `fai il massimo delle ripetizioni, ${side}` : 'fai il massimo delle ripetizioni';
+  }
+  if (reps.endsWith('+')) {
+    const num = reps.slice(0, -1);
+    return side ? `fai almeno ${num} ripetizioni, ${side}` : `fai almeno ${num} ripetizioni`;
+  }
+  return side ? `fai ${reps} ripetizioni, ${side}` : `fai ${reps} ripetizioni`;
+}
+
+/* The same lookup _speakNow() performs, in one place. */
+function resolveElevenClip(text) {
+  const n = (text || "").toLowerCase().trim();
+  return ELEVEN_AUDIO_MAP[n] || ELEVEN_EXERCISE_MAP[n] || null;
+}
+
+/* Every phrase this session can utter: the fixed bank (any of it can fire) plus each
+   exercise's name and rep announcement. */
+function collectSessionPhrases(sequence) {
+  const phrases = new Set(Object.keys(ELEVEN_AUDIO_MAP));
+  for (const step of (sequence || [])) {
+    if (!step || step.isLabel) continue;
+    if (step.name) phrases.add(step.name);
+    const rp = buildRepsPhrase(step);
+    if (rp) phrases.add(rp);
+  }
+  return [...phrases];
+}
+
+/* -------------------- Pre-flight audio audit --------------------
+   Resolve the whole session up front instead of discovering each gap one cue at a
+   time mid-workout. Returns the clip keys worth warming, and logs every phrase that
+   will land on the synth voice, with the reason. */
+function auditSessionAudio(sequence) {
+  const phrases = collectSessionPhrases(sequence);
+  const keys = [];
+  const unmapped = [];
+
+  for (const p of phrases) {
+    const clip = resolveElevenClip(p);
+    if (clip) keys.push(clip);
+    else unmapped.push(p);
+  }
+
+  AudioTrace.log("audit", "", `${phrases.length} phrases: ${keys.length} mapped, ${unmapped.length} will use synth`);
+  for (const p of unmapped) AudioTrace.log("audit:NOCLIP", p.slice(0, 46));
+
+  if (unmapped.length) {
+    console.warn(`⚠️ ${unmapped.length} phrase(s) have no instructor clip and will fall back to the synth voice:`);
+    unmapped.forEach(p => console.warn(`   • "${p}"`));
+  }
+  // Reachable from Safari Web Inspector, and from the trace panel's Copy dump.
+  window.__audioAudit = { phrases, mapped: keys, unmapped };
   return keys;
 }
 
@@ -1926,11 +1997,15 @@ async function speakCloud(text, lang = "it-IT") {
   try {
     await ensureAudioUnlocked();
     
-    // Check offline cache first
+    // Check offline cache first. Raced: an IndexedDB read that never settles would
+    // wedge the speak chain exactly like the old canplaythrough bug did.
     if (typeof OfflinePreloader !== 'undefined') {
       const cacheKey = `tts_${lang}_${text}`;
-      const cachedUrl = await OfflinePreloader.getCachedAudio(cacheKey);
-      
+      const cachedUrl = await Promise.race([
+        OfflinePreloader.getCachedAudio(cacheKey).catch(() => null),
+        new Promise(r => setTimeout(() => r(null), 1500))
+      ]);
+
       if (cachedUrl) {
         console.log(`✅ Using cached TTS: "${text.substring(0, 30)}..."`);
         await playAudioUrl(cachedUrl);
@@ -1951,14 +2026,22 @@ async function speakCloud(text, lang = "it-IT") {
     console.log(`🗣️ Attempting Google Cloud TTS: "${text}" (${lang})`);
     const endFetch = AudioTrace.start("cloud", text.slice(0, 24));
 
+    // Hard timeout: a server that accepts the connection and then never answers is
+    // worse than one that 500s, because a bare fetch() waits forever and the whole
+    // cue queue is serialised behind this await.
+    const ctrl = new AbortController();
+    const killFetch = setTimeout(() => ctrl.abort(), TTS_TIMEOUT_MS);
     let res;
     try {
       res = await fetch("https://google-tts-server.onrender.com/speak", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, lang, voice }),
+        signal: ctrl.signal,
       });
+      clearTimeout(killFetch);
     } catch (netErr) {
+      clearTimeout(killFetch);
       noteCloudTtsResult(false);
       endFetch("cloud:FAIL", "network " + (netErr && netErr.message || ""));
       throw netErr;
@@ -2430,7 +2513,7 @@ function startWorkout() {
   preloadUpcoming(0, 5); // preload first 5 GIFs immediately
   // Deliberately not awaited: warming runs while the user is still reading the setup
   // screen, so the first cue is already local by the time it fires.
-  warmElevenCache(collectSessionElevenKeys(fullWorkoutSequence));
+  warmElevenCache(auditSessionAudio(fullWorkoutSequence));
   if (fullWorkoutSequence.length === 0) {
     alert("Impossibile costruire la sequenza di allenamento.");
     return;
@@ -3058,32 +3141,11 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
 
       // "fai X ripetizioni [lato]" at transition (timer=0)
       if (upcoming && !upcoming.isLabel && (mode === "eleven" || mode === "voice" || mode === "synth")) {
-        if (upcoming.reps) {
-          const reps = upcoming.reps.toString().trim();
-          const sideMatch = upcoming.name && upcoming.name.match(/\b(destra|sinistra|dx|sx)\b/i);
-          let side = null;
-          if (sideMatch) {
-            const tok = sideMatch[1].toLowerCase();
-            side = (tok === 'dx') ? 'Destra' : (tok === 'sx') ? 'Sinistra'
-                 : tok.charAt(0).toUpperCase() + tok.slice(1);
-          }
-          
-          // Skip compound reps like "10 - 8 - 6" (forza overview, not a real set)
-          const isCompound = reps.includes(' - ') || reps.includes('/');
-          
-          if (!isCompound) {
-            let phrase;
-            if (reps.toLowerCase() === 'max') {
-              phrase = side ? `fai il massimo delle ripetizioni, ${side}` : 'fai il massimo delle ripetizioni';
-            } else if (reps.endsWith('+')) {
-              const num = reps.slice(0, -1);
-              phrase = side ? `fai almeno ${num} ripetizioni, ${side}` : `fai almeno ${num} ripetizioni`;
-            } else {
-              phrase = side ? `fai ${reps} ripetizioni, ${side}` : `fai ${reps} ripetizioni`;
-            }
-            speak(phrase, "it-IT").catch(() => {});
-          }
-        }
+        // Built by the shared helper so the pre-flight audit checks the exact same
+        // strings this line speaks — an audit with its own copy of the phrasing would
+        // drift and start reporting green on cues that actually fall to synth.
+        const repsPhrase = buildRepsPhrase(upcoming);
+        if (repsPhrase) speak(repsPhrase, "it-IT").catch(() => {});
 
         // Coach tip — once per block, 5s into the new exercise
         clearTimeout(pendingTipTimeout);
