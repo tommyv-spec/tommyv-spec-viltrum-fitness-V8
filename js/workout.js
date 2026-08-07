@@ -1516,6 +1516,7 @@ function setSoundMode(value) {
   if (b) b.value = value;
 }
 function getPreferredVoice() {
+  if (typeof speechSynthesis === "undefined") return null;
   const list = (speechSynthesis.getVoices && speechSynthesis.getVoices()) || [];
   // prefer Google voices first
   const googleIt = list.find(v => /google/i.test(v.name||"") && /^it(-|_)/i.test(v.lang||""));
@@ -1556,6 +1557,7 @@ const SYNTH_PREFS = {
 const synthVoicesLocked = {}; // per lingua → voce scelta
 
 function pickVoice(lang) {
+  if (typeof speechSynthesis === "undefined") return null;
   const all = (speechSynthesis.getVoices && speechSynthesis.getVoices()) || [];
   const want = (lang || "").toLowerCase();
 
@@ -1594,21 +1596,30 @@ function lockSynthVoices() {
  */
 function waitForVoices(timeoutMs = 1500) {
   return new Promise(resolve => {
-    const done = () => resolve();
-    if ((speechSynthesis.getVoices() || []).length) return done();
-
     let settled = false;
-    const finish = () => { if (!settled) { settled = true; done(); } };
+    const finish = () => { if (!settled) { settled = true; resolve(); } };
 
-    const prev = speechSynthesis.onvoiceschanged;
-    speechSynthesis.onvoiceschanged = () => { speechSynthesis.onvoiceschanged = prev || null; finish(); };
+    // Engines without speechSynthesis threw a ReferenceError straight out of this
+    // Promise executor — an unhandled rejection, and speak() chains every utterance
+    // onto one promise, so it could take the whole cue queue with it.
+    if (typeof speechSynthesis === "undefined") return finish();
 
-    const start = Date.now();
-    const poll = setInterval(() => {
-      const vs = speechSynthesis.getVoices() || [];
-      if (vs.length || Date.now() - start >= timeoutMs) { clearInterval(poll); finish(); }
-    }, 100);
-    setTimeout(() => { clearInterval(poll); finish(); }, timeoutMs + 200);
+    try {
+      if ((speechSynthesis.getVoices() || []).length) return finish();
+
+      const prev = speechSynthesis.onvoiceschanged;
+      speechSynthesis.onvoiceschanged = () => { speechSynthesis.onvoiceschanged = prev || null; finish(); };
+
+      const start = Date.now();
+      const poll = setInterval(() => {
+        let vs = [];
+        try { vs = speechSynthesis.getVoices() || []; } catch { /* keep polling */ }
+        if (vs.length || Date.now() - start >= timeoutMs) { clearInterval(poll); finish(); }
+      }, 100);
+      setTimeout(() => { clearInterval(poll); finish(); }, timeoutMs + 200);
+    } catch (e) {
+      finish();
+    }
   });
 }
 
@@ -1662,22 +1673,15 @@ function unlockAllAudio() {
   claimPlaybackAudioSession();
 
   try {
-    // Unlock ttsAudio
-    ttsAudio.src = "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADhACA";
-    ttsAudio.volume = 0.01;
-    ttsAudio.play().then(() => {
-      ttsAudio.volume = 1.0;
-    }).catch(() => {});
+    // The old unlock played a base64 "data:audio/mp3" string that is an ID3 header with
+    // no audio frames — it fails to decode in Chromium AND WebKit (verified), so these
+    // play() calls always rejected and nothing was ever unlocked. Safari also refuses
+    // data: URIs on media elements outright. A real, silent 50ms WAV file does work.
+    ttsAudio.src = SFX_SILENCE;
+    ttsAudio.play().catch(() => {});
 
-    // Unlock beppePlayer
-    beppePlayer.src = "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADhACA";
-    beppePlayer.volume = 0.01;
-    beppePlayer.play().then(() => {
-      beppePlayer.volume = 1.0;
-    }).catch(() => {});
-
-    // REMOVE the whole block that does beepEl.play() at 0.01 and transitionEl.play() at 0.01
-    // REPLACE it with this:
+    beppePlayer.src = SFX_SILENCE;
+    beppePlayer.play().catch(() => {});
 
     // Reset (do NOT play here)
     const beepEl = document.getElementById("beep-sound");
@@ -1709,7 +1713,8 @@ document.addEventListener("click", unlockAllAudio, { once: true });
 document.addEventListener("touchend", ensureAudioUnlocked, { once: true });
 document.addEventListener("click", () => {
   if (!window.__audioUnlocked) {
-    beppePlayer.src = "data:audio/mp3;base64,//uQxAAAAAA==";
+    // Was another undecodable base64 stub ("//uQxAAAAAA==" is 8 bytes of nothing).
+    beppePlayer.src = SFX_SILENCE;
     beppePlayer.play().then(() => {
       window.__audioUnlocked = true;
     }).catch(() => console.warn("⚠️ Impossibile sbloccare audio su iOS"));
@@ -1804,6 +1809,31 @@ function preloadWorkoutAudios() {
   preloadAudio(audioUrls);
 }
 
+/* -------------------- SFX --------------------
+   These used to point at .ogg files on actions.google.com. WebKit cannot decode Ogg —
+   canPlayType('audio/ogg') returns "" and the real file fails with MediaError code 4 —
+   so bip mode was silent on Safari and iOS while working in Chrome.
+
+   Now local 16-bit PCM WAV files. Deliberately NOT data: URIs: Safari refuses data:
+   URIs on media elements (verified — identical bytes decode as a file and fail as a
+   data URI in WebKit), which is also why the old base64 unlock clip never worked.
+   Same-origin and precached by the service worker, so a beep costs no round trip. */
+const SFX_BEEP = "../audio/beep.wav";
+const SFX_TRANSITION = "../audio/transition.wav";
+const SFX_SILENCE = "../audio/silence.wav";   // used to unlock elements inside a gesture
+
+function installSfxSources() {
+  const beep = document.getElementById("beep-sound");
+  const trans = document.getElementById("transition-sound");
+  if (beep && !beep.src) { beep.src = SFX_BEEP; beep.load(); }
+  if (trans && !trans.src) { trans.src = SFX_TRANSITION; trans.load(); }
+}
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", installSfxSources);
+} else {
+  installSfxSources();
+}
+
 function playBeep() {
   // Only care in Beep mode; do nothing otherwise (keeps modes separate)
   const mode = document.getElementById("soundMode")?.value
@@ -1836,7 +1866,13 @@ function playBeep() {
 
 function playTransition() {
   const transition = document.getElementById("transition-sound");
-  if (transition) transition.play();
+  if (!transition) return;
+  // Rewind: a second transition inside one clip's length was silently dropped because
+  // the element was still at the end of the previous play.
+  try { transition.currentTime = 0; } catch {}
+  // play() rejects when autoplay is blocked; unhandled it surfaces as an uncaught
+  // rejection in Safari.
+  transition.play().catch(() => {});
 }
 
 /* -------------------- Cloud TTS + Synth TTS -------------------- */
@@ -4008,7 +4044,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   warmUpServer();
-  speechSynthesis.getVoices(); // trigger voices load
+  // Guarded: a bare reference here threw at startup on engines without the API.
+  try { speechSynthesis.getVoices(); } catch {}   // trigger voices load
   waitForVoices(1500).then(lockSynthVoices).catch(()=>{});
 
   preloadAudio(Object.values(beppeSounds));

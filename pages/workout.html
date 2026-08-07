@@ -305,8 +305,10 @@
   </div>
 
   <!-- AUDIO -->
-  <audio id="beep-sound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
-  <audio id="transition-sound" src="https://actions.google.com/sounds/v1/emergency/emergency_siren_short_burst.ogg" preload="auto"></audio>
+  <!-- Local WAV, not the old actions.google.com .ogg: WebKit cannot decode Ogg, so
+       these were silent on Safari and iOS. -->
+  <audio id="beep-sound" src="../audio/beep.wav" preload="auto" playsinline webkit-playsinline></audio>
+  <audio id="transition-sound" src="../audio/transition.wav" preload="auto" playsinline webkit-playsinline></audio>
 </div><!-- /.app -->
 
   <!-- JS -->

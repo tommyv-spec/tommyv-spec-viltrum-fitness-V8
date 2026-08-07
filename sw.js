@@ -1,15 +1,21 @@
-const CACHE_NAME = 'viltrum-fitness-v8.2.44';
-const RUNTIME_CACHE = 'viltrum-runtime-v8.2.44';
-const PRELOAD_CACHE = 'viltrum-preload-v8.2.44';
+const CACHE_NAME = 'viltrum-fitness-v8.2.45';
+const RUNTIME_CACHE = 'viltrum-runtime-v8.2.45';
+const PRELOAD_CACHE = 'viltrum-preload-v8.2.45';
 // Instructor voice clips. Intentionally NOT version-suffixed and never purged on
 // activate: the mp3s are immutable, so re-downloading them each release is waste.
 const AUDIO_CACHE = 'viltrum-audio-v1';
-const BUILD_HASH = '20260807160527';
+const BUILD_HASH = '20260807162849';
 
 const urlsToCache = [
   './',
   './index.html',
-  
+
+  // SFX — local WAV. Precached so a beep never waits on the network, and so bip mode
+  // keeps working offline.
+  './audio/beep.wav',
+  './audio/transition.wav',
+  './audio/silence.wav',
+
   // Pages
   './pages/dashboard.html',
   './pages/dashboard-v7.html',
@@ -82,11 +88,11 @@ let preloadAborted = false;
 // INSTALL EVENT
 // ═══════════════════════════════════════════════════════════════════════════
 self.addEventListener('install', (event) => {
-  console.log('[Service Worker] Installing v8.2.44...');
+  console.log('[Service Worker] Installing v8.2.45...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[Service Worker] Caching app shell v8.2.44');
+        console.log('[Service Worker] Caching app shell v8.2.45');
         return Promise.allSettled(
           urlsToCache.map(url => 
             cache.add(url).catch(err => {
@@ -403,7 +409,7 @@ async function handleBackgroundPreload(data) {
 // ACTIVATE EVENT
 // ═══════════════════════════════════════════════════════════════════════════
 self.addEventListener('activate', (event) => {
-  console.log('[Service Worker] Activating v8.2.44...');
+  console.log('[Service Worker] Activating v8.2.45...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(

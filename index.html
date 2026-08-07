@@ -1195,8 +1195,9 @@
   </main>
   </div><!-- /.app -->
 
-  <audio id="beep-sound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
-  <audio id="transition-sound" src="https://actions.google.com/sounds/v1/emergency/emergency_siren_short_burst.ogg" preload="auto"></audio>
+  <!-- Local WAV: WebKit cannot decode the .ogg these used to point at. -->
+  <audio id="beep-sound" src="./audio/beep.wav" preload="auto" playsinline webkit-playsinline></audio>
+  <audio id="transition-sound" src="./audio/transition.wav" preload="auto" playsinline webkit-playsinline></audio>
 
   <script src="viewport.js"></script>
   <script src="js/training-selector.js"></script>

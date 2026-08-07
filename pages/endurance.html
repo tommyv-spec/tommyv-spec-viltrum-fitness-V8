@@ -295,8 +295,11 @@
 <body>
   <!-- Audio Elements -->
   <audio id="tts-audio" preload="auto" playsinline webkit-playsinline></audio>
-  <audio id="beep-sound" preload="auto" src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleQAAT6Xp8axVABJAlsnH1YRYIi9qoc7g0J1pNixfhaW3q5FZMzJYd5artJBgNzRch5atxZNnOzNbiZytw5JmOjZbiZytwpJlOjdbiZytwJJlOjdbiZytvpJlOjdbiZytu5JlOjdbiZytuJJlOjdbiZyttpJlOjdb"></audio>
-  <audio id="transition-sound" preload="auto" src="data:audio/wav;base64,UklGRl9vT19teleQAAT6Xp8axVABJAlsnH1YRYIi9qoc7g0J1pNixfhaW3q5FZMzJYd5artJBgNzRch5atxZNnOzNbiZytw5JmOjZbiZytwpJlOjdbiZytwJJlOjdbiZytvpJlOjdbiZytu5JlOjdbiZytuJJlOjdbiZyttpJlOjdb"></audio>
+  <!-- Local WAV files, not data: URIs. Safari refuses data: URIs on media elements
+       (verified: identical bytes decode as a file and fail as a data URI in WebKit),
+       so both of these were silent on iOS. The transition base64 was truncated too. -->
+  <audio id="beep-sound" preload="auto" src="../audio/beep.wav" playsinline webkit-playsinline></audio>
+  <audio id="transition-sound" preload="auto" src="../audio/transition.wav" playsinline webkit-playsinline></audio>
 
   <div class="container">
     <header>
@@ -611,8 +614,10 @@
       try {
         const el = document.getElementById('tts-audio');
         if (!el) return;
-        // 50ms of silence, just to hand the element its permission.
-        el.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADhACA';
+        // 50ms of real silence, just to hand the element its permission. A file, not a
+        // data: URI — Safari rejects those on media elements, and the base64 stub that
+        // used to be here decodes in no engine at all.
+        el.src = '../audio/silence.wav';
         await Promise.race([
           el.play().catch(() => {}),
           new Promise(r => setTimeout(r, 500))
