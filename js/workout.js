@@ -124,7 +124,14 @@ function resolveMaterialeDisplay(tipoDiPeso, exerciseName) {
 }
 
 /* -------------------- ElevenLabs HD Audio Configuration -------------------- */
-const ELEVEN_BASE_URL = 'https://github.com/tommyv-spec/viltrum-audio-istruttore/raw/main/elevenlabs_muscle';
+// MUST be raw.githubusercontent.com, not github.com/.../raw/. The latter 302-redirects
+// to this host, and the Cache API refuses redirected responses — so sw.js (which only
+// matches this origin) could never cache a single clip, and every cue was a cold fetch
+// through two hosts. Measured on wired fibre: 406ms redirected vs 34ms direct.
+const ELEVEN_BASE_URL = 'https://raw.githubusercontent.com/tommyv-spec/viltrum-audio-istruttore/main/elevenlabs_muscle';
+
+// Same bucket sw.js serves from, and it survives version bumps (unversioned by design).
+const ELEVEN_CACHE_NAME = 'viltrum-audio-v1';
 
 // Hard ceilings so a stalled clip can never block the cue queue.
 // Fixed clips (ElevenLabs phrases, Beppe countdowns) are a few seconds at most.
@@ -614,6 +621,137 @@ const ELEVEN_EXERCISE_MAP = {
   'zotman curl': 'zotman-curl',
 };
 
+/* -------------------- Audio timing trace (on-device) --------------------
+   iOS gives us no console, so cue latency has to be measured in the page itself.
+   Always records to a ring buffer (cheap); renders an overlay only when the URL
+   carries ?audiotrace=1. AudioTrace.dump() works from anywhere. */
+const AudioTrace = (() => {
+  const MAX = 400;
+  const rows = [];
+  const t0 = performance.now();
+  let panel = null, body = null;
+  const on = (() => {
+    try { return new URLSearchParams(location.search).has("audiotrace"); }
+    catch { return false; }
+  })();
+
+  function log(event, key, detail) {
+    const row = { t: Math.round(performance.now() - t0), event, key: key || "", detail: detail || "" };
+    rows.push(row);
+    if (rows.length > MAX) rows.shift();
+    if (on) render(row);
+    return row;
+  }
+  // Returns a stopwatch so callers can report how long a step actually took.
+  function start(event, key) {
+    const at = performance.now();
+    log(event + ":start", key);
+    return (endEvent, detail) => {
+      const ms = Math.round(performance.now() - at);
+      log(endEvent, key, (detail ? detail + " " : "") + ms + "ms");
+      return ms;
+    };
+  }
+  function render(row) {
+    if (!panel) build();
+    const line = document.createElement("div");
+    const slow = /(\d+)ms/.test(row.detail) && parseInt(RegExp.$1, 10) > 400;
+    line.style.cssText = "border-bottom:1px solid #1e1e1e;padding:2px 0;color:" +
+      (/fail|timeout|error|miss/i.test(row.event) ? "#f87171" : slow ? "#fbbf24" : "#9ca3af");
+    line.textContent = (row.t / 1000).toFixed(2) + "s  " + row.event + "  " + row.key + "  " + row.detail;
+    body.appendChild(line);
+    body.scrollTop = body.scrollHeight;
+  }
+  function build() {
+    panel = document.createElement("div");
+    panel.style.cssText = "position:fixed;left:0;right:0;bottom:0;height:38vh;z-index:99999;" +
+      "background:rgba(0,0,0,.93);border-top:2px solid #ffcc00;font:11px ui-monospace,Menlo,monospace;" +
+      "display:flex;flex-direction:column;";
+    const bar = document.createElement("div");
+    bar.style.cssText = "display:flex;gap:6px;padding:5px;border-bottom:1px solid #333;flex:0 0 auto;";
+    const mk = (label, fn) => {
+      const b = document.createElement("button");
+      b.textContent = label;
+      b.style.cssText = "flex:1;background:#ffcc00;color:#000;border:0;border-radius:5px;padding:7px;font-weight:700;font-size:11px;";
+      b.addEventListener("click", fn);
+      return b;
+    };
+    bar.appendChild(mk("Copy", () => {
+      const ta = document.createElement("textarea");
+      ta.value = dump(); ta.style.cssText = "position:fixed;opacity:0";
+      document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, 999999);
+      try { document.execCommand("copy"); } catch {}
+      try { navigator.clipboard?.writeText(ta.value); } catch {}
+      document.body.removeChild(ta);
+    }));
+    bar.appendChild(mk("Clear", () => { rows.length = 0; body.innerHTML = ""; }));
+    bar.appendChild(mk("Hide", () => panel.remove()));
+    body = document.createElement("div");
+    body.style.cssText = "flex:1 1 auto;overflow-y:auto;padding:5px;";
+    panel.appendChild(bar); panel.appendChild(body);
+    (document.body || document.documentElement).appendChild(panel);
+  }
+  function dump() {
+    return "viltrum audio trace | " + navigator.userAgent + "\n" +
+      rows.map(r => (r.t / 1000).toFixed(2) + "s\t" + r.event + "\t" + r.key + "\t" + r.detail).join("\n");
+  }
+  if (on && document.readyState !== "loading") build();
+  else if (on) document.addEventListener("DOMContentLoaded", build);
+
+  return { log, start, dump, get enabled() { return on; } };
+})();
+window.AudioTrace = AudioTrace; // reachable from Safari Web Inspector too
+
+/* -------------------- ElevenLabs clip prewarming --------------------
+   Cue latency, not playback, is what made the timing feel broken: every clip was
+   fetched at the moment it was needed. Pull the whole session's clips into the same
+   Cache Storage bucket sw.js serves from, while the user is still on the setup
+   screen, so cue time costs a cache hit instead of a network round trip. */
+async function warmElevenCache(audioKeys) {
+  if (!("caches" in window)) return;
+  const keys = [...new Set(audioKeys.filter(Boolean))];
+  if (!keys.length) return;
+
+  const endAll = AudioTrace.start("warm", keys.length + " clips");
+  try {
+    const cache = await caches.open(ELEVEN_CACHE_NAME);
+    let added = 0, already = 0, failed = 0, cursor = 0;
+    const CONCURRENCY = 6;
+
+    const worker = async () => {
+      while (cursor < keys.length) {
+        const url = `${ELEVEN_BASE_URL}/${keys[cursor++]}.mp3`;
+        try {
+          if (await cache.match(url)) { already++; continue; }
+          // add() per file: addAll() is all-or-nothing, so one clip missing from the
+          // repo would discard the entire batch.
+          await cache.add(url);
+          added++;
+        } catch (e) {
+          failed++; // not uploaded yet — playback falls back to TTS/synth for that cue
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+    endAll("warm:done", `+${added} new, ${already} cached, ${failed} missing,`);
+  } catch (e) {
+    endAll("warm:fail", String(e && e.message || e));
+  }
+}
+
+/* Collect every clip this session can possibly need: the fixed phrase bank (small,
+   and any of it can fire) plus the exercise names actually in this workout. */
+function collectSessionElevenKeys(sequence) {
+  const keys = Object.values(ELEVEN_AUDIO_MAP);
+  for (const step of (sequence || [])) {
+    const name = (step?.name || step?.exerciseName || "").toLowerCase().trim();
+    if (!name) continue;
+    const k = ELEVEN_EXERCISE_MAP[name];
+    if (k) keys.push(k);
+  }
+  return keys;
+}
+
 /**
  * Play ElevenLabs pre-recorded audio (simple method without CORS restrictions)
  * @param {string} audioKey - Key for the audio file (without extension)
@@ -621,9 +759,20 @@ const ELEVEN_EXERCISE_MAP = {
  */
 async function playElevenAudio(audioKey) {
   const url = `${ELEVEN_BASE_URL}/${audioKey}.mp3`;
+  const audioRequestedAt = performance.now();
+  const endCue = AudioTrace.start("cue", audioKey);
   try {
     await ensureAudioUnlocked();
-    
+
+    // Was this clip actually prewarmed? A miss here is the thing to look for when a
+    // cue lands late — it means the cue paid for a network fetch.
+    if ("caches" in window) {
+      try {
+        const hit = await caches.open(ELEVEN_CACHE_NAME).then(c => c.match(url));
+        AudioTrace.log(hit ? "cache:hit" : "cache:MISS", audioKey);
+      } catch {}
+    }
+
     // Plain element, NO crossOrigin: the GitHub clips send no Access-Control-Allow-Origin,
     // so crossOrigin="anonymous" fails the load outright.
     const audio = new Audio();
@@ -640,18 +789,24 @@ async function playElevenAudio(audioKey) {
       // meant this promise never settled and the whole speak queue hung.
       // Call play() straight away and let the decoder fetch on demand.
       let settled = false;
-      const done = (ok) => {
+      const done = (ok, why) => {
         if (settled) return;
         settled = true;
         clearTimeout(watchdog);
         if (activeAudioEl === audio) activeAudioEl = null;
+        endCue(ok ? "cue:done" : "cue:FAIL", why || "");
         resolve(ok);
       };
       // Never let one bad clip wedge the queue.
       const watchdog = setTimeout(() => {
         console.warn(`⚠️ ElevenLabs audio timed out: ${audioKey}`);
-        done(false);
+        done(false, "timeout");
       }, ELEVEN_CLIP_TIMEOUT_MS);
+      // THE number to watch: how long between asking for a cue and hearing it.
+      // Cache hits land in tens of ms; a cold fetch is hundreds, and that lateness
+      // is what makes the cue arrive after the moment it was meant to mark.
+      audio.onplaying = () => AudioTrace.log("cue:audible", audioKey,
+        Math.round(performance.now() - audioRequestedAt) + "ms to first sound");
       audio.onended = () => {
         console.log(`🎙️ ElevenLabs audio played: ${audioKey}`);
         done(true);
@@ -660,17 +815,18 @@ async function playElevenAudio(audioKey) {
       // escaped the try/catch above, killing the caller.
       audio.onerror = (e) => {
         console.warn(`⚠️ ElevenLabs audio failed for ${audioKey}:`, e);
-        done(false);
+        done(false, "load error " + (audio.error ? "code " + audio.error.code : ""));
       };
       audio.src = url;
       audio.load();
       audio.play().catch((e) => {
         console.warn(`⚠️ ElevenLabs play() rejected for ${audioKey}:`, e);
-        done(false);
+        done(false, "play() rejected: " + (e && e.name || e));
       });
     });
   } catch (err) {
     console.warn(`⚠️ ElevenLabs audio failed for ${audioKey}:`, err);
+    endCue("cue:FAIL", String(err && err.message || err));
     return false;
   }
 }
@@ -2202,6 +2358,9 @@ function startWorkout() {
   const warmupEnabled = document.getElementById("warmup-toggle")?.checked ?? true;
   fullWorkoutSequence = buildFullWorkoutSequence(selectedWorkout, warmupEnabled);
   preloadUpcoming(0, 5); // preload first 5 GIFs immediately
+  // Deliberately not awaited: warming runs while the user is still reading the setup
+  // screen, so the first cue is already local by the time it fires.
+  warmElevenCache(collectSessionElevenKeys(fullWorkoutSequence));
   if (fullWorkoutSequence.length === 0) {
     alert("Impossibile costruire la sequenza di allenamento.");
     return;
