@@ -216,24 +216,21 @@ async function preloadFoodDatabase() {
         }
         
         console.log('🥗 Preloading food database...');
-        const response = await fetch('./food-database.json');
+        // The file sits at the site root. This used to try './' first and fall back to
+        // '../' from the catch block — but a 404 does not reject fetch(), so the catch
+        // never ran and the fallback was unreachable: from any page under /pages/ the
+        // database was simply never preloaded. Resolve the path instead of guessing.
+        const base = location.pathname.includes('/pages/') ? '../' : './';
+        const response = await fetch(base + 'food-database.json');
         if (response.ok) {
             const data = await response.json();
             sessionStorage.setItem('viltrum_food_database', JSON.stringify(data));
             console.log('✅ Food database preloaded');
+        } else {
+            console.warn('⚠️ Food database HTTP ' + response.status);
         }
     } catch (e) {
-        // Try alternate path (for pages/ directory)
-        try {
-            const response = await fetch('../food-database.json');
-            if (response.ok) {
-                const data = await response.json();
-                sessionStorage.setItem('viltrum_food_database', JSON.stringify(data));
-                console.log('✅ Food database preloaded (alt path)');
-            }
-        } catch (e2) {
-            console.warn('⚠️ Could not preload food database:', e2);
-        }
+        console.warn('⚠️ Could not preload food database:', e);
     }
 }
 

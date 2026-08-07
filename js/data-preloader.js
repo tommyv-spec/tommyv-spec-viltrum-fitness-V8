@@ -372,8 +372,10 @@ const DataPreloader = {
   async _preloadFoodDatabase() {
     if (sessionStorage.getItem('viltrum_food_database')) return;
     try {
-      let response = await fetch('./food-database.json');
-      if (!response.ok) response = await fetch('../food-database.json');
+      // Resolve the path rather than probing './' and eating a 404 on every page
+      // under /pages/. The file lives at the site root.
+      const base = location.pathname.includes('/pages/') ? '../' : './';
+      const response = await fetch(base + 'food-database.json');
       if (response.ok) {
         const data = await response.json();
         sessionStorage.setItem('viltrum_food_database', JSON.stringify(data));
