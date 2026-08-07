@@ -126,6 +126,12 @@ function resolveMaterialeDisplay(tipoDiPeso, exerciseName) {
 /* -------------------- ElevenLabs HD Audio Configuration -------------------- */
 const ELEVEN_BASE_URL = 'https://github.com/tommyv-spec/viltrum-audio-istruttore/raw/main/elevenlabs_muscle';
 
+// Hard ceilings so a stalled clip can never block the cue queue.
+// Fixed clips (ElevenLabs phrases, Beppe countdowns) are a few seconds at most.
+const ELEVEN_CLIP_TIMEOUT_MS = 8000;
+// Arbitrary-length TTS (exercise instructions) needs more headroom before we give up.
+const AUDIO_PLAY_TIMEOUT_MS = 20000;
+
 // Map of fixed phrases to pre-recorded ElevenLabs audio files
 const ELEVEN_AUDIO_MAP = {
   // Transitions
@@ -618,29 +624,50 @@ async function playElevenAudio(audioKey) {
   try {
     await ensureAudioUnlocked();
     
-    // Use simple Audio element WITHOUT crossOrigin to avoid CORS issues
+    // Plain element, NO crossOrigin: the GitHub clips send no Access-Control-Allow-Origin,
+    // so crossOrigin="anonymous" fails the load outright.
     const audio = new Audio();
     audio.preload = "auto";
-    audio.volume = currentVolume;
-    // NO crossOrigin = "anonymous" here!
-    
+    audio.volume = currentVolume;   // no-op on iOS (volume is read-only there)
+    audio.playsInline = true;
+    audio.setAttribute("playsinline", "");
+    audio.setAttribute("webkit-playsinline", "");
+
     activeAudioEl = audio; // track for stopAllAudio/flushSpeakQueue
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
+      // iOS NEVER fires canplaythrough on a detached element: it ignores `preload`
+      // and refuses to buffer until play() is called. Gating play() on that event
+      // meant this promise never settled and the whole speak queue hung.
+      // Call play() straight away and let the decoder fetch on demand.
+      let settled = false;
+      const done = (ok) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(watchdog);
+        if (activeAudioEl === audio) activeAudioEl = null;
+        resolve(ok);
+      };
+      // Never let one bad clip wedge the queue.
+      const watchdog = setTimeout(() => {
+        console.warn(`⚠️ ElevenLabs audio timed out: ${audioKey}`);
+        done(false);
+      }, ELEVEN_CLIP_TIMEOUT_MS);
       audio.onended = () => {
-        if (activeAudioEl === audio) activeAudioEl = null;
         console.log(`🎙️ ElevenLabs audio played: ${audioKey}`);
-        resolve(true);
+        done(true);
       };
+      // Resolve false rather than reject: speakEleven() awaits this and a rejection
+      // escaped the try/catch above, killing the caller.
       audio.onerror = (e) => {
-        if (activeAudioEl === audio) activeAudioEl = null;
         console.warn(`⚠️ ElevenLabs audio failed for ${audioKey}:`, e);
-        reject(e);
-      };
-      audio.oncanplaythrough = () => {
-        audio.play().catch(reject);
+        done(false);
       };
       audio.src = url;
       audio.load();
+      audio.play().catch((e) => {
+        console.warn(`⚠️ ElevenLabs play() rejected for ${audioKey}:`, e);
+        done(false);
+      });
     });
   } catch (err) {
     console.warn(`⚠️ ElevenLabs audio failed for ${audioKey}:`, err);
@@ -1178,7 +1205,9 @@ function __bindLoginViewportHandlers() {
 
 document.addEventListener('DOMContentLoaded', __bindLoginViewportHandlers);
 
-window.__audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+// (Removed: an AudioContext built here at module load. Nothing plays through Web Audio
+// any more, and iOS allows only ~4 live contexts per page — this one was orphaned and
+// never closed. See playAudioUrl() for why the graph went away.)
 
 let nextPreviewShown = false;   // controls the 10s preview (fires once per exercise)
 let countdownAudioEnabled = false; // controls "mancano X secondi" audio
@@ -1259,16 +1288,9 @@ function getPreferredVoice() {
   const anyGoogle = list.find(v => /google/i.test(v.name||""));
   return anyGoogle || list[0] || null;
 }
-try {
-  const __ctx = new (window.AudioContext || window.webkitAudioContext)();
-  window.__audioCtx = __ctx;
-  setInterval(() => {
-    if (__ctx.state === "suspended") { __ctx.resume().catch(()=>{}); }
-  }, 1500);
-} catch {}
-
-  
-// keep a shared AudioContext alive on Android
+// (Removed: a second module-load AudioContext plus a setInterval(resume, 1500)
+// "keep alive" hack. iOS ignores resume() outside a user gesture, so the interval
+// woke nothing and just burned a timer every 1.5s for the whole workout.)
 
 /* Pre-recorded (Beppe) player */
 let beppePlayer = new Audio();
@@ -1392,6 +1414,10 @@ document.addEventListener('click',      primeSynth, { once: true });
 function unlockAllAudio() {
   if (window.__audioUnlocked) return;
 
+  // Re-assert inside the real gesture: some iOS builds only honour the playback
+  // session once the page has been interacted with.
+  claimPlaybackAudioSession();
+
   try {
     // Unlock ttsAudio
     ttsAudio.src = "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADhACA";
@@ -1504,9 +1530,14 @@ async function playBeppeAudioSequence(urls) {
     
     beppePlayer.src = finalUrl;
     await new Promise((resolve) => {
-      beppePlayer.onended = resolve;
-      beppePlayer.onerror = resolve;
-      beppePlayer.play().catch(resolve);
+      // No watchdog here meant a clip that stalled mid-buffer (flaky cellular in the
+      // gym) hung this loop forever. Every await in the cue path needs a ceiling.
+      let done = false;
+      const finish = () => { if (done) return; done = true; clearTimeout(watchdog); resolve(); };
+      const watchdog = setTimeout(finish, ELEVEN_CLIP_TIMEOUT_MS);
+      beppePlayer.onended = finish;
+      beppePlayer.onerror = finish;
+      beppePlayer.play().catch(finish);
     });
   }
 }
@@ -1576,22 +1607,28 @@ const GOOGLE_TTS_URL = "https://google-tts-server.onrender.com/speak";
 const TTS_TIMEOUT_MS = 9000;
 const TTS_RETRIES = 2;
 
+// iOS routes web audio through the "ambient" session by default, which the physical
+// ring/silent switch mutes. Users train with the phone on silent, so every cue vanished.
+// Safari 16.4+ lets us claim the playback session instead. Safe no-op elsewhere.
+function claimPlaybackAudioSession() {
+  try {
+    if ("audioSession" in navigator && navigator.audioSession.type !== "playback") {
+      navigator.audioSession.type = "playback";
+    }
+  } catch (e) {
+    console.warn("audioSession unavailable:", e);
+  }
+}
+claimPlaybackAudioSession();
+
+// Nothing plays through Web Audio any more, so this no longer builds an AudioContext.
+// The old version created a throwaway context and awaited resume() with no timeout —
+// on iOS that promise can hang forever outside a gesture, and both playElevenAudio()
+// and speakCloud() await this function.
 async function ensureAudioUnlocked() {
   if (window.__audioUnlocked) return;
-  let ctx;
-  try {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) { window.__audioUnlocked = true; return; }
-    ctx = new AC();
-    if (ctx.state === "suspended") await ctx.resume();
-    const src = ctx.createBufferSource();
-    src.buffer = ctx.createBuffer(1, 1, 22050);
-    src.connect(ctx.destination);
-    src.start(0);
-    window.__audioUnlocked = true;
-  } catch (e) {
-    console.warn("Unable to unlock audio:", e);
-  }
+  claimPlaybackAudioSession();
+  window.__audioUnlocked = true;
 }
 
 async function playAudioUrl(url) {
@@ -1617,42 +1654,38 @@ async function playAudioUrl(url) {
   el.currentTime = 0;
   el.load();
 
-  try { await (window.__audioCtx?.resume?.() || Promise.resolve()); } catch (_) {}
+  // NO Web Audio graph here. This used to route #tts-audio through
+  // createMediaElementSource() + a 5.0 gain node. On iOS that was fatal, twice over:
+  //   1. The AudioContext was built at module load, outside any user gesture, so iOS
+  //      kept it suspended; a suspended graph emits silence while the element still
+  //      reports itself as playing.
+  //   2. createMediaElementSource() on a cross-origin element with no CORS header
+  //      taints the graph to zeros, and the GitHub clips send no ACAO.
+  // Worse, the rewiring is irreversible: once an element is attached to a graph it
+  // never reaches the speaker directly again for the life of the page.
+  // Device evidence: plain playback is audible on iOS, graph playback is silent.
 
-  // ===== AMPLIFICAZIONE VOLUME CON WEB AUDIO API =====
-  // Crea AudioContext se non esiste
-  if (!window.__audioCtx) {
-    window.__audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  }
-  
-  // Crea o riusa MediaElementSource e GainNode
-  if (!window.__ttsSource) {
-    window.__ttsSource = window.__audioCtx.createMediaElementSource(el);
-    window.__ttsGainNode = window.__audioCtx.createGain();
-    
-    // IMPOSTA IL VOLUME AMPLIFICATO QUI
-    // 1.0 = volume normale
-    // 2.0 = volume raddoppiato
-    // 3.0 = volume triplicato
-    window.__ttsGainNode.gain.value = 5.0; // ← Matched to ElevenLabs volume level
-    
-    // Connetti: Audio Element → GainNode → Speakers
-    window.__ttsSource.connect(window.__ttsGainNode);
-    window.__ttsGainNode.connect(window.__audioCtx.destination);
-    
-    console.log("🔊 Audio amplification enabled with gain:", window.__ttsGainNode.gain.value);
-  }
-  
   await new Promise((resolve, reject) => {
+    let done = false;
     const cleanup = () => {
+      clearTimeout(watchdog);
       el.onended = null;
       el.onerror = null;
       if (isBlob) { try { URL.revokeObjectURL(url); } catch {} }
     };
-    el.onended = () => { cleanup(); resolve(); };
-    el.onerror = (e) => { cleanup(); reject(e); };
+    // Ceiling on every await in the cue path: speak() serialises utterances onto one
+    // promise chain, so a single clip that never ends silences the whole workout.
+    const watchdog = setTimeout(() => {
+      if (done) return; done = true;
+      cleanup();
+      resolve();
+    }, AUDIO_PLAY_TIMEOUT_MS);
+    el.onended = () => { if (done) return; done = true; cleanup(); resolve(); };
+    el.onerror = (e) => { if (done) return; done = true; cleanup(); reject(e); };
     const p = el.play();
-    if (p && typeof p.then === "function") p.catch(reject);
+    if (p && typeof p.then === "function") {
+      p.catch((e) => { if (done) return; done = true; cleanup(); reject(e); });
+    }
   });
 }
 
@@ -1762,22 +1795,31 @@ async function webSpeechSpeak(text, lang) {
 
   return new Promise((resolve, reject) => {
     let done = false;
-    const finish = (ok, err) => { if (done) return; done = true; ok ? resolve() : reject(err||new Error("speak failed")); };
+    let watchdog;
+    const clear = () => { try { clearTimeout(watchdog); } catch {} };
+    const finish = (ok, err) => { if (done) return; done = true; clear(); ok ? resolve() : reject(err||new Error("speak failed")); };
 
-    const watchdog = setTimeout(() => finish(true), 3000); // some Androids never fire events
+    const watch = (ms) => { clear(); watchdog = setTimeout(() => finish(true), ms); };
 
-    utter.onstart = () => { try { clearTimeout(watchdog); } catch {} };
-    utter.onend   = () => { try { clearTimeout(watchdog); } catch {}; finish(true); };
-    utter.onerror = (e)  => { try { clearTimeout(watchdog); } catch {};
-                              if (e && e.error === "interrupted") return finish(true);
-                              finish(false, e); };
+    watch(3000); // some Androids never fire events at all
+
+    // onstart used to CLEAR the watchdog outright. If onend then never arrived — which
+    // iOS does whenever the synth is interrupted (screen lock, incoming call, another
+    // cue) — this promise never settled, and speak() chains every utterance onto a
+    // single promise, so one stuck cue silenced the entire rest of the workout.
+    // Re-arm instead, scaled to how long the text plausibly takes to read.
+    utter.onstart = () => watch(Math.min(30000, 4000 + text.length * 120));
+    utter.onend   = () => finish(true);
+    utter.onerror = (e)  => {
+      if (e && e.error === "interrupted") return finish(true);
+      finish(false, e);
+    };
 
     try {
       // resume again right before talking
       try { speechSynthesis.resume(); } catch {}
       speechSynthesis.speak(utter);
     } catch (err) {
-      try { clearTimeout(watchdog); } catch {}
       finish(false, err);
     }
   });

@@ -586,30 +586,39 @@
       return document.getElementById('soundMode')?.value || 'none';
     }
 
+    // iOS routes web audio through the "ambient" session by default, which the physical
+    // ring/silent switch mutes. Runners keep the phone on silent, so every pace cue
+    // vanished. Safari 16.4+ lets us claim the playback session. No-op elsewhere.
+    function claimPlaybackAudioSession() {
+      try {
+        if ('audioSession' in navigator && navigator.audioSession.type !== 'playback') {
+          navigator.audioSession.type = 'playback';
+        }
+      } catch (e) {
+        console.warn('audioSession unavailable:', e);
+      }
+    }
+    claimPlaybackAudioSession();
+
+    // Unlocking an AudioContext does NOT unlock <audio> elements on iOS — they are
+    // separate permissions, and nothing here plays through Web Audio anyway. What the
+    // element actually needs is one play() inside a real user gesture; after that iOS
+    // lets timer-driven cues through. Verified on device.
     async function ensureAudioUnlocked() {
       if (audioUnlocked) return;
+      audioUnlocked = true;            // set first: this must never be re-entered or hang
+      claimPlaybackAudioSession();
       try {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) { audioUnlocked = true; return; }
-        const ctx = new AC();
-        if (ctx.state === 'suspended') {
-          // iOS Safari: ctx.resume() hangs forever without user gesture
-          // Use a timeout to prevent blocking
-          await Promise.race([
-            ctx.resume(),
-            new Promise(r => setTimeout(r, 1000))
-          ]);
-        }
-        if (ctx.state === 'running') {
-          const src = ctx.createBufferSource();
-          src.buffer = ctx.createBuffer(1, 1, 22050);
-          src.connect(ctx.destination);
-          src.start(0);
-        }
-        audioUnlocked = true;
-        console.log('🔊 Audio unlocked (state: ' + ctx.state + ')');
+        const el = document.getElementById('tts-audio');
+        if (!el) return;
+        // 50ms of silence, just to hand the element its permission.
+        el.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADhACA';
+        await Promise.race([
+          el.play().catch(() => {}),
+          new Promise(r => setTimeout(r, 500))
+        ]);
+        console.log('🔊 Audio element unlocked');
       } catch (e) {
-        audioUnlocked = true; // Don't block workout even if audio fails
         console.warn('Unable to unlock audio:', e);
       }
     }
