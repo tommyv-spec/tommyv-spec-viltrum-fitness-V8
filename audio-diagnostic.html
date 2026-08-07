@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Viltrum — iOS Audio Diagnostic</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
+           background:#0a0a0a; color:#eee; padding:16px 14px 60px; font-size:15px; line-height:1.45; }
+    h1 { font-size:19px; margin-bottom:4px; color:#ffcc00; }
+    .sub { font-size:13px; color:#888; margin-bottom:14px; }
+    .env { background:#141414; border:1px solid #262626; border-radius:8px;
+           padding:10px 12px; font-size:12px; font-family:ui-monospace,Menlo,monospace;
+           white-space:pre-wrap; word-break:break-word; margin-bottom:16px; color:#9ad; }
+    .warn { background:#2a1d00; border:1px solid #6b4d00; color:#ffcc66;
+            border-radius:8px; padding:10px 12px; font-size:13px; margin-bottom:16px; }
+    .test { background:#141414; border:1px solid #262626; border-radius:10px;
+            padding:12px; margin-bottom:10px; }
+    .test h2 { font-size:14px; margin-bottom:2px; color:#fff; }
+    .test .hyp { font-size:12px; color:#7a7a7a; margin-bottom:9px; }
+    .row { display:flex; gap:8px; align-items:center; }
+    button { flex:0 0 auto; background:#ffcc00; color:#000; border:0; border-radius:8px;
+             padding:11px 16px; font-size:14px; font-weight:700; min-height:44px; }
+    button:active { background:#d9ad00; }
+    button[disabled] { opacity:.4; }
+    .verdict { flex:1 1 auto; font-size:12px; font-family:ui-monospace,Menlo,monospace;
+               white-space:pre-wrap; word-break:break-word; }
+    .pass { color:#4ade80; } .fail { color:#f87171; } .info { color:#93c5fd; } .pend { color:#888; }
+    .bar { position:fixed; left:0; right:0; bottom:0; display:flex; gap:8px;
+           padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+           background:#000; border-top:1px solid #262626; }
+    .bar button { flex:1 1 0; }
+    .bar button.sec { background:#262626; color:#eee; }
+    .ask { font-size:12px; color:#ffcc66; margin-top:7px; }
+  </style>
+</head>
+<body>
+
+<h1>Viltrum — iOS Audio Diagnostic</h1>
+<div class="sub">Tap each test <b>one at a time</b>, top to bottom. Listen after each.</div>
+
+<div class="warn">
+  <b>Before starting:</b><br>
+  1. Flip the physical <b>ring/silent switch to RING</b> (orange = silent = many web sounds are muted).<br>
+  2. Volume up with the side buttons <b>while a sound is playing</b> (media volume ≠ ringer volume).<br>
+  3. Do <b>not</b> reload between tests — order matters.
+</div>
+
+<div class="env" id="env">collecting…</div>
+
+<div id="tests"></div>
+
+<div class="bar">
+  <button class="sec" id="copy">Copy results</button>
+  <button class="sec" id="reset">Reload</button>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   Real URLs used by the app — testing the exact same origins.
+   ═══════════════════════════════════════════════════════════════ */
+const ELEVEN = 'https://github.com/tommyv-spec/viltrum-audio-istruttore/raw/main/elevenlabs_muscle/preparati.mp3';
+const BEPPE  = 'https://github.com/tommyv-spec/workout-audio/raw/refs/heads/main/docs/mancano%2030%20secondi.mp3';
+const TTSURL = 'https://google-tts-server.onrender.com/speak';
+const SILENT = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADhACA';
+
+const AC = window.AudioContext || window.webkitAudioContext;
+const results = [];
+
+/* ── Baseline: a context created at LOAD TIME, exactly like workout.js:1181 ── */
+let loadTimeCtx = null, loadTimeCtxErr = null;
+try { loadTimeCtx = new AC(); } catch (e) { loadTimeCtxErr = e.message; }
+const loadTimeCtxState = loadTimeCtx ? loadTimeCtx.state : 'THREW: ' + loadTimeCtxErr;
+
+/* ── An <audio> element created at LOAD TIME, never touched in a gesture ── */
+const coldEl = document.createElement('audio');
+coldEl.id = 'cold-audio'; coldEl.preload = 'auto';
+coldEl.playsInline = true;
+coldEl.setAttribute('playsinline',''); coldEl.setAttribute('webkit-playsinline','');
+document.body.appendChild(coldEl);
+
+/* ── An <audio> element we WILL unlock inside the first tap ── */
+const warmEl = document.createElement('audio');
+warmEl.id = 'warm-audio'; warmEl.preload = 'auto';
+warmEl.playsInline = true;
+warmEl.setAttribute('playsinline',''); warmEl.setAttribute('webkit-playsinline','');
+document.body.appendChild(warmEl);
+
+/* ── Environment ── */
+(function env() {
+  const ua = navigator.userAgent;
+  const iosVer = (ua.match(/OS (\d+)[._](\d+)/) || []).slice(1).join('.') || 'n/a';
+  const standalone = (window.navigator.standalone === true) ||
+                     window.matchMedia('(display-mode: standalone)').matches;
+  let volProbe;
+  try { coldEl.volume = 0.42; volProbe = coldEl.volume; } catch (e) { volProbe = 'threw'; }
+  const lines = [
+    'UA            : ' + ua,
+    'iOS version   : ' + iosVer,
+    'PWA standalone: ' + standalone,
+    'AudioContext  : ' + (AC ? (AC === window.AudioContext ? 'standard' : 'webkit-prefixed') : 'MISSING'),
+    'ctx @load     : ' + loadTimeCtxState + '   <-- workout.js:1181 does exactly this',
+    'sampleRate    : ' + (loadTimeCtx ? loadTimeCtx.sampleRate : 'n/a'),
+    'audioSession  : ' + ('audioSession' in navigator
+                          ? 'supported, type=' + navigator.audioSession.type
+                          : 'NOT SUPPORTED (iOS <16.4 or non-Safari)'),
+    'el.volume=0.42 reads back as: ' + volProbe + (volProbe === 1 ? '   <-- iOS ignores .volume' : ''),
+    'speechSynth   : ' + ('speechSynthesis' in window ? 'present, voices=' +
+                          ((speechSynthesis.getVoices()||[]).length) : 'MISSING'),
+    'SW controller : ' + (navigator.serviceWorker && navigator.serviceWorker.controller ? 'active' : 'none')
+  ];
+  document.getElementById('env').textContent = lines.join('\n');
+  results.push('=== ENV ===\n' + lines.join('\n'));
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   Test harness
+   ═══════════════════════════════════════════════════════════════ */
+function mkTest(t) {
+  const wrap = document.createElement('div');
+  wrap.className = 'test';
+  wrap.innerHTML =
+    '<h2>' + t.n + '. ' + t.title + '</h2>' +
+    '<div class="hyp">' + t.hyp + '</div>' +
+    '<div class="row"><button>' + (t.btn || 'Run') + '</button>' +
+    '<span class="verdict pend">not run</span></div>' +
+    (t.ask ? '<div class="ask">' + t.ask + '</div>' : '');
+  const btn = wrap.querySelector('button');
+  const out = wrap.querySelector('.verdict');
+  btn.addEventListener('click', function () {
+    btn.disabled = true;
+    out.className = 'verdict pend'; out.textContent = 'running…';
+    const say = (txt, cls) => {
+      out.className = 'verdict ' + (cls || 'info');
+      out.textContent = txt;
+      results.push('--- T' + t.n + ' ' + t.title + ' ---\n' + txt);
+    };
+    let done = false;
+    const finish = (txt, cls) => { if (done) return; done = true; say(txt, cls); btn.disabled = false; };
+    // hard watchdog: a test that never settles IS the finding
+    const wd = setTimeout(() => finish('TIMEOUT after 12s — never settled (this is itself a FAIL)', 'fail'), 12000);
+    try {
+      const r = t.run(say);
+      Promise.resolve(r)
+        .then(v => { clearTimeout(wd); finish(v.txt, v.cls); })
+        .catch(e => { clearTimeout(wd); finish('THREW: ' + (e && (e.message || e.name) || e), 'fail'); });
+    } catch (e) {
+      clearTimeout(wd);
+      finish('THREW SYNC: ' + (e && e.message || e), 'fail');
+    }
+  });
+  document.getElementById('tests').appendChild(wrap);
+}
+
+const P = txt => ({ txt, cls: 'pass' });
+const F = txt => ({ txt, cls: 'fail' });
+const I = txt => ({ txt, cls: 'info' });
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* Play an element and report whether it really ran (currentTime advanced). */
+function playAndMeasure(el, url, label) {
+  return new Promise(resolve => {
+    let settled = false;
+    const end = v => { if (!settled) { settled = true; resolve(v); } };
+    el.onerror = () => end({ how: 'error', err: el.error ? ('MediaError code ' + el.error.code) : 'unknown' });
+    el.onended = () => end({ how: 'ended', t: el.currentTime });
+    el.src = url;
+    try { el.load(); } catch (e) {}
+    const p = el.play();
+    if (p && p.catch) p.catch(e => end({ how: 'rejected', err: (e && (e.name + ': ' + e.message)) || 'unknown' }));
+    setTimeout(() => end({ how: 'timeout', t: el.currentTime, paused: el.paused, ready: el.readyState }), 6000);
+  });
+}
+function fmt(r, label) {
+  if (r.how === 'ended')    return 'played to end (' + r.t.toFixed(2) + 's of media time)';
+  if (r.how === 'rejected') return 'play() REJECTED — ' + r.err;
+  if (r.how === 'error')    return 'load ERROR — ' + r.err;
+  return 'no end event in 6s: currentTime=' + (r.t || 0).toFixed(2) +
+         ' paused=' + r.paused + ' readyState=' + r.ready +
+         (r.t > 0.1 ? '  (decoder DID run → likely a routing/mute problem, not a load problem)'
+                    : '  (decoder never advanced → load or permission problem)');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TESTS
+   ═══════════════════════════════════════════════════════════════ */
+
+mkTest({
+  n: 1, title: 'Resume the load-time AudioContext inside this tap',
+  hyp: 'workout.js creates AudioContext at import time (line 1181/1263), outside any gesture. iOS starts it suspended. Only a resume() inside a real tap can wake it.',
+  btn: 'Resume ctx',
+  run: async () => {
+    if (!loadTimeCtx) return F('no AudioContext at all: ' + loadTimeCtxErr);
+    const before = loadTimeCtx.state;
+    await Promise.race([loadTimeCtx.resume(), sleep(3000)]);
+    const after = loadTimeCtx.state;
+    const msg = 'state before tap = ' + before + '  →  after resume() in tap = ' + after;
+    return after === 'running' ? P(msg) : F(msg + '  ← context stayed asleep');
+  }
+});
+
+mkTest({
+  n: 2, title: 'Resume a context from a TIMER (no gesture)',
+  hyp: 'workout.js:1265 runs setInterval(() => ctx.resume(), 1500) as its "keep alive" hack. If iOS refuses resume() outside a gesture, that interval is dead code and the context never wakes.',
+  btn: 'Test timer resume',
+  run: async () => {
+    let ctx;
+    try { ctx = new AC(); } catch (e) { return F('could not create context: ' + e.message + '  (iOS caps at 4 live contexts)'); }
+    if (ctx.state === 'running') return I('this fresh context started RUNNING already — inconclusive on this device');
+    const state = await new Promise(res => {
+      setTimeout(() => { ctx.resume().catch(() => {}); setTimeout(() => res(ctx.state), 1200); }, 400);
+    });
+    try { ctx.close(); } catch (e) {}
+    return state === 'running'
+      ? P('timer-driven resume() WORKED (state=running) — the interval hack is viable here')
+      : F('timer-driven resume() ignored (state=' + state + ') — the setInterval keep-alive at workout.js:1265 does nothing on this device');
+  }
+});
+
+mkTest({
+  n: 3, title: 'Plain <audio>, unlocked in THIS tap, remote mp3',
+  hyp: 'Baseline. If this is silent, the problem is device/session level (silent switch, volume, output route), not the code.',
+  btn: '▶ Play ElevenLabs clip',
+  ask: 'Did you HEAR a voice? If not, this is the layer that is broken.',
+  run: async () => I(fmt(await playAndMeasure(warmEl, ELEVEN)))
+});
+
+mkTest({
+  n: 4, title: 'Same element, played later from a TIMER',
+  hyp: 'Once an element is unlocked by a gesture it should stay unlocked. Tests whether timer-driven playback (how the workout actually fires cues) survives.',
+  btn: '▶ Play in 3s (put phone down)',
+  ask: 'Did you hear it 3 seconds AFTER tapping?',
+  run: async () => { await sleep(3000); return I(fmt(await playAndMeasure(warmEl, BEPPE))); }
+});
+
+mkTest({
+  n: 5, title: 'FRESH new Audio() created outside a gesture',
+  hyp: 'workout.js:622 playElevenAudio() builds a brand-new Audio() on every call, at timer time. iOS unlock is PER ELEMENT — a never-gestured element may be blocked.',
+  btn: '▶ Play fresh element',
+  ask: 'Heard it? If T3 was audible and this is not, every ElevenLabs cue in the workout is dead.',
+  run: async () => {
+    const fresh = new Audio();
+    fresh.preload = 'auto'; fresh.playsInline = true;
+    fresh.setAttribute('playsinline','');
+    return I(fmt(await playAndMeasure(fresh, ELEVEN)));
+  }
+});
+
+mkTest({
+  n: 6, title: 'Does oncanplaythrough ever fire on a fresh Audio()?',
+  hyp: 'workout.js:639 only calls play() from inside oncanplaythrough. iOS ignores preload and will not buffer detached media — if this event never fires, playElevenAudio() never resolves and the whole speak queue HANGS.',
+  btn: 'Wait for canplaythrough',
+  run: async () => {
+    const a = new Audio();
+    a.preload = 'auto'; a.playsInline = true;
+    const t0 = performance.now();
+    const r = await new Promise(res => {
+      a.oncanplaythrough = () => res('fired after ' + Math.round(performance.now() - t0) + 'ms');
+      a.onerror = () => res(null);
+      a.src = ELEVEN; a.load();
+      setTimeout(() => res(false), 8000);
+    });
+    if (r === false) return F('canplaythrough NEVER fired in 8s → playElevenAudio() would hang forever (workout.js:639)');
+    if (r === null)  return F('element errored before canplaythrough — clip unreachable');
+    return P('canplaythrough ' + r);
+  }
+});
+
+mkTest({
+  n: 7, title: 'Element routed through createMediaElementSource + gain 5.0',
+  hyp: 'This is exactly workout.js:1630. Routing an element into a Web Audio graph is IRREVERSIBLE. If the context is suspended, or the media is cross-origin without CORS, the graph outputs SILENCE while the element still reports as playing.',
+  btn: '▶ Play through gain node',
+  ask: 'CRITICAL: did you hear anything? Silence here + sound in T3 = confirmed root cause.',
+  run: async () => {
+    if (!loadTimeCtx) return F('no context');
+    const el = document.createElement('audio');
+    el.playsInline = true; el.setAttribute('playsinline',''); el.preload = 'auto';
+    document.body.appendChild(el);
+    let src, gain;
+    try {
+      src = loadTimeCtx.createMediaElementSource(el);
+      gain = loadTimeCtx.createGain();
+      gain.gain.value = 5.0;
+      src.connect(gain); gain.connect(loadTimeCtx.destination);
+    } catch (e) { return F('graph build threw: ' + e.message); }
+    const r = await playAndMeasure(el, ELEVEN);
+    return I('ctx.state=' + loadTimeCtx.state + ' | ' + fmt(r) +
+             (loadTimeCtx.state !== 'running'
+               ? '\n→ context NOT running: this element is now permanently muted'
+               : '\n→ context running; if still silent, cause is CORS taint (no crossOrigin on a cross-origin mp3 = silent graph)'));
+  }
+});
+
+mkTest({
+  n: 8, title: 'Same graph test, but with crossOrigin="anonymous"',
+  hyp: 'Distinguishes "suspended context" from "CORS-tainted graph". GitHub raw mp3s must send Access-Control-Allow-Origin for a MediaElementSource to output audio.',
+  btn: '▶ Play (CORS mode)',
+  run: async () => {
+    if (!loadTimeCtx) return F('no context');
+    const el = document.createElement('audio');
+    el.crossOrigin = 'anonymous'; el.playsInline = true;
+    el.setAttribute('playsinline',''); el.preload = 'auto';
+    document.body.appendChild(el);
+    try {
+      const s = loadTimeCtx.createMediaElementSource(el);
+      const g = loadTimeCtx.createGain(); g.gain.value = 2.0;
+      s.connect(g); g.connect(loadTimeCtx.destination);
+    } catch (e) { return F('graph build threw: ' + e.message); }
+    const r = await playAndMeasure(el, ELEVEN);
+    return I('ctx.state=' + loadTimeCtx.state + ' | ' + fmt(r) +
+             (r.how === 'error' ? '\n→ crossOrigin="anonymous" BLOCKS the load: GitHub sends no CORS header for this clip' : ''));
+  }
+});
+
+mkTest({
+  n: 9, title: 'Google TTS server → blob: URL',
+  hyp: 'workout.js speakCloud() POSTs to google-tts-server.onrender.com and plays the blob. Render free tier cold-starts (~30s) or may be down; blob: is same-origin so it is CORS-safe.',
+  btn: '▶ Fetch + play TTS',
+  ask: 'Heard a spoken sentence?',
+  run: async () => {
+    const t0 = performance.now();
+    let res;
+    try {
+      res = await fetch(TTSURL, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: 'prova audio viltrum', lang: 'it-IT' })
+      });
+    } catch (e) { return F('fetch failed after ' + Math.round(performance.now()-t0) + 'ms: ' + e.message); }
+    if (!res.ok) return F('HTTP ' + res.status + ' ' + res.statusText + ' after ' + Math.round(performance.now()-t0) + 'ms');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const r = await playAndMeasure(warmEl, url);
+    return I('fetch ok in ' + Math.round(performance.now()-t0) + 'ms, ' + blob.size + ' bytes, type=' +
+             (blob.type || 'none') + '\n' + fmt(r));
+  }
+});
+
+mkTest({
+  n: 10, title: 'Are the audio files even reachable?',
+  hyp: 'Separates "cannot play" from "cannot download". GitHub /raw/ 302-redirects to raw.githubusercontent.com.',
+  btn: 'Check URLs',
+  run: async () => {
+    const out = [];
+    for (const [name, url] of [['ElevenLabs', ELEVEN], ['Beppe', BEPPE]]) {
+      try {
+        const r = await fetch(url, { method: 'GET', mode: 'cors' });
+        out.push(name + ': HTTP ' + r.status + ' type=' + r.type +
+                 ' ACAO=' + (r.headers.get('access-control-allow-origin') || 'none'));
+      } catch (e) {
+        try {
+          await fetch(url, { method: 'GET', mode: 'no-cors' });
+          out.push(name + ': reachable but CORS-BLOCKED (fine for <audio>, fatal for Web Audio graph)');
+        } catch (e2) { out.push(name + ': UNREACHABLE — ' + e2.message); }
+      }
+    }
+    return I(out.join('\n'));
+  }
+});
+
+mkTest({
+  n: 11, title: 'navigator.audioSession = "playback"',
+  hyp: 'iOS 16.4+ only. Default web audio uses the ambient session, which the hardware ring/silent switch mutes. Setting playback overrides that.',
+  btn: '▶ Set playback + play',
+  ask: 'If T3 was silent with the switch on SILENT but this one is audible, the fix is one line.',
+  run: async () => {
+    if (!('audioSession' in navigator)) return I('navigator.audioSession NOT supported on this iOS version');
+    const before = navigator.audioSession.type;
+    try { navigator.audioSession.type = 'playback'; } catch (e) { return F('assignment threw: ' + e.message); }
+    const r = await playAndMeasure(warmEl, ELEVEN);
+    return I('type: ' + before + ' → ' + navigator.audioSession.type + '\n' + fmt(r));
+  }
+});
+
+mkTest({
+  n: 12, title: 'speechSynthesis fallback',
+  hyp: 'Last-resort path in both pages. iOS needs a gesture-primed synth and populated voice list.',
+  btn: '▶ Speak',
+  ask: 'Heard the robot voice?',
+  run: async () => {
+    if (!('speechSynthesis' in window)) return F('speechSynthesis missing');
+    try { speechSynthesis.cancel(); speechSynthesis.resume(); } catch (e) {}
+    const voices = speechSynthesis.getVoices() || [];
+    const u = new SpeechSynthesisUtterance('prova audio viltrum');
+    u.lang = 'it-IT';
+    const it = voices.find(v => (v.lang || '').toLowerCase().startsWith('it'));
+    if (it) u.voice = it;
+    const r = await new Promise(res => {
+      u.onend = () => res('ended ok');
+      u.onerror = e => res('ERROR ' + (e.error || 'unknown'));
+      speechSynthesis.speak(u);
+      setTimeout(() => res('no end event in 8s (speaking=' + speechSynthesis.speaking +
+                           ' pending=' + speechSynthesis.pending + ')'), 8000);
+    });
+    return I(voices.length + ' voices, italian=' + (it ? it.name : 'NONE') + '\n' + r);
+  }
+});
+
+/* ── copy / reset ── */
+document.getElementById('copy').addEventListener('click', () => {
+  const txt = results.join('\n\n');
+  const ta = document.createElement('textarea');
+  ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, 999999);
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) {}
+  document.body.removeChild(ta);
+  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => {}, () => {});
+  document.getElementById('copy').textContent = ok ? 'Copied ✓' : 'Select manually ↑';
+});
+document.getElementById('reset').addEventListener('click', () => location.reload());
+</script>
+</body>
+</html>
