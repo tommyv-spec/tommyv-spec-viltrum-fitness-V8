@@ -231,7 +231,23 @@ const ELEVEN_AUDIO_MAP = {
   'fai 16 ripetizioni, destra': 'fai-16-ripetizioni-destra',            'fai 16 ripetizioni, sinistra': 'fai-16-ripetizioni-sinistra',
   'fai 20 ripetizioni, destra': 'fai-20-ripetizioni-destra',            'fai 20 ripetizioni, sinistra': 'fai-20-ripetizioni-sinistra',
   'fai 30 ripetizioni, destra': 'fai-30-ripetizioni-destra',            'fai 30 ripetizioni, sinistra': 'fai-30-ripetizioni-sinistra',
-  'fai il massimo delle ripetizioni, destra': 'fai-max-ripetizioni-destra', 'fai il massimo delle ripetizioni, sinistra': 'fai-max-ripetizioni-sinistra',
+  'fai il massimo delle ripetizioni, destra': 'fai-max-ripetizioni-destra',
+
+  // The -sinistra clips were sitting in the repo unreferenced: every destra variant
+  // was mapped and no sinistra one was, so left-side cues fell through to the synth
+  // voice while right-side cues played properly — the alternating "metallic" voice.
+  'fai almeno 1 ripetizioni, sinistra': 'fai-1plus-ripetizioni-sinistra',
+  'fai almeno 3 ripetizioni, sinistra': 'fai-3plus-ripetizioni-sinistra',
+  'fai almeno 5 ripetizioni, sinistra': 'fai-5plus-ripetizioni-sinistra',
+  'fai almeno 6 ripetizioni, sinistra': 'fai-6plus-ripetizioni-sinistra',
+  'fai 8 ripetizioni, sinistra': 'fai-8-ripetizioni-sinistra',
+  'fai 10 ripetizioni, sinistra': 'fai-10-ripetizioni-sinistra',
+  'fai 12 ripetizioni, sinistra': 'fai-12-ripetizioni-sinistra',
+  'fai 15 ripetizioni, sinistra': 'fai-15-ripetizioni-sinistra',
+  'fai 16 ripetizioni, sinistra': 'fai-16-ripetizioni-sinistra',
+  'fai 20 ripetizioni, sinistra': 'fai-20-ripetizioni-sinistra',
+  'fai 30 ripetizioni, sinistra': 'fai-30-ripetizioni-sinistra',
+  'fai il massimo delle ripetizioni, sinistra': 'fai-max-ripetizioni-sinistra', 'fai il massimo delle ripetizioni, sinistra': 'fai-max-ripetizioni-sinistra',
 
   // Coach tips
   'tip-usa-massimo-peso':    'tip-usa-massimo-peso',
@@ -1879,6 +1895,33 @@ async function tryGoogleTTS(text, lang) {
   throw lastErr;
 }
 
+/* The Google TTS box currently answers every /speak with HTTP 500. Without a breaker
+   each fallback pays a full network round trip before reaching the synth voice, which
+   is exactly the wrong moment to add latency: the cue is already late. Trip after two
+   consecutive failures, retry once a minute in case the server comes back. */
+const CLOUD_TTS_TRIP_AFTER = 2;
+const CLOUD_TTS_RETRY_MS = 60000;
+let cloudTtsFailures = 0;
+let cloudTtsTrippedAt = 0;
+
+function cloudTtsAvailable() {
+  if (cloudTtsFailures < CLOUD_TTS_TRIP_AFTER) return true;
+  if (Date.now() - cloudTtsTrippedAt > CLOUD_TTS_RETRY_MS) {
+    cloudTtsFailures = 0;   // probation: let one request through to test the water
+    return true;
+  }
+  return false;
+}
+function noteCloudTtsResult(ok) {
+  if (ok) { cloudTtsFailures = 0; return; }
+  cloudTtsFailures++;
+  if (cloudTtsFailures === CLOUD_TTS_TRIP_AFTER) {
+    cloudTtsTrippedAt = Date.now();
+    AudioTrace.log("cloud:tripped", "", "skipping cloud TTS for " + (CLOUD_TTS_RETRY_MS / 1000) + "s");
+    console.warn("⚠️ Cloud TTS tripped — falling straight to synth");
+  }
+}
+
 async function speakCloud(text, lang = "it-IT") {
   try {
     await ensureAudioUnlocked();
@@ -1895,28 +1938,52 @@ async function speakCloud(text, lang = "it-IT") {
       }
     }
     
+    // Cache miss and the server is known-bad: skip straight to synth rather than
+    // spending a round trip to fail.
+    if (!cloudTtsAvailable()) {
+      AudioTrace.log("cloud:skipped", text.slice(0, 24), "breaker open");
+      throw new Error("Cloud TTS breaker open");
+    }
+
     // Optional explicit voice mapping
     const voice = lang === "it-IT" ? "it-IT-Wavenet-C" : "en-US-Wavenet-D";
-    
+
     console.log(`🗣️ Attempting Google Cloud TTS: "${text}" (${lang})`);
-    
-    const res = await fetch("https://google-tts-server.onrender.com/speak", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, lang, voice }),
-    });
-    
+    const endFetch = AudioTrace.start("cloud", text.slice(0, 24));
+
+    let res;
+    try {
+      res = await fetch("https://google-tts-server.onrender.com/speak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, lang, voice }),
+      });
+    } catch (netErr) {
+      noteCloudTtsResult(false);
+      endFetch("cloud:FAIL", "network " + (netErr && netErr.message || ""));
+      throw netErr;
+    }
+
     if (!res.ok) {
       const errorText = await res.text().catch(() => "No error details");
+      noteCloudTtsResult(false);
+      endFetch("cloud:FAIL", "HTTP " + res.status);
       throw new Error(`TTS Server Error ${res.status}: ${errorText}`);
     }
-    
+
     const blob = await res.blob();
-    if (blob.size === 0) throw new Error("Audio vuoto - server returned empty audio");
+    if (blob.size === 0) {
+      noteCloudTtsResult(false);
+      endFetch("cloud:FAIL", "empty body");
+      throw new Error("Audio vuoto - server returned empty audio");
+    }
+
+    noteCloudTtsResult(true);
+    endFetch("cloud:ok", blob.size + "b");
 
     const audioUrl = URL.createObjectURL(blob);
     await playAudioUrl(audioUrl);
-    
+
     console.log(`✅ Google Cloud TTS success`);
   } catch (err) {
     console.error("❌ Cloud TTS failed:", err.message || err);
@@ -1982,6 +2049,9 @@ async function webSpeechSpeak(text, lang) {
 }
 
 async function speakSynth(text, lang = "it-IT") {
+  // Every metallic-sounding cue passes through here. Logged so the trace names the
+  // exact phrase that had no clip, which is what to feed the clip generator.
+  AudioTrace.log("synth:FALLBACK", text.slice(0, 40));
   return webSpeechSpeak(text, lang);
 }
 
