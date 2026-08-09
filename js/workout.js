@@ -916,24 +916,56 @@ async function playElevenAudio(audioKey) {
       // meant this promise never settled and the whole speak queue hung.
       // Call play() straight away and let the decoder fetch on demand.
       let settled = false;
+      let audible = false;   // set once real playback started — changes what failure means
+      let watchdog = null;
+
+      const silence = () => {
+        // Detach handlers FIRST: pause() fires onpause, and removeAttribute-load
+        // fires onerror; both would re-enter done().
+        audio.onended = audio.onerror = audio.onplaying = audio.onpause = null;
+        try { audio.pause(); audio.removeAttribute("src"); audio.load(); } catch (e) {}
+      };
       const done = (ok, why) => {
         if (settled) return;
         settled = true;
         clearTimeout(watchdog);
+        // On ANY non-success the element must be stopped before the caller falls
+        // back to TTS/synth. Not doing this was the Android double-voice bug: the
+        // watchdog resolved false at 8s, the synth spoke the phrase, and the mp3 —
+        // still loading in this orphaned element — then played on top of it.
+        silence();
         if (activeAudioEl === audio) activeAudioEl = null;
         endCue(ok ? "cue:done" : "cue:FAIL", why || "");
         resolve(ok);
       };
-      // Never let one bad clip wedge the queue.
-      const watchdog = setTimeout(() => {
+      const arm = (ms, onFire) => { clearTimeout(watchdog); watchdog = setTimeout(onFire, ms); };
+
+      // Load/start watchdog. Only pre-audible failure may fall back to another voice.
+      arm(ELEVEN_CLIP_TIMEOUT_MS, () => {
         console.warn(`⚠️ ElevenLabs audio timed out: ${audioKey}`);
-        done(false, "timeout");
-      }, ELEVEN_CLIP_TIMEOUT_MS);
-      // THE number to watch: how long between asking for a cue and hearing it.
-      // Cache hits land in tens of ms; a cold fetch is hundreds, and that lateness
-      // is what makes the cue arrive after the moment it was meant to mark.
-      audio.onplaying = () => AudioTrace.log("cue:audible", audioKey,
-        Math.round(performance.now() - audioRequestedAt) + "ms to first sound");
+        done(false, "timeout before audible");
+      });
+
+      audio.onplaying = () => {
+        audible = true;
+        AudioTrace.log("cue:audible", audioKey,
+          Math.round(performance.now() - audioRequestedAt) + "ms to first sound");
+        // Playback is running: the ONLY remaining job is to resolve when it ends.
+        // Re-arm to clip length + margin, and if `ended` never arrives (backgrounded
+        // tab, throttled events) resolve TRUE — the cue was heard; reporting failure
+        // here made the caller speak the same phrase again through the synth.
+        const dur = isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 10;
+        arm(dur * 1000 + 3000, () => done(true, "ended event missed"));
+      };
+      // External pause (flushSpeakQueue on an exercise transition, or an OS audio
+      // interruption). Deliberate cancellation, so resolve TRUE: falling back would
+      // speak a cue that was just cancelled, and leaving it pending parked the whole
+      // speak chain behind an 8s watchdog — the Android "says nothing" bug.
+      // Fires on external stops (flushSpeakQueue, OS interruptions) — including a
+      // flush that lands while the clip is still loading at currentTime 0 — AND on
+      // natural completion, where the spec fires `pause` just before `ended`. Both
+      // resolve TRUE; `audio.ended` tells them apart for the trace.
+      audio.onpause = () => done(true, audio.ended ? "" : "stopped externally");
       audio.onended = () => {
         console.log(`🎙️ ElevenLabs audio played: ${audioKey}`);
         done(true);
@@ -942,12 +974,16 @@ async function playElevenAudio(audioKey) {
       // escaped the try/catch above, killing the caller.
       audio.onerror = (e) => {
         console.warn(`⚠️ ElevenLabs audio failed for ${audioKey}:`, e);
+        // Mid-playback decode/network death: the listener already heard the phrase
+        // start — repeating it in another voice is worse than the truncation.
+        if (audible) return done(true, "died mid-play");
         done(false, "load error " + (audio.error ? "code " + audio.error.code : ""));
       };
       audio.src = url;
       audio.load();
       audio.play().catch((e) => {
         console.warn(`⚠️ ElevenLabs play() rejected for ${audioKey}:`, e);
+        if (settled || audible) return;
         done(false, "play() rejected: " + (e && e.name || e));
       });
     });
@@ -1986,21 +2022,36 @@ async function playAudioUrl(url) {
 
   await new Promise((resolve, reject) => {
     let done = false;
+    let audible = false;
     const cleanup = () => {
       clearTimeout(watchdog);
-      el.onended = null;
-      el.onerror = null;
+      el.onended = el.onerror = el.onpause = el.onplaying = null;
       if (isBlob) { try { URL.revokeObjectURL(url); } catch {} }
     };
     // Ceiling on every await in the cue path: speak() serialises utterances onto one
     // promise chain, so a single clip that never ends silences the whole workout.
+    // On expiry the element must also be STOPPED — resolving alone left it playing,
+    // free to land on top of the next cue (the Android double-voice class of bug).
     const watchdog = setTimeout(() => {
       if (done) return; done = true;
       cleanup();
+      try { el.pause(); } catch (e) {}
       resolve();
     }, AUDIO_PLAY_TIMEOUT_MS);
+    el.onplaying = () => { audible = true; };
+    // External pause (flushSpeakQueue / stopAllAudio on a transition): deliberate
+    // cancellation. Without this handler the promise parked here for the full
+    // watchdog while every queued cue waited behind it — cues then fired seconds
+    // late or were flushed as stale, heard as "sometimes it says nothing".
+    el.onpause = () => { if (done) return; done = true; cleanup(); resolve(); };
     el.onended = () => { if (done) return; done = true; cleanup(); resolve(); };
-    el.onerror = (e) => { if (done) return; done = true; cleanup(); reject(e); };
+    el.onerror = (e) => {
+      if (done) return; done = true; cleanup();
+      // Mid-play death: the phrase was already heard starting — a synth repeat is
+      // worse than the truncation.
+      if (audible) return resolve();
+      reject(e);
+    };
     const p = el.play();
     if (p && typeof p.then === "function") {
       p.catch((e) => { if (done) return; done = true; cleanup(); reject(e); });
@@ -2181,7 +2232,17 @@ async function webSpeechSpeak(text, lang) {
     const clear = () => { try { clearTimeout(watchdog); } catch {} };
     const finish = (ok, err) => { if (done) return; done = true; clear(); ok ? resolve() : reject(err||new Error("speak failed")); };
 
-    const watch = (ms) => { clear(); watchdog = setTimeout(() => finish(true), ms); };
+    // On expiry, CANCEL before resolving. Resolving alone left the utterance queued in
+    // the engine; Android's synth regularly stalls and then flushes its queue seconds
+    // later, so the "abandoned" cue spoke on top of whatever was playing by then —
+    // heard as the same phrase in clip voice and synth voice.
+    const watch = (ms) => {
+      clear();
+      watchdog = setTimeout(() => {
+        try { speechSynthesis.cancel(); } catch {}
+        finish(true);
+      }, ms);
+    };
 
     watch(3000); // some Androids never fire events at all
 
