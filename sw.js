@@ -1,12 +1,12 @@
-const CACHE_NAME = 'viltrum-fitness-v8.2.50';
-const RUNTIME_CACHE = 'viltrum-runtime-v8.2.50';
-const PRELOAD_CACHE = 'viltrum-preload-v8.2.50';
+const CACHE_NAME = 'viltrum-fitness-v8.2.51';
+const RUNTIME_CACHE = 'viltrum-runtime-v8.2.51';
+const PRELOAD_CACHE = 'viltrum-preload-v8.2.51';
 // Instructor voice clips. Intentionally NOT version-suffixed and never purged on
 // activate: the mp3s are immutable, so re-downloading them each release is waste.
 const AUDIO_CACHE = 'viltrum-audio-v1';
 // Exercise GIF bytes, warmed by workout.js. Same rationale: immutable, unversioned.
 const GIF_CACHE = 'viltrum-gif-v1';
-const BUILD_HASH = '20260810234226';
+const BUILD_HASH = '20260810235709';
 
 const urlsToCache = [
   './',
@@ -90,11 +90,11 @@ let preloadAborted = false;
 // INSTALL EVENT
 // ═══════════════════════════════════════════════════════════════════════════
 self.addEventListener('install', (event) => {
-  console.log('[Service Worker] Installing v8.2.50...');
+  console.log('[Service Worker] Installing v8.2.51...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[Service Worker] Caching app shell v8.2.50');
+        console.log('[Service Worker] Caching app shell v8.2.51');
         return Promise.allSettled(
           urlsToCache.map(url => 
             cache.add(url).catch(err => {
@@ -105,25 +105,16 @@ self.addEventListener('install', (event) => {
         );
       })
       .then(() => {
-        // ─────────────────────────────────────────────────────────────────
-        // V9 ONE-OFF: skipWaiting() is called here on purpose.
+        // NO skipWaiting() here — the new worker WAITS until the user taps
+        // "Aggiorna" (update-notifier.js posts SKIP_WAITING, handled below).
         //
-        // Normally we do NOT do this — update-notifier.js shows the "Aggiorna"
-        // banner and the user chooses when to update (see the SKIP_WAITING
-        // message handler below, which stays for that flow).
-        //
-        // This release is different: the Apps Script backend moved to V9 auth,
-        // and every pre-V9 client talks a protocol that backend no longer
-        // answers. Waiting for consent would leave users sitting on a client
-        // that cannot reach the server at all. Forcing the update is the
-        // kinder option when the old version is already broken.
-        //
-        // REVERT THIS after the V9 rollout has settled — put the comment back
-        // and drop the skipWaiting() call, so users regain control of when
-        // they update.
-        // ─────────────────────────────────────────────────────────────────
-        console.log('[Service Worker] Install complete - V9 rollout: activating immediately');
-        return self.skipWaiting();
+        // The V9 rollout temporarily forced activation from install. Leaving it
+        // in made every release a broken loop: the banner appeared asking for
+        // consent while the worker activated itself anyway, controllerchange
+        // fired, and the notifier force-reloaded the page seconds later — the
+        // "new version keeps appearing" complaint. Consent flow restored
+        // 2026-08-10 (V9 settled twelve forced releases ago).
+        console.log('[Service Worker] Install complete - waiting for user consent');
       })
       .catch((error) => {
         console.error('[Service Worker] Cache failed:', error);
@@ -411,7 +402,7 @@ async function handleBackgroundPreload(data) {
 // ACTIVATE EVENT
 // ═══════════════════════════════════════════════════════════════════════════
 self.addEventListener('activate', (event) => {
-  console.log('[Service Worker] Activating v8.2.50...');
+  console.log('[Service Worker] Activating v8.2.51...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(

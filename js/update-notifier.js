@@ -7,6 +7,7 @@
 class UpdateNotifier {
   constructor() {
     this.hasShownNotification = false;
+    this.reloading = false; // one reload per takeover, whichever trigger wins
     this.init();
   }
 
@@ -60,9 +61,13 @@ class UpdateNotifier {
           });
         });
 
-        // Handle controller change (when new SW takes over)
+        // Handle controller change (when new SW takes over). Guarded: the AGGIORNA
+        // button also schedules a reload — without the flag both fired, and during
+        // the V9 forced-activation era this reloaded the page under the user's
+        // fingers with no tap at all.
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-          if (this.hasShownNotification) {
+          if (this.hasShownNotification && !this.reloading) {
+            this.reloading = true;
             window.location.reload();
           }
         });
@@ -162,11 +167,15 @@ class UpdateNotifier {
 
       if (registration.waiting) {
         registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        // controllerchange fires when the worker takes over and reloads then;
+        // this timer is only the fallback if that event never arrives.
+        setTimeout(() => {
+          if (!this.reloading) { this.reloading = true; window.location.reload(); }
+        }, 3000);
+      } else {
+        // No waiting worker (already active, or banner outlived it): plain reload.
+        if (!this.reloading) { this.reloading = true; window.location.reload(); }
       }
-
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
     });
 
     document.getElementById('update-close').addEventListener('click', () => {
