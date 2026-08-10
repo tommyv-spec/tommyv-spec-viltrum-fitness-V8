@@ -1126,12 +1126,71 @@ async function speakEleven(text, lang = "it-IT") {
 const GIF_PRELOAD_MAX = 4;
 const gifPreloadCache = new Map(); // url → HTMLImageElement (LRU: oldest key first)
 
+/* -------------------- Persistent GIF byte cache --------------------
+   Bytes in Cache Storage, NOT decoded frames — the memory discipline above exists
+   because decoded GIFs crashed the PWA, and this layer adds zero decoded pixels.
+   What it removes is the visible wait at workout start: the memory LRU holds only 4
+   GIFs, so a cold start or anything past step 4 paid a full network download before
+   any pixel appeared. lh3.googleusercontent.com sends ACAO:* (verified), so window-
+   context CORS fetches are legal. ~460KB per clip → a session is a few MB. */
+const GIF_CACHE_NAME = 'viltrum-gif-v1';
+const GIF_CACHE_MAX_ENTRIES = 120; // Cache.keys() is insertion-ordered → FIFO trim
+
+// Blob URLs owned by the memory LRU. Only disposeImg() may revoke these — swapIn()
+// revoking one out from under a live preloaded <img> would break its later reuse.
+const lruBlobUrls = new Set();
+
+async function warmGifCache(urls) {
+  if (!("caches" in window)) return;
+  const list = [...new Set((urls || []).filter(Boolean))];
+  if (!list.length) return;
+  const endAll = AudioTrace.start("gifwarm", list.length + " gifs");
+  try {
+    const cache = await caches.open(GIF_CACHE_NAME);
+    let added = 0, already = 0, failed = 0, cursor = 0;
+    const worker = async () => {
+      while (cursor < list.length) {
+        const url = list[cursor++];
+        try {
+          if (await cache.match(url)) { already++; continue; }
+          await cache.add(url);
+          added++;
+        } catch (e) { failed++; }
+      }
+    };
+    await Promise.all(Array.from({ length: 3 }, worker));
+    // FIFO trim so the bucket can't grow without bound across many workouts
+    try {
+      const keys = await cache.keys();
+      for (let i = 0; i < keys.length - GIF_CACHE_MAX_ENTRIES; i++) await cache.delete(keys[i]);
+    } catch (e) {}
+    endAll("gifwarm:done", `+${added} new, ${already} cached, ${failed} failed,`);
+  } catch (e) {
+    endAll("gifwarm:fail", String(e && e.message || e));
+  }
+}
+
+async function getCachedGifBlobUrl(url) {
+  if (!("caches" in window)) return null;
+  try {
+    const res = await caches.open(GIF_CACHE_NAME).then(c => c.match(url));
+    if (!res) return null;
+    return URL.createObjectURL(await res.blob());
+  } catch (e) { return null; }
+}
+
 function disposeImg(img) {
   if (!img) return;
   try {
     img.onload = null;
     img.onerror = null;
+    const blobUrl = img.dataset && img.dataset.lruBlob;
     img.removeAttribute('src'); // drops the decoded frames
+    if (blobUrl) {
+      lruBlobUrls.delete(blobUrl);
+      try { URL.revokeObjectURL(blobUrl); } catch {}
+      delete img.dataset.lruBlob;
+    }
   } catch {}
 }
 
@@ -1145,8 +1204,23 @@ function preloadGif(url) {
     return;
   }
   const img = new Image();
-  img.src = url;
   gifPreloadCache.set(url, img);
+  // Decode from cached bytes when we have them — no network, no wait. The element
+  // starts on the network URL either way if the cache misses.
+  getCachedGifBlobUrl(url).then(blobUrl => {
+    // evicted from the LRU while we looked up the cache → don't leak the blob
+    if (gifPreloadCache.get(url) !== img) {
+      if (blobUrl) { try { URL.revokeObjectURL(blobUrl); } catch {} }
+      return;
+    }
+    if (blobUrl) {
+      lruBlobUrls.add(blobUrl);
+      img.dataset.lruBlob = blobUrl;
+      img.src = blobUrl;
+    } else {
+      img.src = url;
+    }
+  }).catch(() => { img.src = url; });
 
   while (gifPreloadCache.size > GIF_PRELOAD_MAX) {
     const oldest = gifPreloadCache.keys().next().value;
@@ -1248,7 +1322,9 @@ async function loadCachedImage(imageElement, url) {
     if (prev && prev !== src) {
       try { URL.revokeObjectURL(prev); } catch {}
     }
-    if (src.startsWith('blob:')) imageElement.dataset.blobUrl = src;
+    // LRU-owned blobs are revoked by disposeImg() ONLY — taking ownership here would
+    // revoke them out from under the preloaded <img> they still back.
+    if (src.startsWith('blob:') && !lruBlobUrls.has(src)) imageElement.dataset.blobUrl = src;
     else delete imageElement.dataset.blobUrl;
 
     imageElement.style.transition = 'none';
@@ -1256,20 +1332,41 @@ async function loadCachedImage(imageElement, url) {
     imageElement.src = src;
   };
 
-  // 1. Already preloaded in browser memory → instant swap
+  // 1. Already preloaded in browser memory → instant swap. Use the SRC THE PRELOADED
+  // ELEMENT DECODED (may be an LRU-owned blob URL) — swapping in the network URL when
+  // the decode used a blob restarted the download from zero.
   if (gifPreloadCache.has(url)) {
     const cached = gifPreloadCache.get(url);
     if (cached.complete && cached.naturalWidth > 0) {
-      swapIn(url); // browser already has it in memory cache
+      swapIn(cached.src);
       return;
     }
-    // Still downloading — wait for it
-    cached.onload = () => swapIn(url);
+    // Still downloading/decoding — paint the thumbnail NOW (below), then upgrade.
+    cached.onload = () => swapIn(cached.src);
     cached.onerror = () => swapIn(url);
+  }
+
+  // 1.5 Instant paint: the 112px first-frame thumb, when one exists, goes up
+  // immediately — the user sees the exercise while the animated GIF finishes.
+  // A stale previous exercise's GIF (or blank) was the "waiting for images" moment.
+  const thumb = thumbCache.get(url);
+  if (thumb) swapIn(thumb);
+  if (gifPreloadCache.has(url)) return; // handlers above will upgrade to the GIF
+
+  // Build the thumb for next time regardless of which path serves this one.
+  getStaticThumb(url).catch(() => {});
+
+  // 2. Persistent byte cache → decode from local bytes, no network.
+  const cachedBlobUrl = await getCachedGifBlobUrl(url);
+  if (cachedBlobUrl) {
+    const tmp = new Image();
+    tmp.onload = () => swapIn(cachedBlobUrl);
+    tmp.onerror = () => { try { URL.revokeObjectURL(cachedBlobUrl); } catch {} swapIn(url); };
+    tmp.src = cachedBlobUrl;
     return;
   }
 
-  // 2. Try to get from offline cache
+  // 3. Legacy offline cache (IndexedDB)
   if (typeof OfflinePreloader !== 'undefined') {
     try {
       const cachedUrl = await OfflinePreloader.getCachedImage(url);
@@ -1287,9 +1384,15 @@ async function loadCachedImage(imageElement, url) {
     console.warn('⚠️ OfflinePreloader not available');
   }
 
-  // Fallback: preload via Image object, swap only when ready
+  // 4. Network: load fully, swap when ready (thumb from 1.5 is on screen meanwhile),
+  // and bank the bytes so this URL is never a network wait again.
   const tmp = new Image();
-  tmp.onload = () => swapIn(tmp.src);
+  tmp.onload = () => {
+    swapIn(tmp.src);
+    if ("caches" in window) {
+      caches.open(GIF_CACHE_NAME).then(c => c.add(url)).catch(() => {});
+    }
+  };
   tmp.onerror = () => {
     console.error(`❌ Failed to load image from network: ${url.substring(40, 60)}...`);
     swapIn(url); // show broken image rather than stay dark
@@ -2741,6 +2844,12 @@ function startWorkout() {
   // Deliberately not awaited: warming runs while the user is still reading the setup
   // screen, so the first cue is already local by the time it fires.
   warmElevenCache(auditSessionAudio(fullWorkoutSequence));
+  // Whole session's GIF bytes into Cache Storage, playback order. Next session they
+  // are all instant; this session, anything past the 4-slot memory LRU decodes from
+  // local bytes instead of paying a mid-workout network download.
+  warmGifCache(fullWorkoutSequence.map(s => s && s.imageUrl));
+  // First-frame thumbs for the opening exercises: the instant paint at swap time.
+  fullWorkoutSequence.slice(0, 6).forEach(s => { if (s && s.imageUrl) getStaticThumb(s.imageUrl).catch(() => {}); });
   if (fullWorkoutSequence.length === 0) {
     alert("Impossibile costruire la sequenza di allenamento.");
     return;
@@ -3404,6 +3513,11 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
 
       preloadUpcoming(currentStep, 4); // preload next 4 from here
       warmUpcomingAudio(currentStep, 3); // audio top-up: no-op on hits, repairs misses
+      // GIF byte top-up + thumbs for the next few steps, so the upgrade path always
+      // has local bytes and the instant paint always has a frame.
+      const gifAhead = fullWorkoutSequence.slice(currentStep, currentStep + 4);
+      warmGifCache(gifAhead.map(s => s && s.imageUrl));
+      gifAhead.forEach(s => { if (s && s.imageUrl) getStaticThumb(s.imageUrl).catch(() => {}); });
       setTimeout(() => playExercise(currentStep, fullWorkoutSequence), 300);
     }
   }, 200); // 5× per second → smooth and exact

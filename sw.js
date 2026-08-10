@@ -1,10 +1,12 @@
-const CACHE_NAME = 'viltrum-fitness-v8.2.49';
-const RUNTIME_CACHE = 'viltrum-runtime-v8.2.49';
-const PRELOAD_CACHE = 'viltrum-preload-v8.2.49';
+const CACHE_NAME = 'viltrum-fitness-v8.2.50';
+const RUNTIME_CACHE = 'viltrum-runtime-v8.2.50';
+const PRELOAD_CACHE = 'viltrum-preload-v8.2.50';
 // Instructor voice clips. Intentionally NOT version-suffixed and never purged on
 // activate: the mp3s are immutable, so re-downloading them each release is waste.
 const AUDIO_CACHE = 'viltrum-audio-v1';
-const BUILD_HASH = '20260810020011';
+// Exercise GIF bytes, warmed by workout.js. Same rationale: immutable, unversioned.
+const GIF_CACHE = 'viltrum-gif-v1';
+const BUILD_HASH = '20260810234226';
 
 const urlsToCache = [
   './',
@@ -88,11 +90,11 @@ let preloadAborted = false;
 // INSTALL EVENT
 // ═══════════════════════════════════════════════════════════════════════════
 self.addEventListener('install', (event) => {
-  console.log('[Service Worker] Installing v8.2.49...');
+  console.log('[Service Worker] Installing v8.2.50...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[Service Worker] Caching app shell v8.2.49');
+        console.log('[Service Worker] Caching app shell v8.2.50');
         return Promise.allSettled(
           urlsToCache.map(url => 
             cache.add(url).catch(err => {
@@ -409,18 +411,19 @@ async function handleBackgroundPreload(data) {
 // ACTIVATE EVENT
 // ═══════════════════════════════════════════════════════════════════════════
 self.addEventListener('activate', (event) => {
-  console.log('[Service Worker] Activating v8.2.49...');
+  console.log('[Service Worker] Activating v8.2.50...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          // Keep current caches, preload cache, and the permanent audio cache
-          // (AUDIO_CACHE is unversioned - purging it would re-download ~80 mp3s
+          // Keep current caches, preload cache, and the permanent audio + GIF caches
+          // (both unversioned - purging them would re-download every clip and GIF
           // on every release).
           if (cacheName !== CACHE_NAME &&
               cacheName !== RUNTIME_CACHE &&
               cacheName !== PRELOAD_CACHE &&
-              cacheName !== AUDIO_CACHE) {
+              cacheName !== AUDIO_CACHE &&
+              cacheName !== GIF_CACHE) {
             console.log('[Service Worker] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
