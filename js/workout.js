@@ -775,25 +775,33 @@ async function warmElevenCache(audioKeys) {
     const missingClips = [];
     const CONCURRENCY = 6;
 
+    const attempt = async (key) => {
+      const url = `${ELEVEN_BASE_URL}/${key}.mp3`;
+      if (await cache.match(url)) { already++; return true; }
+      // add() per file: addAll() is all-or-nothing, so one clip missing from the
+      // repo would discard the entire batch.
+      await cache.add(url);
+      added++;
+      return true;
+    };
+    const failed = [];
     const worker = async () => {
       while (cursor < keys.length) {
         const key = keys[cursor++];
-        const url = `${ELEVEN_BASE_URL}/${key}.mp3`;
-        try {
-          if (await cache.match(url)) { already++; continue; }
-          // add() per file: addAll() is all-or-nothing, so one clip missing from the
-          // repo would discard the entire batch.
-          await cache.add(url);
-          added++;
-        } catch (e) {
-          // Mapped to a clip that isn't in the repo. Named explicitly: this is the
-          // other half of the gap the audit can't see (audit checks the map, this
-          // checks the files actually exist).
-          missingClips.push(key);
-        }
+        try { await attempt(key); }
+        catch (e) { failed.push(key); }
+        // keys arrive in playback order, so this marks when the EARLY clips are safe
+        if (cursor === Math.min(12, keys.length)) AudioTrace.log("warm:first12", "", "ready");
       }
     };
     await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+
+    // One retry pass, serial: a first-pass failure on flaky cellular is usually
+    // transient. What still fails twice is genuinely absent from the repo.
+    for (const key of failed) {
+      try { await attempt(key); }
+      catch (e) { missingClips.push(key); }
+    }
     endAll("warm:done", `+${added} new, ${already} cached, ${missingClips.length} absent,`);
     for (const k of missingClips) AudioTrace.log("warm:NOFILE", k);
     if (missingClips.length) {
@@ -839,16 +847,20 @@ function resolveElevenClip(text) {
   return ELEVEN_AUDIO_MAP[n] || ELEVEN_EXERCISE_MAP[n] || null;
 }
 
-/* Every phrase this session can utter: the fixed bank (any of it can fire) plus each
-   exercise's name and rep announcement. */
+/* Every phrase this session can utter, in PLAYBACK ORDER: each exercise's name and
+   rep announcement as the workout will reach them, then the fixed bank (any of it can
+   fire, but nothing in it is needed before the first exercise). Warm-up consumes this
+   list front-to-back, so on a slow network the clips for the first exercises are the
+   first ones local — the ones a user who taps "start" immediately will need. */
 function collectSessionPhrases(sequence) {
-  const phrases = new Set(Object.keys(ELEVEN_AUDIO_MAP));
+  const phrases = new Set();
   for (const step of (sequence || [])) {
     if (!step || step.isLabel) continue;
     if (step.name) phrases.add(step.name);
     const rp = buildRepsPhrase(step);
     if (rp) phrases.add(rp);
   }
+  for (const k of Object.keys(ELEVEN_AUDIO_MAP)) phrases.add(k);
   return [...phrases];
 }
 
@@ -879,26 +891,80 @@ function auditSessionAudio(sequence) {
   return keys;
 }
 
+/* Per-step top-up: re-warm the clips the next few exercises need. Almost always a
+   no-op (cache hits), but it repairs anything the start-of-workout warm missed —
+   flaky first fetch, cache evicted mid-session, workout started before warm finished.
+   Runs during rest/transition, when the network is otherwise idle. */
+function warmUpcomingAudio(fromStep, count = 3) {
+  try {
+    const steps = (fullWorkoutSequence || []).slice(fromStep, fromStep + count);
+    const keys = [];
+    for (const step of steps) {
+      if (!step || step.isLabel) continue;
+      const nameClip = step.name && resolveElevenClip(step.name);
+      if (nameClip) keys.push(nameClip);
+      const rp = buildRepsPhrase(step);
+      const rpClip = rp && resolveElevenClip(rp);
+      if (rpClip) keys.push(rpClip);
+    }
+    if (keys.length) warmElevenCache(keys); // fire-and-forget; dedupes and skips cached
+  } catch (e) {}
+}
+
+/* Cache Storage and IndexedDB are evictable under storage pressure — on Android
+   aggressively so, which is one way "it worked yesterday, silent today" happens.
+   persist() asks the browser to exempt this origin. Fire-and-forget; a denial just
+   means default eviction rules, no worse than before. */
+try {
+  if (navigator.storage && navigator.storage.persist) {
+    navigator.storage.persist().then(granted =>
+      AudioTrace.log("storage:persist", "", granted ? "granted" : "denied"));
+  }
+} catch (e) {}
+
+/* Resolve a clip to a LOCAL source before playing. Cache hit → blob URL: playback
+   starts from memory, cannot stall mid-clip on the network, and doesn't depend on the
+   service worker being active. Cache miss → one bounded fetch that both serves this
+   cue AND repairs the cache (raw.githubusercontent.com sends ACAO:*, so a window-
+   context CORS fetch is legal — verified). Every path degrades to the plain URL. */
+async function getElevenClipSrc(audioKey) {
+  const url = `${ELEVEN_BASE_URL}/${audioKey}.mp3`;
+  if (!("caches" in window)) return { src: url, blob: false };
+  try {
+    const cache = await caches.open(ELEVEN_CACHE_NAME);
+    let res = await cache.match(url);
+    if (res) {
+      AudioTrace.log("cache:hit", audioKey);
+    } else {
+      AudioTrace.log("cache:MISS", audioKey);
+      // Bounded: this await sits in front of the cue — an unbounded fetch here would
+      // recreate the very stall the watchdogs exist to kill.
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 5000);
+      res = await fetch(url, { signal: ctrl.signal });
+      clearTimeout(t);
+      if (!res.ok) return { src: url, blob: false };
+      // clone BEFORE blob(): a body can only be consumed once
+      try { await cache.put(url, res.clone()); AudioTrace.log("cache:repaired", audioKey); } catch (e) {}
+    }
+    return { src: URL.createObjectURL(await res.blob()), blob: true, url };
+  } catch (e) {
+    // offline / abort / storage error — the <audio> element itself is the last resort
+    return { src: url, blob: false, url };
+  }
+}
+
 /**
  * Play ElevenLabs pre-recorded audio (simple method without CORS restrictions)
  * @param {string} audioKey - Key for the audio file (without extension)
  * @returns {Promise<boolean>} - True if played successfully
  */
 async function playElevenAudio(audioKey) {
-  const url = `${ELEVEN_BASE_URL}/${audioKey}.mp3`;
   const audioRequestedAt = performance.now();
   const endCue = AudioTrace.start("cue", audioKey);
   try {
     await ensureAudioUnlocked();
-
-    // Was this clip actually prewarmed? A miss here is the thing to look for when a
-    // cue lands late — it means the cue paid for a network fetch.
-    if ("caches" in window) {
-      try {
-        const hit = await caches.open(ELEVEN_CACHE_NAME).then(c => c.match(url));
-        AudioTrace.log(hit ? "cache:hit" : "cache:MISS", audioKey);
-      } catch {}
-    }
+    const { src, blob: isBlobSrc, url: plainUrl } = await getElevenClipSrc(audioKey);
 
     // Plain element, NO crossOrigin: the GitHub clips send no Access-Control-Allow-Origin,
     // so crossOrigin="anonymous" fails the load outright.
@@ -924,6 +990,7 @@ async function playElevenAudio(audioKey) {
         // fires onerror; both would re-enter done().
         audio.onended = audio.onerror = audio.onplaying = audio.onpause = null;
         try { audio.pause(); audio.removeAttribute("src"); audio.load(); } catch (e) {}
+        if (isBlobSrc) { try { URL.revokeObjectURL(src); } catch (e) {} }
       };
       const done = (ok, why) => {
         if (settled) return;
@@ -970,6 +1037,34 @@ async function playElevenAudio(audioKey) {
         console.log(`🎙️ ElevenLabs audio played: ${audioKey}`);
         done(true);
       };
+      // Some WebKit builds refuse blob: URLs on media elements even though the fetch
+      // and Cache Storage side worked (observed in the Windows WebKit port; Safari on
+      // iOS doesn't need the blob path anyway — the service worker serves the plain
+      // URL cache-first). One in-place retry with the network URL, same element, same
+      // watchdog discipline. Falling to synth here would waste a clip we already have.
+      // A failed blob attempt reports twice — onerror AND the play() promise
+      // rejection. The attempt counter keeps the second, stale report from killing
+      // the retry the first one started.
+      let attempt = 0;
+      const startPlayback = (theSrc, label) => {
+        attempt++;
+        const thisAttempt = attempt;
+        audio.src = theSrc;
+        audio.load();
+        audio.play().catch((e) => {
+          if (settled || audible || attempt !== thisAttempt) return;
+          console.warn(`⚠️ ElevenLabs play() rejected for ${audioKey}:`, e);
+          if (retryPlain()) return;
+          done(false, label + " play() rejected: " + (e && e.name || e));
+        });
+      };
+      const retryPlain = () => {
+        if (settled || !isBlobSrc || attempt !== 1) return false;
+        AudioTrace.log("cue:blob-retry", audioKey, "blob src refused, using URL");
+        arm(ELEVEN_CLIP_TIMEOUT_MS, () => done(false, "timeout after blob retry"));
+        try { startPlayback(plainUrl, "retry"); return true; }
+        catch (e) { return false; }
+      };
       // Resolve false rather than reject: speakEleven() awaits this and a rejection
       // escaped the try/catch above, killing the caller.
       audio.onerror = (e) => {
@@ -977,15 +1072,10 @@ async function playElevenAudio(audioKey) {
         // Mid-playback decode/network death: the listener already heard the phrase
         // start — repeating it in another voice is worse than the truncation.
         if (audible) return done(true, "died mid-play");
+        if (retryPlain()) return;
         done(false, "load error " + (audio.error ? "code " + audio.error.code : ""));
       };
-      audio.src = url;
-      audio.load();
-      audio.play().catch((e) => {
-        console.warn(`⚠️ ElevenLabs play() rejected for ${audioKey}:`, e);
-        if (settled || audible) return;
-        done(false, "play() rejected: " + (e && e.name || e));
-      });
+      startPlayback(src, "");
     });
   } catch (err) {
     console.warn(`⚠️ ElevenLabs audio failed for ${audioKey}:`, err);
@@ -3313,6 +3403,7 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
       }
 
       preloadUpcoming(currentStep, 4); // preload next 4 from here
+      warmUpcomingAudio(currentStep, 3); // audio top-up: no-op on hits, repairs misses
       setTimeout(() => playExercise(currentStep, fullWorkoutSequence), 300);
     }
   }, 200); // 5× per second → smooth and exact
