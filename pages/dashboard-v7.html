@@ -70,7 +70,7 @@
     }
     .stat-box { text-align: center; }
     .stat-label { font-size: 1.3vh; color: #666; margin-bottom: 0.3vh; }
-    .stat-value { font-size: 2vh; color: #FFF; }
+    .stat-value { font-size: 2vh; color: #C1FF72; }
     .stat-sub { font-size: 1.2vh; color: #888; }
 
     main { 
@@ -86,19 +86,19 @@
     /* No bottom nav in dashboard — preload bar goes to bottom edge */
     :root { --footer-total: 0px; }
     .section-card {
-      flex-shrink: 0; background: #111; border: 2px solid #333; border-radius: 16px;
+      flex-shrink: 0; background: #151515; border: 1px solid #232323; border-radius: 16px;
       padding: 2.5vh 4vw; text-decoration: none; display: flex; flex-direction: column;
       justify-content: center; align-items: center; gap: 1vh; cursor: pointer;
       transition: all 0.2s ease;
     }
-    .section-card:hover { border-color: #FFF; transform: translateY(-2px); }
+    .section-card:hover { border-color: #C1FF72; transform: translateY(-2px); }
     .section-card.disabled { opacity: 0.4; cursor: not-allowed; }
     .section-card.disabled:hover { border-color: #333; transform: none; }
     .card-icon {
-      width: 6vh; height: 6vh; border: 2px solid #444; border-radius: 50%;
+      width: 6vh; height: 6vh; background: #C1FF72; border: none; border-radius: 1.4vh;
       display: flex; align-items: center; justify-content: center;
     }
-    .card-icon svg { width: 3vh; height: 3vh; color: #FFF; }
+    .card-icon svg { width: 3vh; height: 3vh; color: #0D0D0D; }
     .card-title { font-size: 2.5vh; letter-spacing: 3px; color: #FFF; }
     .card-subtitle { font-size: 1.4vh; color: #888; text-align: center; }
     .card-badge {
@@ -109,17 +109,17 @@
 
     .small-cards-row { flex-shrink: 0; display: flex; gap: 3vw; margin-top: auto; }
     .small-card {
-      flex: 1; background: #111; border: 2px solid #333; border-radius: 12px;
+      flex: 1; background: #151515; border: 1px solid #232323; border-radius: 12px;
       padding: 1.5vh 3vw; display: flex; flex-direction: column;
       justify-content: center; align-items: center; gap: 0.8vh; cursor: pointer;
       transition: all 0.2s ease; text-decoration: none;
     }
-    .small-card:hover { border-color: #FFF; transform: translateY(-2px); }
+    .small-card:hover { border-color: #C1FF72; transform: translateY(-2px); }
     .small-card-icon {
-      width: 4vh; height: 4vh; border: 2px solid #444; border-radius: 50%;
+      width: 4vh; height: 4vh; background: #C1FF72; border: none; border-radius: 1vh;
       display: flex; align-items: center; justify-content: center;
     }
-    .small-card-icon svg { width: 2vh; height: 2vh; color: #FFF; }
+    .small-card-icon svg { width: 2vh; height: 2vh; color: #0D0D0D; }
     .small-card-title { font-size: 1.8vh; letter-spacing: 2px; color: #FFF; }
     .small-card-subtitle { font-size: 1.2vh; color: #888; text-align: center; }
 
@@ -130,16 +130,16 @@
     }
     .modal.active { display: flex; }
     .modal-content {
-      background: #111; border: 2px solid #333; border-radius: 16px;
+      background: #151515; border: 1px solid #232323; border-radius: 16px;
       padding: 3vh 4vw; max-width: 400px; width: 100%; max-height: 80vh; overflow-y: auto;
     }
     .modal-title { font-size: 2.5vh; letter-spacing: 2px; text-align: center; margin-bottom: 3vh; }
     .plan-list { display: flex; flex-direction: column; gap: 1.5vh; }
     .plan-item {
-      background: #1A1A1A; border: 2px solid #333; border-radius: 12px;
+      background: #1A1A1A; border: 1px solid #2A2A2A; border-radius: 12px;
       padding: 2vh 3vw; cursor: pointer; transition: all 0.2s ease;
     }
-    .plan-item:hover { border-color: #FFF; }
+    .plan-item:hover { border-color: #C1FF72; }
     .plan-item-name { font-size: 2vh; color: #FFF; margin-bottom: 0.5vh; }
     .plan-item-progress { font-size: 1.4vh; color: #666; }
     .modal-close {

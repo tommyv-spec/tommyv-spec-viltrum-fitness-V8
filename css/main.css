@@ -4280,3 +4280,32 @@ body.workout-active #pause-button {
 body.workout-active #pause-button.paused {
   background: #fff !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   v9.2 — LINGUAGGIO VISIVO MOREMUSCLE (best-of-both: look del reference,
+   feature engine di Viltrum). Token globali + override dei bottoni primari.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --accent: #C1FF72;
+  --accent-hover: #AEEB5C;
+  --accent-ink: #0D0D0D;     /* testo scuro sui fondi accent */
+  --surface: #151515;        /* card */
+  --surface-border: #232323; /* bordo card, sottile */
+}
+
+/* Bottone principale (Start Workout) → pillola fluo come il reference */
+.start-button {
+  background: var(--accent) !important;
+  color: var(--accent-ink) !important;
+  border: none !important;
+  border-radius: 12px !important;
+  font-weight: 800 !important;
+}
+.start-button:hover:not(:disabled) {
+  background: var(--accent-hover) !important;
+  transform: translateY(-2px);
+}
+.start-button:disabled {
+  background: #2A2A2A !important;
+  color: #777 !important;
+}
