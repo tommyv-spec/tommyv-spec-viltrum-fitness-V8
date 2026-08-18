@@ -184,6 +184,10 @@
               <span>Silenzia audio</span>
             </label>
           </div>
+          <div class="ringer-note-inline" style="display: none; align-items: flex-start; gap: 8px; background: var(--ds-warn-bg); border: 1px solid rgba(240,177,85,0.35); border-radius: 10px; padding: 10px 12px; margin-top: 14px; text-align: left;">
+            <span style="font-size: 14px; flex-shrink: 0;">&#128277;</span>
+            <div style="font-size: 12px; line-height: 1.45; color: var(--ds-warn-text);">Su iPhone: levetta laterale su silenzioso = voce muta. Su suoneria: voce ok e musica mai interrotta.</div>
+          </div>
 
 
 
@@ -268,6 +272,10 @@
                 <span>Silenzia audio</span>
               </label>
             </div>
+          <div class="ringer-note-inline" style="display: none; align-items: flex-start; gap: 8px; background: var(--ds-warn-bg); border: 1px solid rgba(240,177,85,0.35); border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; text-align: left;">
+            <span style="font-size: 14px; flex-shrink: 0;">&#128277;</span>
+            <div style="font-size: 12px; line-height: 1.45; color: var(--ds-warn-text);">Su iPhone: levetta laterale su silenzioso = voce muta. Su suoneria: voce ok e musica mai interrotta.</div>
+          </div>
 
 
             <button id="exit-workout-button">
@@ -323,6 +331,9 @@
       if (!note) return;
       if (isIOS && localStorage.getItem('viltrum-ringer-note-dismissed') !== 'true') {
         note.style.display = 'flex';
+      }
+      if (isIOS) {
+        document.querySelectorAll('.ringer-note-inline').forEach(function (n) { n.style.display = 'flex'; });
       }
       var close = document.getElementById('ringer-note-close');
       if (close) close.addEventListener('click', function () {
