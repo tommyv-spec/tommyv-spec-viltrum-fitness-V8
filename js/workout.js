@@ -1566,7 +1566,8 @@ let currentStep = 0;
 let interval = null;
 let isPaused = false;
 let savedTimeLeft = null;
-let pendingAdvanceTimeout = null; // 300ms transition delay — cleared by nav/exit so a tap can't double-advance
+let pendingAdvanceTimeout = null;
+let currentTimerTotal = 0; // durata step corrente, per l'anello di progresso del timer // 300ms transition delay — cleared by nav/exit so a tap can't double-advance
 let lastSpeakTime = 0;
 let currentSpeakId = 0;
 
@@ -3512,6 +3513,7 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
 
   // show immediately
   timerEl.textContent = Math.max(0, Math.ceil(initialSeconds));
+  currentTimerTotal = Math.max(1, initialSeconds);
 
   // set an absolute end time to avoid drift & off-by-one
   currentTimerEndTime = Date.now() + (initialSeconds * 1000);
@@ -3541,6 +3543,9 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
 
     const remaining = getRemaining();
     timerEl.textContent = remaining;
+    // anello di progresso stile reference (consumato dal CSS del disco timer)
+    if (remaining > currentTimerTotal) currentTimerTotal = remaining;
+    timerEl.style.setProperty('--prog', Math.max(0, Math.min(1, remaining / currentTimerTotal)));
 
     // read mode (kept separate)
     const mode = document.getElementById("soundMode").value;
@@ -4173,7 +4178,7 @@ function updateWorkoutPreview() {
     header.innerHTML = `
       <span class="section-icon">${config.icon}</span>
       <span class="section-title">${config.title}</span>
-      <span class="section-count">${exerciseGroups.length} es. | ${rounds} round</span>
+      <span class="section-count">${exerciseGroups.length} es. · ${rounds} round</span>
     `;
     section.appendChild(header);
 

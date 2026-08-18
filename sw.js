@@ -65,7 +65,7 @@ const urlsToCache = [
   // CSS — versioned URLs must match the HTML links EXACTLY (Cache API is
   // query-sensitive). Bump ?v= here AND in every page on each CSS change.
   './css/design-system.css?v=20260818w1',
-  './css/main.css?v=20260818w5',
+  './css/main.css?v=20260818w6',
   './css/nutrition.css?v=20260818w4',
   
   // Data

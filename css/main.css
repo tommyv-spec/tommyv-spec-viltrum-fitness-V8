@@ -4146,8 +4146,11 @@ body.workout-active #exercise-name {
   position: relative; z-index: 2;
   background: transparent !important;
   border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
   text-align: center;
   padding: 10px 16px 0 !important;
+  margin: 0 !important;
   text-shadow: 0 2px 16px rgba(0,0,0,.85);
 }
 
@@ -4155,22 +4158,35 @@ body.workout-active #exercise-name {
 body.workout-active #timer.full-timer {
   order: 3;
   position: relative; z-index: 2;
-  width: 96px; height: 96px;
+  width: 88px; height: 88px;
   flex: 0 0 auto;
   border-radius: 50%;
   background: rgba(0,0,0,.45);
   backdrop-filter: blur(6px);
-  border: 3px solid #C1FF72;
+  border: none;
+  --ring: var(--accent);
   box-shadow: 0 8px 30px rgba(0,0,0,.5);
   display: flex; align-items: center; justify-content: center;
-  margin: 14px auto 0 !important;
-  font-size: 40px !important;
+  margin: 12px auto 0 !important;
+  font-size: 30px !important;
+  font-weight: 700;
   line-height: 1 !important;
   color: #fff;
 }
-body.workout-active #timer.full-timer.warning-10 { border-color: #FFC107; }
-body.workout-active #timer.full-timer.warning-6  { border-color: #FF9800; }
-body.workout-active #timer.full-timer.warning-3  { border-color: #FF5252; }
+/* anello di progresso (reference: SVG ring) - conic gradient mascherato ad anello */
+body.workout-active #timer.full-timer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(var(--ring) calc(var(--prog, 1) * 1turn), rgba(255,255,255,.18) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+  pointer-events: none;
+}
+body.workout-active #timer.full-timer.warning-10 { --ring: #FFC107; }
+body.workout-active #timer.full-timer.warning-6  { --ring: #FF9800; }
+body.workout-active #timer.full-timer.warning-3  { --ring: #FF5252; }
 
 /* Controlli in basso: cerchi traslucidi, pausa = pillola fluo grande */
 body.workout-active #controls-container {
@@ -4179,23 +4195,40 @@ body.workout-active #controls-container {
   position: relative; z-index: 2;
   background: transparent !important;
   border: none !important;
-  gap: 14px !important;
-  padding: 0 20px calc(env(safe-area-inset-bottom, 0px) + 18px) !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  padding: 0 20px calc(env(safe-area-inset-bottom, 0px) + 16px) !important;
 }
-body.workout-active #controls-container .nav-btn,
-body.workout-active #controls-container .add-time-btn,
-body.workout-active #controls-container .settings-btn {
-  width: 52px !important;
-  height: 52px !important;
+body.workout-active .controls-main {
+  display: flex; align-items: center; justify-content: center; gap: 20px;
+}
+body.workout-active .controls-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; max-width: 380px; margin: 0 auto;
+}
+body.workout-active #controls-container .nav-btn {
+  width: 54px !important;
+  height: 54px !important;
   border-radius: 50% !important;
   background: rgba(255,255,255,.08) !important;
   border: 1px solid rgba(255,255,255,.18) !important;
   color: #fff !important;
   backdrop-filter: blur(4px);
 }
+body.workout-active #controls-container .add-time-btn,
+body.workout-active #controls-container .settings-btn {
+  width: 46px !important;
+  height: 46px !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  border: 1px solid rgba(255,255,255,.14) !important;
+  color: #ccc !important;
+  font-size: 13px !important;
+  text-shadow: 0 1px 6px rgba(0,0,0,.8);
+}
 body.workout-active #pause-button {
-  width: 72px !important;
-  height: 72px !important;
+  width: 74px !important;
+  height: 74px !important;
   flex: 0 0 auto;
   padding: 0 !important;
   border-radius: 50% !important;
@@ -4344,6 +4377,10 @@ body.workout-active #progress-fill {
 body.workout-active #progress-percentage { display: none !important; }
 body.workout-active #progress-info {
   display: inline-flex !important;
+  align-self: flex-start;
+  width: auto !important;
+  max-width: none !important;
+  justify-content: flex-start !important;
   gap: 6px;
   margin-top: 8px;
   background: rgba(0,0,0,0.4);
@@ -4354,6 +4391,8 @@ body.workout-active #progress-info {
   width: auto !important;
 }
 body.workout-active #progress-info span {
+  flex: none !important;
+  width: auto !important;
   font-size: 10.5px !important;
   font-weight: 700;
   letter-spacing: .5px;

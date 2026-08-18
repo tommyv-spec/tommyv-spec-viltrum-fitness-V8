@@ -21,7 +21,7 @@
   
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/design-system.css?v=20260818w1" />
-  <link rel="stylesheet" href="../css/main.css?v=20260818w5" />
+  <link rel="stylesheet" href="../css/main.css?v=20260818w6" />
   
   <!-- PWA Manifest -->
   <link rel="manifest" href="../manifest.json" />
@@ -120,7 +120,7 @@
           </div>
         </div>
 
-        <h3 id="workout-preview-title" style="display: none; text-align: center; color: #fff; margin: 30px 0 20px; font-size: 18px; text-transform: uppercase; letter-spacing: 1px;">Anteprima workout</h3>
+        <h3 id="workout-preview-title" style="display: none; text-align: left; color: #fff; margin: 30px 0 16px; font-size: 20px; font-weight: 700;">Anteprima workout</h3>
 
         <div id="exercise-visuals" style="display: none; margin-top: 20px;">
           <div id="exercise-grid" style="display: grid; grid-template-columns: 1fr; gap: 20px;"></div>
@@ -208,11 +208,15 @@
         <!-- CONTROLLI — v9: sempre visibili a schermo, niente menu a sandwich
              (audio 2026-08-11 pt.8; il tap sul ☰ interferiva anche con la voce) -->
         <div id="controls-container">
-          <button id="prev-exercise-button" class="nav-btn" title="Esercizio precedente">◀</button>
-          <button id="pause-button" aria-label="Pausa">⏸</button>
-          <button id="add-10s-button" class="add-time-btn" title="Aggiungi 10 secondi">+10s</button>
-          <button id="next-exercise-button" class="nav-btn" title="Esercizio successivo">▶</button>
-          <button id="settings-button" class="settings-btn" title="Impostazioni">⚙</button>
+          <div class="controls-main">
+            <button id="prev-exercise-button" class="nav-btn" title="Esercizio precedente">◀</button>
+            <button id="pause-button" aria-label="Pausa">⏸</button>
+            <button id="next-exercise-button" class="nav-btn" title="Esercizio successivo">▶</button>
+          </div>
+          <div class="controls-foot">
+            <button id="add-10s-button" class="add-time-btn" title="Aggiungi 10 secondi">+10s</button>
+            <button id="settings-button" class="settings-btn" title="Impostazioni">⚙</button>
+          </div>
         </div>
 
         <!-- 1. TIMER -->
