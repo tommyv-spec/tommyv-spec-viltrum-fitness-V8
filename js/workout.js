@@ -3020,7 +3020,9 @@ function exitWorkout() {
   if (setup) setup.style.display = "";
   if (startBtn) startBtn.style.display = "";
   if (bottomButtonsContainer) bottomButtonsContainer.style.display = "";
-  if (topbarSelect) topbarSelect.style.display = "block";
+  // "Seleziona workout" torna visibile SOLO nel flusso libero: arrivando da
+  // plan-view (v7PlanInfo) il workout è fisso e il menu non deve riapparire.
+  if (topbarSelect) topbarSelect.style.display = window.v7PlanInfo ? "none" : "block";
   if (setupGear) setupGear.style.display = "block";
 }
 
