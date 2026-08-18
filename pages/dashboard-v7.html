@@ -505,12 +505,31 @@
 
     // v9: un piano è "di corsa" se OGNI sua sessione è di tipo run — quei piani
     // stanno sotto la card CORSA; i piani misti restano sotto ALLENAMENTO.
+    // Il catalogo workout arriva in BACKGROUND dopo il primo render: finché i
+    // tipi non sono risolvibili si riusa l'ultima classificazione salvata,
+    // altrimenti la card CORSA lampeggiava e il piano finiva sotto ALLENAMENTO.
+    const runPlanMemo = JSON.parse(localStorage.getItem('viltrum_run_plans') || '{}');
     function isRunPlan(planName) {
       const plan = allPlansData[planName];
-      if (!plan || !Array.isArray(plan.workouts) || plan.workouts.length === 0) return false;
-      return plan.workouts.every(w =>
-        w.type === 'run' || (w.type !== 'muscle' && DataPreloader.getRunWorkout(w.name))
-      );
+      if (plan && Array.isArray(plan.workouts) && plan.workouts.length > 0) {
+        const types = plan.workouts.map(w => {
+          if (w.type === 'run' || w.type === 'muscle') return w.type;
+          if (DataPreloader.getRunWorkout(w.name)) return 'run';
+          if ((DataPreloader.getAllMuscleWorkouts() || {})[w.name]) return 'muscle';
+          return 'unknown';
+        });
+        if (!types.includes('unknown')) {
+          // Classificazione certa → salva e usa
+          const isRun = types.every(t => t === 'run');
+          if (runPlanMemo[planName] !== isRun) {
+            runPlanMemo[planName] = isRun;
+            try { localStorage.setItem('viltrum_run_plans', JSON.stringify(runPlanMemo)); } catch (e) {}
+          }
+          return isRun;
+        }
+      }
+      // Dati incompleti → ultima classificazione nota (default: allenamento)
+      return !!runPlanMemo[planName];
     }
     function musclePlans() { return userPlans.filter(p => !isRunPlan(p)); }
     function runPlans()    { return userPlans.filter(p => isRunPlan(p)); }
@@ -553,6 +572,13 @@
       // Re-render when background refresh arrives
       window.addEventListener('dataRefreshed', () => {
         console.log('🔄 UI: Aggiornamento dati ricevuto');
+        applyAndRender();
+      });
+
+      // v9: il catalogo workout (serve a classificare i piani corsa) arriva
+      // dopo — ridisegna quando è pronto, così la card CORSA si stabilizza.
+      window.addEventListener('workoutDataReady', () => {
+        console.log('🏃 UI: Catalogo workout pronto, riclassifico i piani');
         applyAndRender();
       });
       

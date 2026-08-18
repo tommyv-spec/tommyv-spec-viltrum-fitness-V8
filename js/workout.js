@@ -3412,8 +3412,8 @@ async function playExercise(index, exercises, resumeTime = null) {
     // NORMAL EXERCISE → show name + image as usual
     // ═══════════════════════════════════════════════════════════════
     document.getElementById("exercise-name").innerHTML = `
-      <div style="font-size:22px;font-weight:800;letter-spacing:.5px;">${exercise.name}</div>
-      <div style="font-size:15px;font-weight:600;color:#B0B0B0;margin-top:4px;">${infoText}</div>
+      <div style="font-size:clamp(24px,6vw,34px);font-weight:800;letter-spacing:.5px;line-height:1.15;">${exercise.name}</div>
+      <div style="font-size:16px;font-weight:700;color:#C1FF72;margin-top:4px;">${infoText}</div>
       ${weightDisplay}
     `;
 
@@ -3581,9 +3581,9 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
 
           // swap preview UI
           document.getElementById("exercise-name").innerHTML = `
-            <div style="font-size:14px;opacity:.8;margin-bottom:4px;">PROSSIMO ESERCIZIO:</div>
-            <div style="font-size:22px;font-weight:800;letter-spacing:.5px;">${nextExercise.name}</div>
-            <div style="font-size:15px;font-weight:600;margin-top:4px;">${nxInfo}</div>
+            <div style="font-size:13px;font-weight:800;letter-spacing:1.5px;color:#0d0d0d;background:rgba(193,255,114,.9);display:inline-block;padding:4px 12px;border-radius:20px;margin-bottom:6px;">PROSSIMO ESERCIZIO</div>
+            <div style="font-size:clamp(24px,6vw,34px);font-weight:800;letter-spacing:.5px;line-height:1.15;">${nextExercise.name}</div>
+            <div style="font-size:16px;font-weight:700;color:#C1FF72;margin-top:4px;">${nxInfo}</div>
           `;
           // Load next exercise image from cache if available
           const nextExerciseImg = document.getElementById("exercise-gif");

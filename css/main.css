@@ -4127,3 +4127,156 @@ html.no-scroll, body.no-scroll{
   height: 20px !important;
   pointer-events: none !important;
 }
+/* ═══════════════════════════════════════════════════════════════════════════
+   v9 — PLAYER FULL-SCREEN STILE MOREMUSCLE (audio 2026-08-11)
+   GIF a tutto schermo con scrim scuri sopra/sotto, nome+timer in overlay in
+   alto, controlli circolari in overlay in basso. Scoped su body.workout-active
+   (classe presente solo a workout avviato), con !important dove serve battere
+   le vecchie regole di dimensionamento GIF.
+   ═══════════════════════════════════════════════════════════════════════════ */
+body.workout-active #exercise-container {
+  position: fixed !important;
+  inset: 0;
+  z-index: 200;
+  display: flex !important;
+  flex-direction: column !important;
+  background: #000 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+}
+
+/* GIF di sfondo a copertura totale */
+body.workout-active #exercise-gif-viewport {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  z-index: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  /* sfondo del riposo (la GIF, quando c'è, lo copre) — come il reference */
+  background: radial-gradient(circle at 50% 40%, #182a1e, #05070d);
+}
+body.workout-active #exercise-gif {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: cover;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+/* Scrim alto/basso per leggibilità dei testi in overlay */
+body.workout-active #exercise-gif-viewport::before {
+  content: "";
+  position: absolute; top: 0; left: 0; right: 0; height: 30%;
+  background: linear-gradient(to bottom, rgba(0,0,0,.75), rgba(0,0,0,0));
+  pointer-events: none; z-index: 1;
+}
+body.workout-active #exercise-gif-viewport::after {
+  content: "";
+  position: absolute; bottom: 0; left: 0; right: 0; height: 48%;
+  background: linear-gradient(to top, rgba(0,0,0,.88), rgba(0,0,0,0));
+  pointer-events: none; z-index: 1;
+}
+/* Le card del riposo vivono DENTRO il viewport: sopra gli scrim, sotto i testi */
+body.workout-active #rest-block-preview {
+  position: relative;
+  z-index: 2;
+  margin: 0 auto;
+  padding-top: 36vh !important;
+  padding-bottom: 22vh !important;
+  box-sizing: border-box;
+}
+
+/* ── overlay: ordine visivo via flex `order` (nessun cambio al DOM) ── */
+body.workout-active #workout-progress-header {
+  order: 1;
+  position: relative; z-index: 2;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 0 !important;
+}
+body.workout-active #progress-bar {
+  background: rgba(0,0,0,.4);
+  backdrop-filter: blur(4px);
+}
+body.workout-active #progress-info,
+body.workout-active #progress-info span {
+  text-shadow: 0 1px 6px rgba(0,0,0,.8);
+}
+
+body.workout-active #exercise-name {
+  order: 2;
+  position: relative; z-index: 2;
+  background: transparent !important;
+  border: none !important;
+  text-align: center;
+  padding: 10px 16px 0 !important;
+  text-shadow: 0 2px 16px rgba(0,0,0,.85);
+}
+
+/* Timer: cerchio con backdrop scuro sfocato, bordo fluo (rosso nei warning) */
+body.workout-active #timer.full-timer {
+  order: 3;
+  position: relative; z-index: 2;
+  width: 96px; height: 96px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: rgba(0,0,0,.45);
+  backdrop-filter: blur(6px);
+  border: 3px solid #C1FF72;
+  box-shadow: 0 8px 30px rgba(0,0,0,.5);
+  display: flex; align-items: center; justify-content: center;
+  margin: 14px auto 0 !important;
+  font-size: 40px !important;
+  line-height: 1 !important;
+  color: #fff;
+}
+body.workout-active #timer.full-timer.warning-10 { border-color: #FFC107; }
+body.workout-active #timer.full-timer.warning-6  { border-color: #FF9800; }
+body.workout-active #timer.full-timer.warning-3  { border-color: #FF5252; }
+
+/* Controlli in basso: cerchi traslucidi, pausa = pillola fluo grande */
+body.workout-active #controls-container {
+  order: 4;
+  margin-top: auto !important;
+  position: relative; z-index: 2;
+  background: transparent !important;
+  border: none !important;
+  gap: 14px !important;
+  padding: 0 20px calc(env(safe-area-inset-bottom, 0px) + 18px) !important;
+}
+body.workout-active #controls-container .nav-btn,
+body.workout-active #controls-container .add-time-btn,
+body.workout-active #controls-container .settings-btn {
+  width: 52px !important;
+  height: 52px !important;
+  border-radius: 50% !important;
+  background: rgba(255,255,255,.08) !important;
+  border: 1px solid rgba(255,255,255,.18) !important;
+  color: #fff !important;
+  backdrop-filter: blur(4px);
+}
+body.workout-active #pause-button {
+  height: 60px !important;
+  padding: 0 26px !important;
+  border-radius: 999px !important;
+  background: #C1FF72 !important;
+  color: #0d0d0d !important;
+  border: none !important;
+  font-size: 17px !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,.45);
+}
+body.workout-active #pause-button.paused {
+  background: #fff !important;
+}
