@@ -358,7 +358,7 @@
 
 .btn-pdf {
   padding: 10px 20px;
-  background: var(--ds-rest-ring); color: #fff;
+  background: var(--ds-rest-ring);
   border: none;
   border-radius: 10px;
   color: #FFF;
@@ -369,7 +369,7 @@
 }
 
 .btn-pdf:hover {
-  background: #1976D2;
+  background: #2563eb;
   transform: scale(1.02);
 }
 
