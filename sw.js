@@ -65,8 +65,8 @@ const urlsToCache = [
 
   // CSS — versioned URLs must match the HTML links EXACTLY (Cache API is
   // query-sensitive). Bump ?v= here AND in every page on each CSS change.
-  './css/design-system.css?v=20260818w1',
-  './css/main.css?v=20260818w9',
+  './css/design-system.css?v=20260819a',
+  './css/main.css?v=20260819a',
   './css/nutrition.css?v=20260818w4',
   
   // Data
@@ -621,10 +621,22 @@ self.addEventListener('fetch', (event) => {
             });
 
           return response;
+        }).catch(() => {
+          // v10.4 iOS: al cold-start della PWA la rete puo' non essere ancora
+          // sveglia. Per css/js versionati (?v=nuovo, non in cache) servi
+          // QUALSIASI versione cache-ata dello stesso path — una UI della
+          // versione precedente batte una pagina spoglia.
+          if (/\.(css|js)(\?|$)/.test(request.url)) {
+            return caches.match(request, { ignoreSearch: true }).then(loose => {
+              if (loose) return loose;
+              return new Response('Offline', { status: 503 });
+            });
+          }
+          return new Response('Offline', { status: 503 });
         });
       })
       .catch((error) => {
-        return new Response('Offline - Resource not available', { 
+        return new Response('Offline - Resource not available', {
           status: 503,
           statusText: 'Service Unavailable'
         });

@@ -560,7 +560,8 @@ main {
 */
 .login-card {
   background: var(--gradient-card);
-  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
   border: var(--border-medium);
   border-radius: clamp(16px, 3vw, 24px);
   padding: clamp(18px, calc(var(--dvh-px) * 0.05), 24px) clamp(20px, 3.5vw, 28px);
@@ -781,7 +782,8 @@ main {
   flex-direction: column;
   align-items: center;
   background: var(--gradient-card);
-  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
   border-radius: clamp(16px, 3vw, 20px);
   box-shadow: var(--shadow-lg);
   /* Normal padding - no extra space needed */
@@ -994,6 +996,7 @@ body:has(#exercise-container[style*="display: flex"]) #start-button-bottom {
   background: linear-gradient(135deg, #7D7D7D, #4D4D4D);
   color: #fff;
   cursor: pointer;
+  -webkit-user-select: none;
   user-select: none;
   transition: background 0.3s;
 }
@@ -1131,6 +1134,7 @@ body:has(#exercise-container[style*="display: flex"]) #start-button-bottom {
   max-width: min(160px, 75vw);
   white-space: nowrap;
   pointer-events: none;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -1403,7 +1407,8 @@ body:has(#exercise-container[style*="display: flex"]) {
   padding: 4px clamp(10px, 2.5vw, 14px);
   text-shadow: 0 2px 8px rgba(0,0,0,0.9);
   background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
   border-radius: 10px;
   z-index: 10;
   position: relative;
@@ -1755,6 +1760,7 @@ audio {
   padding: 14px 16px;
   text-align: center;
   background: rgba(255,255,255,0.08);
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   border-radius: clamp(12px, 2.5vw, 16px);
   box-shadow: var(--shadow-lg);
@@ -2015,7 +2021,8 @@ audio {
   padding-right: clamp(10px, 2vw, 14px);
   padding-bottom: 6px;
   background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
   border-bottom: 2px solid rgba(176, 176, 176, 0.3);
   flex-shrink: 0;
   flex-grow: 0;
@@ -2291,6 +2298,7 @@ main { max-width: min(600px, 95vw); margin: 0 auto; padding-inline: 20px; paddin
 #setup-screen {
   display: flex; flex-direction: column; align-items: center;
   background: var(--gradient-card);
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   border-radius: clamp(16px, 3vw, 20px);
   box-shadow: var(--shadow-lg);
@@ -2549,6 +2557,7 @@ select option { letter-spacing: inherit; }
   cursor: pointer;
   box-shadow: var(--destructive-shadow);
   transition: all 0.2s ease;
+  -webkit-backdrop-filter: blur(5px);
   backdrop-filter: blur(5px);
 }
 
@@ -2655,6 +2664,7 @@ button:disabled:hover,
 .instructions-title,
 .materiale-title {
   cursor: default;
+  -webkit-user-select: none;
   user-select: none;
   pointer-events: none;
 }
@@ -2736,7 +2746,8 @@ button,
   padding: 0 20px;                       
   padding-bottom: env(safe-area-inset-bottom, 0px); /* iOS: pushes buttons above home indicator */
   background: linear-gradient(to top, rgba(0,0,0,.95), rgba(0,0,0,.9) 80%, transparent);
-  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
   z-index: 9999;
   transform: translateZ(0);
 }
@@ -2873,6 +2884,7 @@ body:has(#login-screen:not([style*="display: none"])) #bottom-buttons-container 
   background: transparent;
   border: 2px solid transparent;
   -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
   user-select: none;
   /* Mobile optimizations */
   transform: translateZ(0);
@@ -4134,6 +4146,7 @@ body.workout-active #workout-progress-header {
 }
 body.workout-active #progress-bar {
   background: rgba(0,0,0,.4);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
 body.workout-active #progress-info,
@@ -4177,7 +4190,8 @@ body.workout-active #timer.full-timer {
   flex: 0 0 auto;
   border-radius: 50%;
   background: rgba(0,0,0,.45);
-  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   border: none;
   --ring: var(--accent);
   box-shadow: 0 8px 30px rgba(0,0,0,.5);
@@ -4228,7 +4242,8 @@ body.workout-active #controls-container .nav-btn {
   background: rgba(255,255,255,.08) !important;
   border: 1px solid rgba(255,255,255,.18) !important;
   color: #fff !important;
-  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
 }
 body.workout-active #controls-container .add-time-btn,
 body.workout-active #controls-container .settings-btn {
@@ -4382,6 +4397,7 @@ body.workout-active #progress-bar {
   background: rgba(255,255,255,0.15) !important;
   border: none !important;
   border-radius: 3px !important;
+  -webkit-backdrop-filter: none;
   backdrop-filter: none;
   overflow: hidden;
 }
@@ -4399,7 +4415,8 @@ body.workout-active #progress-info {
   gap: 6px;
   margin-top: 8px;
   background: rgba(0,0,0,0.4);
-  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
   border: none !important;
   border-radius: 20px;
   padding: 5px 12px !important;
@@ -4448,6 +4465,7 @@ body.workout-active #progress-info span:not(:last-child)::after {
   padding: 18px 18px 0 !important;
   text-align: left !important;
   background: transparent !important;
+  -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;
@@ -4478,6 +4496,7 @@ body.workout-active #progress-info span:not(:last-child)::after {
 /* Setup screen: colonna piena, testo a sinistra */
 #setup-screen {
   background: transparent !important;
+  -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   border: none !important;
   border-radius: 0 !important;
@@ -4595,7 +4614,8 @@ body.workout-active #rest-extend-btn {
   padding: 10px 18px;
   font-size: 14px;
   font-weight: 600;
-  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
   cursor: pointer;
 }
 body.workout-active #rest-extend-btn:active { transform: scale(0.97); }

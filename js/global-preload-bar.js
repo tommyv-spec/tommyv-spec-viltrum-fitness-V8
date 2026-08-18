@@ -55,6 +55,7 @@ const GlobalPreloadBar = {
         display: none;
         flex-direction: column;
         gap: 6px;
+        -webkit-backdrop-filter: blur(10px);
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
         transform: translateY(100%);
