@@ -2356,7 +2356,7 @@ body.preload-bar-visible #setup-screen {
 #workout-preview h3 { font-size: clamp(16px, 3vw, 18px); font-weight: 700; color: #fff; text-align: center; margin-bottom: clamp(12px, 2.5vw, 15px); text-transform: uppercase; letter-spacing: .5px; }
 
 #instructions-section { width:100%; max-width:min(340px,85vw); margin:20px auto; background: rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius: clamp(10px,2vw,12px); overflow:hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
-.instructions-header { padding: clamp(10px,2vw,12px) clamp(12px,2.5vw,16px); display:flex; align-items:center; gap: clamp(8px,1.5vw,10px); background: linear-gradient(135deg,#4D4D4D,#4D4D4D); color:#FFFFFF; cursor:pointer; user-select:none; transition: filter .2s; }
+.instructions-header { padding: clamp(10px,2vw,12px) clamp(12px,2.5vw,16px); display:flex; align-items:center; gap: clamp(8px,1.5vw,10px); background: var(--ds-surface); border: 1px solid var(--ds-border); color: var(--accent); cursor:pointer; user-select:none; transition: filter .2s; }
 .instructions-header:hover { filter: brightness(1.05); }
 .instructions-icon { font-size: clamp(17px,3.5vw,20px); }
 .instructions-title { flex:1; font-size: clamp(13px,2.5vw,15px); font-weight:700; letter-spacing:1.5px; }
@@ -2389,7 +2389,7 @@ body.preload-bar-visible #setup-screen {
 .materiale-header { padding: clamp(10px,2vw,12px) clamp(12px,2.5vw,16px); display:flex; align-items:center; gap: clamp(8px,1.5vw,10px); background: linear-gradient(135deg,#4D4D4D,#4D4D4D); color:#FFFFFF; }
 .materiale-content { background:#FFFFFF }
 #materiale-list { display:grid; grid-template-columns: repeat(2, 1fr); gap: clamp(6px,1.2vw,8px); padding: clamp(10px,2vw,14px); }
-.materiale-item { background: #4D4D4D; color: #FFFFFF; padding:8px 16px; border-radius: clamp(8px,1.5vw,10px); font-size: clamp(12px,2.3vw,14px); font-weight:600; box-shadow: 0 2px 8px rgba(0,0,0,.25); text-align:center; white-space:normal; word-wrap:break-word; }
+.materiale-item { background: var(--ds-control); border: 1px solid var(--ds-border-modal); color: var(--ds-text-2); padding:8px 16px; border-radius: clamp(8px,1.5vw,10px); font-size: clamp(12px,2.3vw,14px); font-weight:600; text-align:center; white-space:normal; word-wrap:break-word; }
 
 #exercise-visuals { display:block !important; width:100%; max-width:min(340px,85vw); margin-top: clamp(18px,3.5vw,25px); margin-bottom: clamp(18px,3.5vw,25px); }
 
@@ -2430,12 +2430,13 @@ select option { letter-spacing: inherit; }
    Usage: Start Workout, Login, Continue
    ======================================== */
 :root {
-  --primary-bg: #FFFFFF;
-  --primary-text: #000000;
-  --primary-border: #E0E0E0;
-  --primary-shadow: 0 6px 20px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.3);
-  --primary-shadow-hover: 0 10px 30px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.4);
-  --primary-shadow-active: 0 2px 8px rgba(0,0,0,0.25);
+  /* v9.4: gerarchia ri-puntata sul design system (base MoreMuscle) */
+  --primary-bg: var(--accent);
+  --primary-text: var(--accent-ink);
+  --primary-border: transparent;
+  --primary-shadow: none;
+  --primary-shadow-hover: none;
+  --primary-shadow-active: none;
 }
 
 #start-button-bottom,
@@ -2461,9 +2462,8 @@ select option { letter-spacing: inherit; }
 #start-button-bottom:hover,
 .start-button:hover,
 #login-button:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--primary-shadow-hover);
-  background: #FFFFFF !important;
+  transform: translateY(-2px);
+  background: var(--accent-hover) !important;
 }
 
 #start-button-bottom:active,
@@ -2480,11 +2480,11 @@ select option { letter-spacing: inherit; }
    Usage: Settings, Pause, Navigation arrows
    ======================================== */
 :root {
-  --secondary-bg: #4D4D4D;
-  --secondary-text: #FFFFFF;
-  --secondary-border: #7D7D7D;
-  --secondary-shadow: 0 3px 10px rgba(0,0,0,0.3);
-  --secondary-shadow-hover: 0 5px 15px rgba(0,0,0,0.4);
+  --secondary-bg: var(--ds-control);
+  --secondary-text: var(--ds-text-3);
+  --secondary-border: var(--ds-border-modal);
+  --secondary-shadow: none;
+  --secondary-shadow-hover: none;
 }
 
 /* Setup/settings buttons (not in workout controls) */
@@ -2509,17 +2509,16 @@ select option { letter-spacing: inherit; }
 #setup-settings-button:hover,
 #close-settings:hover,
 #close-setup-settings:hover {
-  background: #5D5D5D !important;
+  background: var(--ds-control) !important;
   transform: translateY(-2px);
-  box-shadow: var(--secondary-shadow-hover);
-  border-color: #8D8D8D !important;
+  border-color: var(--accent) !important;
 }
 
 #setup-settings-button:active,
 #close-settings:active,
 #close-setup-settings:active {
   transform: translateY(0);
-  background: #3D3D3D !important;
+  background: var(--ds-sunken) !important;
 }
 
 /* ========================================
@@ -2529,12 +2528,12 @@ select option { letter-spacing: inherit; }
    Usage: Exit Workout, Logout, End Session
    ======================================== */
 :root {
-  --destructive-bg: rgba(0, 0, 0, 0.3);
-  --destructive-text: #FFFFFF;
-  --destructive-border: #FFFFFF;
-  --destructive-border-hover: #B0B0B0;
-  --destructive-shadow: 0 0 0 1px rgba(255,255,255,0.2) inset, 0 3px 10px rgba(0,0,0,0.3);
-  --destructive-shadow-hover: 0 0 0 2px rgba(255,255,255,0.4) inset, 0 5px 15px rgba(0,0,0,0.4);
+  --destructive-bg: transparent;
+  --destructive-text: var(--ds-danger);
+  --destructive-border: rgba(248, 113, 113, 0.4);
+  --destructive-border-hover: var(--ds-danger);
+  --destructive-shadow: none;
+  --destructive-shadow-hover: none;
 }
 
 #exit-workout-button,
@@ -2543,7 +2542,7 @@ select option { letter-spacing: inherit; }
   appearance: none;
   background: var(--destructive-bg) !important;
   color: var(--destructive-text) !important;
-  border: 2px solid var(--destructive-border) !important;
+  border: 1px solid var(--destructive-border) !important;
   border-radius: 10px;
   padding: clamp(10px, 2.2vw, 13px) clamp(16px, 3.2vw, 20px);
   font-size: clamp(13px, 2.8vw, 15px);
@@ -2559,9 +2558,8 @@ select option { letter-spacing: inherit; }
 #exit-workout-button:hover,
 #logout-button:hover,
 #reset-start-point:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
+  background: rgba(248, 113, 113, 0.08) !important;
   border-color: var(--destructive-border-hover) !important;
-  box-shadow: var(--destructive-shadow-hover);
   transform: translateY(-1px);
 }
 
@@ -2581,9 +2579,9 @@ button:disabled,
 #start-button-bottom:disabled,
 .start-button:disabled,
 #login-button:disabled {
-  background: rgba(77, 77, 77, 0.3) !important;
-  color: #7D7D7D !important;
-  border-color: #4D4D4D !important;
+  background: #2A2A2A !important;
+  color: #777 !important;
+  border-color: transparent !important;
   box-shadow: none !important;
   cursor: not-allowed !important;
   transform: none !important;
@@ -2607,8 +2605,8 @@ button:disabled:hover,
 /* Instructions Section - Read Only */
 .instructions-header,
 .materiale-header {
-  background: linear-gradient(135deg, rgba(77, 77, 77, 0.3) 0%, rgba(77, 77, 77, 0.2) 100%);
-  border: 1px solid rgba(176, 176, 176, 0.2);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
   border-radius: 10px;
   padding: clamp(12px, 2.5vw, 16px) clamp(15px, 3vw, 20px);
   display: flex;
@@ -2623,7 +2621,8 @@ button:disabled:hover,
 
 
 #workout-preview-title {
-  background: rgba(77, 77, 77, 0.15);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
 
   border-radius: 8px;
   padding: clamp(12px, 2.5vw, 16px);
@@ -2635,8 +2634,8 @@ button:disabled:hover,
 #materiale-list,
 
 #progress-info {
-  background: rgba(77, 77, 77, 0.15);
-  border: 1px solid rgba(176, 176, 176, 0.15);
+  background: transparent;
+  border: none;
   border-radius: 8px;
   padding: clamp(12px, 2.5vw, 16px);
   box-shadow: none; /* Flat - no depth */
@@ -2644,7 +2643,7 @@ button:disabled:hover,
   transition: none;
 }
 
-#materiale-list{background: rgb(255, 255, 255)}
+#materiale-list{background: transparent}
 /* Progress Bar Container - Read Only */
 #workout-progress-container {
   background: rgba(0, 0, 0, 0.4);
@@ -2681,8 +2680,9 @@ button:focus-visible,
 #start-button-bottom:focus-visible,
 .start-button:focus-visible,
 #login-button:focus-visible {
-  outline: none;
-  box-shadow: var(--primary-shadow-hover), 0 0 0 4px rgba(255,255,255,0.3);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 .nav-btn:focus-visible,
@@ -2690,15 +2690,17 @@ button:focus-visible,
 #pause-button:focus-visible,
 #close-settings:focus-visible,
 #close-setup-settings:focus-visible {
-  outline: none;
-  box-shadow: var(--secondary-shadow-hover), 0 0 0 3px rgba(255,255,255,0.15);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 #exit-workout-button:focus-visible,
 #logout-button:focus-visible,
 #reset-start-point:focus-visible {
-  outline: none;
-  box-shadow: var(--destructive-shadow-hover), 0 0 0 3px rgba(255,255,255,0.25);
+  outline: 2px solid var(--ds-danger);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 /* ========================================
@@ -3527,13 +3529,13 @@ body:has(#login-screen:not([style*="display: none"])) #bottom-buttons-container 
 }
 
 .sheet-btn.primary {
-  background: var(--color-white);
-  color: var(--color-black);
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 .sheet-btn.primary:active {
   transform: scale(0.97);
-  background: var(--color-light-grey);
+  background: var(--accent-hover);
 }
 
 .sheet-btn.secondary {
@@ -3609,8 +3611,8 @@ body:has(#login-screen:not([style*="display: none"])) #bottom-buttons-container 
 }
 
 .detail-item {
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
   border-radius: 10px;
   padding: clamp(12px, calc(var(--dvh-px) * 0.05), 16px) clamp(14px, 3vw, 18px);
 }

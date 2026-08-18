@@ -21,7 +21,7 @@
   
   <link href="https://fonts.googleapis.com/css2?family=Staatliches&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/design-system.css?v=20260818w0" />
-  <link rel="stylesheet" href="css/main.css?v=20260818w2" />
+  <link rel="stylesheet" href="css/main.css?v=20260818w3" />
   
   <!-- PWA Manifest -->
   <link rel="manifest" href="./manifest.json" />
@@ -58,10 +58,10 @@
       justify-self: end !important;
       position: relative !important;
       padding: 10px 20px;
-      background: #FFFFFF;
-      border: 2px solid #FFFFFF;
+      background: var(--accent);
+      border: none;
       border-radius: 10px;
-      color: #000000;
+      color: var(--accent-ink);
       font-family: 'Staatliches', sans-serif;
       font-size: 16px;
       font-weight: bold;
@@ -70,7 +70,7 @@
       transition: all 0.3s ease;
       align-items: center;
       gap: 8px;
-      box-shadow: 0 4px 15px rgba(255, 255, 255, 0.3);
+      box-shadow: none;
       z-index: 100;
       white-space: nowrap;
     }
@@ -97,10 +97,10 @@
       justify-self: end !important;
       position: relative !important;
       padding: 10px 20px;
-      background: #FFFFFF;
-      border: 2px solid #FFFFFF;
+      background: var(--accent);
+      border: none;
       border-radius: 10px;
-      color: #000000;
+      color: var(--accent-ink);
       font-family: 'Staatliches', sans-serif;
       font-size: 16px;
       font-weight: bold;
@@ -109,16 +109,15 @@
       transition: all 0.3s ease;
       align-items: center;
       gap: 8px;
-      box-shadow: 0 4px 15px rgba(255, 255, 255, 0.3);
+      box-shadow: none;
       z-index: 100;
       white-space: nowrap;
       text-decoration: none;
     }
 
     .header-dashboard-btn:hover {
-      background: #B0B0B0;
+      background: var(--accent-hover);
       transform: scale(1.05);
-      box-shadow: 0 6px 20px rgba(255, 255, 255, 0.4);
     }
 
     .header-dashboard-btn:active {
@@ -132,9 +131,9 @@
       position: relative !important;
       padding: 8px 14px;
       background: transparent;
-      border: 2px solid #FFFFFF;
+      border: 1px solid var(--ds-border-strong);
       border-radius: 10px;
-      color: #FFFFFF;
+      color: var(--ds-text-4);
       font-family: 'Staatliches', sans-serif;
       font-size: 13px;
       font-weight: bold;
@@ -207,7 +206,7 @@
       min-height: 48px !important;
       margin-bottom: 12px !important;
       background: rgba(0, 0, 0, 0.5) !important;
-      border: 1px solid #7D7D7D !important;
+      border: 1px solid var(--ds-border-field) !important;
       border-radius: 10px !important;
       /* REMOVED overflow: hidden - was blocking iOS password touches */
       transition: all 0.3s ease !important;
@@ -456,14 +455,13 @@
     }
 
     .auth-modal-content {
-      background: linear-gradient(135deg, rgba(77, 77, 77, 0.95), rgba(77, 77, 77, 0.8));
-      border: 2px solid #7D7D7D;
-      border-radius: 20px;
+      background: var(--ds-surface-modal);
+      border: 1px solid var(--ds-border-modal);
+      border-radius: 16px;
       padding: 45px 25px 25px 25px;
       width: 100%;
       max-width: 350px;
       position: relative;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
       animation: slideUp 0.4s ease;
     }
 
@@ -532,8 +530,8 @@
       width: 100%;
       padding: 12px 14px;
       margin-bottom: 12px;
-      background: rgba(0, 0, 0, 0.5);
-      border: 1px solid #7D7D7D;
+      background: var(--ds-bg);
+      border: 1px solid var(--ds-border-field);
       border-radius: 10px;
       color: #FFFFFF;
       font-size: 16px;
@@ -557,9 +555,8 @@
 
     .auth-modal input:not(.password-input-wrapper input):focus {
       outline: none;
-      border-color: #FFFFFF;
-      background: rgba(0, 0, 0, 0.7);
-      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+      border-color: var(--accent);
+      background: var(--ds-bg);
     }
     
     /* Ensure font applies to autofill state for email/other inputs */
@@ -573,15 +570,15 @@
       letter-spacing: 0.3px !important;
       -webkit-box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.5) inset !important;
       box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.5) inset !important;
-      border: 1px solid #7D7D7D !important;
+      border: 1px solid var(--ds-border-field) !important;
       transition: background-color 5000s ease-in-out 0s !important;
     }
 
     .auth-modal button:not(.auth-modal-close) {
       width: 100%;
       padding: 12px;
-      background: #FFFFFF;
-      color: #000000;
+      background: var(--accent);
+      color: var(--accent-ink);
       border: none;
       border-radius: 10px;
       font-size: 16px;
@@ -594,9 +591,8 @@
     }
 
     .auth-modal button:not(.auth-modal-close):hover {
-      background: #B0B0B0;
+      background: var(--accent-hover);
       transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(255, 255, 255, 0.3);
     }
 
     .auth-modal button:not(.auth-modal-close):active {
@@ -757,13 +753,13 @@
       transform: none !important;
     }
     .auth-modal .q-options button:hover {
-      border-color: #FFFFFF !important;
-      background: rgba(255, 255, 255, 0.05) !important;
+      border-color: var(--accent) !important;
+      background: rgba(193, 255, 114, 0.06) !important;
     }
     .auth-modal .q-options button.selected {
-      background: #FFFFFF !important;
-      color: #000000 !important;
-      border-color: #FFFFFF !important;
+      background: var(--accent) !important;
+      color: var(--accent-ink) !important;
+      border-color: var(--accent) !important;
     }
     .q-submit-btn {
       margin-top: 8px;

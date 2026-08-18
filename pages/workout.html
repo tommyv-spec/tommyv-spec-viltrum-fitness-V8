@@ -21,7 +21,7 @@
   
   <link href="https://fonts.googleapis.com/css2?family=Staatliches&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/design-system.css?v=20260818w0" />
-  <link rel="stylesheet" href="../css/main.css?v=20260818w2" />
+  <link rel="stylesheet" href="../css/main.css?v=20260818w3" />
   
   <!-- PWA Manifest -->
   <link rel="manifest" href="../manifest.json" />
@@ -122,30 +122,30 @@
         </div>
 
         <!-- START POINT SELECTOR -->
-        <div id="start-point-selector" style="display: none; margin: 30px 0; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 12px; border: 2px solid rgba(176,176,176,0.3);">
+        <div id="start-point-selector" style="display: none; margin: 30px 0; padding: 20px; background: var(--ds-surface); border-radius: 12px; border: 1px solid var(--ds-border);">
           <h3 style="color: #B0B0B0; margin-bottom: 15px; text-align: center; font-size: 16px;"> Inizia da un blocco specifico</h3>
           
           <div style="display: grid; gap: 15px;">
             <div>
               <label for="start-phase-select" style="display: block; color: #fff; margin-bottom: 5px; font-size: 14px;">Blocco:</label>
-              <select id="start-phase-select" style="width: 100%; padding: 10px; border-radius: 8px; background: #4D4D4D; color: #fff; border: 1px solid #7D7D7D;">
+              <select id="start-phase-select" style="width: 100%; padding: 10px; border-radius: 8px; background: var(--ds-bg); color: #fff; border: 1px solid var(--ds-border-field);">
                 <option value="0">Inizio workout</option>
               </select>
             </div>
 
             <div id="start-round-container" style="display: none;">
               <label for="start-round-select" style="display: block; color: #fff; margin-bottom: 5px; font-size: 14px;">Round:</label>
-              <select id="start-round-select" style="width: 100%; padding: 10px; border-radius: 8px; background: #4D4D4D; color: #fff; border: 1px solid #7D7D7D;">
+              <select id="start-round-select" style="width: 100%; padding: 10px; border-radius: 8px; background: var(--ds-bg); color: #fff; border: 1px solid var(--ds-border-field);">
               </select>
             </div>
 
             <div id="start-exercise-container" style="display: none;">
               <label for="start-exercise-select" style="display: block; color: #fff; margin-bottom: 5px; font-size: 14px;">Esercizio:</label>
-              <select id="start-exercise-select" style="width: 100%; padding: 10px; border-radius: 8px; background: #4D4D4D; color: #fff; border: 1px solid #7D7D7D;">
+              <select id="start-exercise-select" style="width: 100%; padding: 10px; border-radius: 8px; background: var(--ds-bg); color: #fff; border: 1px solid var(--ds-border-field);">
               </select>
             </div>
 
-            <button id="reset-start-point" style="padding: 8px 15px; background: rgba(255,255,255,0.1); color: #fff; border: 1px solid #7D7D7D; border-radius: 8px; cursor: pointer; font-size: 13px;">
+            <button id="reset-start-point" style="padding: 8px 15px; border-radius: 8px; cursor: pointer; font-size: 13px;">
               ⟲ Reset a inizio workout
             </button>
           </div>
