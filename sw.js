@@ -113,16 +113,18 @@ self.addEventListener('install', (event) => {
         );
       })
       .then(() => {
-        // NO skipWaiting() here — the new worker WAITS until the user taps
-        // "Aggiorna" (update-notifier.js posts SKIP_WAITING, handled below).
+        // v10.2 AUTO-UPDATE: skipWaiting SEMPRE — l'utente riceve direttamente
+        // l'ULTIMA versione deployata, senza banner e senza scalare le versioni
+        // intermedie una alla volta (il problema visto su iOS).
         //
-        // The V9 rollout temporarily forced activation from install. Leaving it
-        // in made every release a broken loop: the banner appeared asking for
-        // consent while the worker activated itself anyway, controllerchange
-        // fired, and the notifier force-reloaded the page seconds later — the
-        // "new version keeps appearing" complaint. Consent flow restored
-        // 2026-08-10 (V9 settled twelve forced releases ago).
-        console.log('[Service Worker] Install complete - waiting for user consent');
+        // Storia: il vecchio loop "la nuova versione continua ad apparire"
+        // (2026-08-10) NON era colpa di skipWaiting in sé ma del regime misto:
+        // banner che chiedeva consenso MENTRE il worker si attivava da solo, e
+        // il notifier ricaricava sotto le dita. Ora il regime è coerente:
+        // attivazione automatica + UN solo reload silenzioso (mai durante un
+        // workout/corsa attivi — vedi update-notifier.js).
+        console.log('[Service Worker] Install complete - activating immediately');
+        return self.skipWaiting();
       })
       .catch((error) => {
         console.error('[Service Worker] Cache failed:', error);
