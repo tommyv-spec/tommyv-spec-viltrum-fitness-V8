@@ -1126,7 +1126,11 @@ async function playElevenAudio(audioKey) {
 
     // Plain element, NO crossOrigin: the GitHub clips send no Access-Control-Allow-Origin,
     // so crossOrigin="anonymous" fails the load outright.
-    const audio = new Audio();
+    // v10.1 iOS: riusa il singleton gia' sbloccato dal gesto — un elemento
+    // creato ora non e' MAI stato sbloccato e play() verrebbe rifiutato.
+    const audio = ttsAudio;
+    try { audio.pause(); } catch (e) {}
+    audio.onplaying = audio.onpause = audio.onerror = audio.onended = null;
     audio.preload = "auto";
     audio.volume = currentVolume;   // no-op on iOS (volume is read-only there)
     audio.playsInline = true;
@@ -1724,8 +1728,9 @@ function enableIOSScreenWakeLock() {
     iosWakeLockVideo.style.height = '1px';
     iosWakeLockVideo.style.pointerEvents = 'none';
     
-    // Tiny base64 video (1 frame, transparent)
-    iosWakeLockVideo.src = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAAu1tZGF0AAACrQYF//+p3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE0OCByMjYwMSBhMGIxMGMxIC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAxNSAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTEgcmVmPTMgZGVibG9jaz0xOjA6MCBhbmFseXNlPTB4MzoweDExMyBtZT1oZXggc3VibWU9NyBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0xIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MSA4eDhkY3Q9MSBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0tMiB0aHJlYWRzPTEgbG9va2FoZWFkX3RocmVhZHM9MSBzbGljZWRfdGhyZWFkcz0wIG5yPTAgZGVjaW1hdGU9MSBpbnRlcmxhY2VkPTAgYmx1cmF5X2NvbXBhdD0wIGNvbnN0cmFpbmVkX2ludHJhPTAgYmZyYW1lcz0zIGJfcHlyYW1pZD0yIGJfYWRhcHQ9MSBiX2JpYXM9MCBkaXJlY3Q9MSB3ZWlnaHRiPTEgb3Blbl9nb3A9MCB3ZWlnaHRwPTIga2V5aW50PTI1MCBrZXlpbnRfbWluPTI1IHNjZW5lY3V0PTQwIGludHJhX3JlZnJlc2g9MCByY19sb29rYWhlYWQ9NDAgcmM9Y3JmIG1idHJlZT0xIGNyZj0yMy4wIHFjb21wPTAuNjAgcXBtaW49MCBxcG1heD02OSBxcHN0ZXA9NCBpcF9yYXRpbz0xLjQwIGFxPTE6MS4wMACAAAAAD2WIhAAR//73n74i1R7AYWvoAAADAAADAAADAAADAAADAAAGKjAAH//73n74i1R7AYWvoAAAAwAAAwAAAwAAAwAAAwAABiowAB//+95++ItUewGFr6AAAAMAAAMAAAMAAAMAAAMAAAYqMAA==';
+    // v10.1: WebKit rifiuta i data: URI sui media element (documentato sopra
+    // per l'audio) — serve un file vero, precached dal SW.
+    iosWakeLockVideo.src = '../audio/wake.mp4';
     
     document.body.appendChild(iosWakeLockVideo);
   }
@@ -2074,19 +2079,19 @@ function primeSynth() {
       }, 100);
     });
 
-    ensureVoices.then(() => {
-      try { speechSynthesis.resume(); } catch {}
-
-      const u = new SpeechSynthesisUtterance(" "); // silent kick
-      u.volume = 0;      // inaudible
-      u.rate = 1;
-      u.pitch = 1;
-      // If Android never fires events, just mark as primed after a moment
-      const watchdog = setTimeout(() => { __synthPrimed = true; }, 250);
-      u.onstart = () => { clearTimeout(watchdog); __synthPrimed = true; };
-      u.onerror = () => { clearTimeout(watchdog); __synthPrimed = true; };
-      speechSynthesis.speak(u);
-    });
+    // v10.1 iOS: il kick DEVE partire nel gesto — aspettare le voci faceva
+    // uscire dall'attivazione utente e iOS scartava l'utterance.
+    try { speechSynthesis.resume(); } catch {}
+    const u = new SpeechSynthesisUtterance(" "); // silent kick
+    u.volume = 0;
+    u.rate = 1;
+    u.pitch = 1;
+    const watchdog = setTimeout(() => { __synthPrimed = true; }, 250);
+    u.onstart = () => { clearTimeout(watchdog); __synthPrimed = true; };
+    u.onerror = () => { clearTimeout(watchdog); __synthPrimed = true; };
+    speechSynthesis.speak(u);
+    // Le voci si caricano per conto loro (waitForVoices in DOMContentLoaded).
+    ensureVoices.then(() => {});
   } catch {
     __synthPrimed = true;
   }
@@ -2118,21 +2123,15 @@ function unlockAllAudio() {
     beppePlayer.src = SFX_SILENCE;
     beppePlayer.play().catch(() => {});
 
-    // Reset (do NOT play here)
-    const beepEl = document.getElementById("beep-sound");
-    if (beepEl) {
-      beepEl.pause();
-      beepEl.currentTime = 0;
-      beepEl.volume = 1.0;
-      beepEl.muted = false;
-    }
-
-    const transitionEl = document.getElementById("transition-sound");
-    if (transitionEl) {
-      transitionEl.pause();
-      transitionEl.currentTime = 0;
-      transitionEl.volume = 1.0;
-      transitionEl.muted = false;
+    // v10.1 iOS: l'unlock e' PER-ELEMENTO. Un play()+pause() dentro il gesto
+    // sblocca anche beep e transition, che prima non venivano mai sbloccati e
+    // su iOS restavano muti quando partivano da un timer.
+    for (const id of ["beep-sound", "transition-sound"]) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.volume = 1.0;
+      el.muted = false;
+      el.play().then(() => { el.pause(); el.currentTime = 0; }).catch(() => {});
     }
 
     window.__audioUnlocked = true;
@@ -2141,8 +2140,10 @@ function unlockAllAudio() {
   }
 }
 
-document.addEventListener("touchstart", unlockAllAudio, { once: true, passive: true });
-document.addEventListener("click", unlockAllAudio, { once: true });
+// v10.1: NON once — dopo un'interruzione OS (chiamata, Siri) l'unlock degli
+// elementi va rifatto; il guard interno lo rende gratis quando non serve.
+document.addEventListener("touchstart", unlockAllAudio, { passive: true });
+document.addEventListener("click", unlockAllAudio);
 
 // v9 fix (audio 2026-08-11 pt.7): after an OS audio interruption (call, Siri,
 // another app grabbing the session) the buffer engine's AudioContext stays
@@ -2157,7 +2158,14 @@ function resumeAudioEngineIfSuspended() {
 document.addEventListener("touchstart", resumeAudioEngineIfSuspended, { passive: true });
 document.addEventListener("click", resumeAudioEngineIfSuspended);
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) resumeAudioEngineIfSuspended();
+  if (document.hidden) {
+    // v10.1: iOS puo' revocare l'unlock degli elementi durante un'interruzione;
+    // ri-armiamo cosi' il primo gesto al ritorno rifa' l'unlock completo.
+    window.__audioUnlocked = false;
+  } else {
+    resumeAudioEngineIfSuspended();
+    try { if ('speechSynthesis' in window) speechSynthesis.resume(); } catch (e) {}
+  }
 });
 
 /* Safe one-time unlock fallback */
@@ -2294,25 +2302,12 @@ function playBeep() {
   const base = document.getElementById("beep-sound");
   if (!base || !base.src) return;
 
-  // Stop any lingering playback on the base element
+  // v10.1 iOS: suona il SINGLETON sbloccato dal gesto — il vecchio clone
+  // new Audio() non era mai stato sbloccato e su iOS restava muto.
   try { base.pause(); base.currentTime = 0; } catch {}
-
-  // Use a fresh element each time to avoid any residual quiet state
-  const clone = new Audio(base.src);
-  clone.preload = "auto";
-  clone.playsInline = true;
-  clone.setAttribute("playsinline", "");
-  clone.setAttribute("webkit-playsinline", "");
-  clone.volume = 1.0;
-  clone.muted = false;
-  // Important on some Android devices to avoid latency/ducking:
-  clone.playbackRate = 1.0;
-
-  // Fire and forget
-  clone.play().catch(()=>{});
-  // Cleanup when done
-  clone.onended = () => { try { clone.src = ""; } catch {} };
-  clone.onerror = () => { try { clone.src = ""; } catch {} };
+  base.volume = 1.0;
+  base.muted = false;
+  base.play().catch(() => {});
 }
 
 function playTransition() {
@@ -2361,12 +2356,11 @@ claimTransientAudioSession();
 // on iOS that promise can hang forever outside a gesture, and both playElevenAudio()
 // and speakCloud() await this function.
 async function ensureAudioUnlocked() {
-  if (window.__audioUnlocked) return;
+  // v10.1: NON setta window.__audioUnlocked — quel flag appartiene al vero
+  // unlock dentro un gesto (unlockAllAudio). Settarlo qui, fuori gesto,
+  // faceva saltare per sempre l'unlock reale degli elementi.
   claimTransientAudioSession();
-  // Safe no-op outside a gesture (resume() just stays pending); when this runs from
-  // the touchend fallback listener it carries a real gesture and wakes the engine.
   AudioEngine.unlock();
-  window.__audioUnlocked = true;
 }
 
 async function playAudioUrl(url) {
@@ -2645,6 +2639,14 @@ async function webSpeechSpeak(text, lang) {
       // resume again right before talking
       try { speechSynthesis.resume(); } catch {}
       speechSynthesis.speak(utter);
+      // v10.1 iOS: resume periodico durante l'utterance — iOS pausa la sintesi
+      // sul backgrounding; l'intervallo si spegne quando non parla piu'.
+      const keepAlive = setInterval(() => {
+        try {
+          if (speechSynthesis.speaking) speechSynthesis.resume();
+          else clearInterval(keepAlive);
+        } catch (e) { clearInterval(keepAlive); }
+      }, 4000);
     } catch (err) {
       finish(false, err);
     }
@@ -3031,6 +3033,11 @@ function startWorkout() {
     alert("Nessun workout valido selezionato.");
     return;
   }
+
+  // v10.1 iOS: il tap su Start e' il gesto piu' affidabile che abbiamo —
+  // sblocca elementi, engine e audio session QUI, senza dipendere dai
+  // listener document-level.
+  try { window.__audioUnlocked = false; unlockAllAudio(); } catch (e) {}
 
   const warmupEnabled = false; // v9.3: riscaldamento auto rimosso su richiesta (2026-08-18)
   fullWorkoutSequence = buildFullWorkoutSequence(selectedWorkout, warmupEnabled);
@@ -3586,9 +3593,14 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
   interval = setInterval(async () => {
     // Esegui una sola volta quando il timer mostra esattamente "sec"
     function once(sec, cb) {
-      if (remaining === sec && !timerFired.has(sec)) {
+      // v10.1: soglia ATTRAVERSATA, non uguaglianza — iOS throttla i timer in
+      // background e i secondi esatti vengono saltati. Oltre 4s di ritardo il
+      // cue si marca comunque (niente annunci fuori tempo).
+      if (remaining <= sec && !timerFired.has(sec)) {
         timerFired.add(sec);
-        try { cb(); } catch (e) { console.warn('once('+sec+') error:', e); }
+        if (remaining >= sec - 4) {
+          try { cb(); } catch (e) { console.warn('once('+sec+') error:', e); }
+        }
       }
     }
 

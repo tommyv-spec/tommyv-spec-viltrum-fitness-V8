@@ -593,10 +593,14 @@
     // iOS routes web audio through the "ambient" session by default, which the physical
     // ring/silent switch mutes. Runners keep the phone on silent, so every pace cue
     // vanished. Safari 16.4+ lets us claim the playback session. No-op elsewhere.
+    // v10.1: 'transient' come in workout.js — i cue si SOVRAPPONGONO alla
+    // musica del runner (ducking) invece di fermarla. Nota consapevole: con lo
+    // schermo bloccato iOS puo' comunque sospendere i timer web; per i cue
+    // affidabili lo schermo resta acceso (wake lock gia' attivo durante la corsa).
     function claimPlaybackAudioSession() {
       try {
-        if ('audioSession' in navigator && navigator.audioSession.type !== 'playback') {
-          navigator.audioSession.type = 'playback';
+        if ('audioSession' in navigator && navigator.audioSession.type !== 'transient') {
+          navigator.audioSession.type = 'transient';
         }
       } catch (e) {
         console.warn('audioSession unavailable:', e);
@@ -608,26 +612,38 @@
     // separate permissions, and nothing here plays through Web Audio anyway. What the
     // element actually needs is one play() inside a real user gesture; after that iOS
     // lets timer-driven cues through. Verified on device.
+    let audioUnlockInFlight = false;
     async function ensureAudioUnlocked() {
-      if (audioUnlocked) return;
-      audioUnlocked = true;            // set first: this must never be re-entered or hang
+      if (audioUnlocked || audioUnlockInFlight) return;
+      audioUnlockInFlight = true;      // re-entrancy guard, NON il flag di successo
       claimPlaybackAudioSession();
       try {
-        const el = document.getElementById('tts-audio');
-        if (!el) return;
-        // 50ms of real silence, just to hand the element its permission. A file, not a
-        // data: URI — Safari rejects those on media elements, and the base64 stub that
-        // used to be here decodes in no engine at all.
-        el.src = '../audio/silence.wav';
-        await Promise.race([
-          el.play().catch(() => {}),
-          new Promise(r => setTimeout(r, 500))
-        ]);
-        console.log('🔊 Audio element unlocked');
+        // v10.1 iOS: l'unlock e' PER-ELEMENTO — anche beep e transition devono
+        // fare un play() dentro il gesto, altrimenti restano muti dai timer.
+        const tts = document.getElementById('tts-audio');
+        if (tts) {
+          tts.src = '../audio/silence.wav';
+          const ok = await Promise.race([
+            tts.play().then(() => true).catch(() => false),
+            new Promise(r => setTimeout(() => r(false), 500))
+          ]);
+          if (ok) audioUnlocked = true;  // v10.1: flag SOLO se play() e' riuscito
+        }
+        for (const id of ['beep-sound', 'transition-sound']) {
+          const el = document.getElementById(id);
+          if (el) el.play().then(() => { el.pause(); el.currentTime = 0; }).catch(() => {});
+        }
+        if (audioUnlocked) console.log('🔊 Audio elements unlocked');
       } catch (e) {
         console.warn('Unable to unlock audio:', e);
+      } finally {
+        audioUnlockInFlight = false;
       }
     }
+
+    // v10.1: unlock ripetibile su OGNI gesto (prima: solo 3 punti specifici e
+    // one-shot — dopo un'interruzione OS la corsa restava muta per sempre).
+    document.addEventListener('pointerdown', () => { ensureAudioUnlocked(); }, { passive: true });
 
     async function playAudioUrl(url) {
       const el = document.getElementById('tts-audio');
@@ -637,10 +653,11 @@
         new Promise((resolve, reject) => {
           el.src = url;
           el.onended = () => { try { URL.revokeObjectURL(url); } catch(e){} resolve(); };
+          el.onpause = () => { try { URL.revokeObjectURL(url); } catch(e){} resolve(); }; // v10.1: pause esterna non parcheggia la promise
           el.onerror = (e) => { try { URL.revokeObjectURL(url); } catch(e2){} reject(e); };
           el.play().catch(reject);
         }),
-        new Promise(r => setTimeout(r, 10000)) // 10s max per audio
+        new Promise(r => setTimeout(() => { try { el.pause(); } catch(e){} try { URL.revokeObjectURL(url); } catch(e){} r(); }, 10000)) // v10.1: al timeout ferma e libera
       ]);
     }
 
@@ -704,7 +721,9 @@
       const mode = getSoundMode();
       if (mode === 'none' || mode === 'bip') return;
       
-      if (mode === 'voice') {
+      // v10.1 BUG FIX: il mode 'eleven' (il DEFAULT) cadeva fuori da entrambi
+      // i rami e speak() non diceva NULLA — ogni fallback vocale era morto.
+      if (mode === 'eleven' || mode === 'voice') {
         try {
           return await speakCloud(text, lang);
         } catch (err) {
@@ -811,7 +830,7 @@
           audio.onerror = () => { console.warn(`❌ Failed: ${key}`); resolve(false); };
           audio.play().catch(() => resolve(false));
         }),
-        new Promise(r => setTimeout(() => r(true), 5000)) // 5s max per clip
+        new Promise(r => setTimeout(() => r(true), 12000)) // v10.1: 12s — 5s troncava le clip lunghe in sequenza
       ]);
     }
     
@@ -958,15 +977,22 @@
       if (mode === 'none') return;
       
       const short = isShortPhase(phase);
-      const key = `time_${remaining}`;
-      
+      // v10.1: soglie ATTRAVERSATE, non secondi esatti — iOS throttla i timer
+      // (schermo spento/background) e i secondi precisi vengono saltati.
+      let threshold = null;
+      if (!short && remaining <= 30 && remaining > 10) threshold = 30;
+      else if (!short && remaining <= 10 && remaining > 5) threshold = 10;
+      else if (remaining <= 5 && remaining > 0) threshold = 5;
+      if (threshold === null) return;
+      const key = `time_${threshold}`;
+
       if (lastAnnouncedWarning[key]) return;
       lastAnnouncedWarning[key] = true;
       
       // Long phases: warn at 30s, 10s, 5s countdown
       // Short phases: only 5s countdown
       
-      if (!short && remaining === 30) {
+      if (threshold === 30) {
         if (mode === 'bip') { playBeep(); return; }
         if (mode === 'eleven') {
           await playElevenAudio('mancano-30-secondi');
@@ -975,7 +1001,7 @@
         }
       }
       
-      if (!short && remaining === 10) {
+      if (threshold === 10) {
         if (mode === 'bip') { playBeep(); return; }
         const nextPhase = expandedPhases[currentPhaseIndex + 1];
         if (nextPhase) {
@@ -987,7 +1013,7 @@
         }
       }
       
-      if (remaining === 5) {
+      if (threshold === 5) {
         if (mode === 'bip') { playBeep(); return; }
         if (mode === 'eleven') {
           await playElevenAudio('countdown-5');
@@ -1440,8 +1466,15 @@
       }
     };
 
+    function stopRunAudio() {
+      try { speechSynthesis.cancel(); } catch (e) {}
+      const el = document.getElementById('tts-audio');
+      if (el) { try { el.pause(); } catch (e) {} }
+    }
+
     window.togglePause = function() {
       isPaused = !isPaused;
+      if (isPaused) stopRunAudio(); // v10.1: niente cue che parlano in pausa
       const btn = document.getElementById('pause-btn');
       btn.textContent = isPaused ? '▶️ RIPRENDI' : '⏸️ PAUSA';
       btn.className = isPaused ? 'ctrl-btn primary' : 'ctrl-btn pause';
@@ -1871,7 +1904,14 @@
     });
 
     document.addEventListener('visibilitychange', async () => {
-      if (document.visibilityState === 'visible' && currentWorkout && !isPaused) {
+      if (document.visibilityState === 'hidden') {
+        // v10.1: un'interruzione OS puo' revocare l'unlock — al rientro il
+        // primo gesto (pointerdown globale) lo rifa'.
+        audioUnlocked = false;
+        return;
+      }
+      try { speechSynthesis.resume(); } catch (e) {}
+      if (currentWorkout && !isPaused) {
         requestWakeLock();
       }
     });

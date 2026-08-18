@@ -24,6 +24,7 @@ const urlsToCache = [
   './audio/beep.wav',
   './audio/transition.wav',
   './audio/silence.wav',
+  './audio/wake.mp4',
 
   // Pages
   './pages/dashboard-v7.html',
@@ -505,6 +506,38 @@ self.addEventListener('fetch', (event) => {
       url.searchParams.has('type') ||
       url.searchParams.has('token_hash') ||
       url.searchParams.has('code')) {
+    return;
+  }
+
+  // v10.1 iOS: gli <audio>/<video> WebKit fanno richieste con header Range e si
+  // aspettano un 206. Un match di cache che torna 200 pieno puo' stallare il
+  // media. Per le richieste Range su media: servi una 206 sintetica dalla cache
+  // se possibile, altrimenti lascia passare alla rete.
+  if (request.headers.has('range') && request.destination !== 'document') {
+    event.respondWith((async () => {
+      const cached = await caches.match(request.url, { ignoreSearch: false });
+      if (!cached) {
+        try { return await fetch(request); }
+        catch (e) { return new Response('Offline', { status: 503 }); }
+      }
+      try {
+        const buf = await cached.arrayBuffer();
+        const m = /bytes=(\d+)-(\d*)/.exec(request.headers.get('range') || '');
+        const start = m ? parseInt(m[1], 10) : 0;
+        const end = (m && m[2]) ? Math.min(parseInt(m[2], 10), buf.byteLength - 1) : buf.byteLength - 1;
+        return new Response(buf.slice(start, end + 1), {
+          status: 206,
+          headers: {
+            'Content-Type': cached.headers.get('Content-Type') || 'application/octet-stream',
+            'Content-Range': `bytes ${start}-${end}/${buf.byteLength}`,
+            'Content-Length': String(end - start + 1),
+            'Accept-Ranges': 'bytes',
+          },
+        });
+      } catch (e) {
+        return cached;
+      }
+    })());
     return;
   }
 

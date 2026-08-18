@@ -719,11 +719,16 @@ const OfflinePreloader = {
     return null;
   },
 
+  _audioUrlMemo: new Map(), // v10.1: un object URL per chiave, niente leak per-cue
+
   async getCachedAudio(key) {
     try {
+      if (this._audioUrlMemo.has(key)) return this._audioUrlMemo.get(key);
       const cached = await this.getFromDB(this.STORES.AUDIO, key);
       if (cached && cached.blob) {
-        return URL.createObjectURL(cached.blob);
+        const url = URL.createObjectURL(cached.blob);
+        this._audioUrlMemo.set(key, url);
+        return url;
       }
     } catch (e) {}
     return null;
