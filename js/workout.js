@@ -4147,7 +4147,7 @@ function updateWorkoutPreview() {
     if (exercises.length === 0) return;
 
     const blockTitle = blockInfo.original.toUpperCase();
-    const config = { title: blockTitle, color: '#7D7D7D', icon: '' };
+    const config = { title: blockTitle, icon: '' };
 
     // Group exercises by name, collecting all sets
     const exerciseGroups = [];

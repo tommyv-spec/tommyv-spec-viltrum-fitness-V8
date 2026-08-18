@@ -142,7 +142,7 @@ const PreloadModal = {
         }
 
         .preload-logo h1 {
-          font-family: 'Staatliches', cursive;
+          font-family: 'Staatliches', sans-serif;
           font-size: 3rem;
           margin: 0;
           color: white;
@@ -150,7 +150,7 @@ const PreloadModal = {
         }
 
         .preload-logo p {
-          font-family: 'Staatliches', cursive;
+          font-family: 'Staatliches', sans-serif;
           font-size: 1.5rem;
           margin: 0;
           color: white;
@@ -162,7 +162,7 @@ const PreloadModal = {
         }
 
         .preload-status h2 {
-          font-family: 'Staatliches', cursive;
+          font-family: 'Staatliches', sans-serif;
           font-size: 1.5rem;
           margin: 0 0 0.5rem 0;
           color: white;
@@ -188,7 +188,7 @@ const PreloadModal = {
 
         .preload-progress-fill {
           height: 100%;
-          background: linear-gradient(90deg, #fff, #ccc);
+          background: #C1FF72;
           width: 0%;
           transition: width 0.3s ease;
         }

@@ -109,11 +109,11 @@ const GlobalPreloadBar = {
       
       .global-preload-bar-fill {
         height: 100%;
-        background: linear-gradient(90deg, #FFFFFF 0%, #B0B0B0 100%);
+        background: #C1FF72;
         width: 0%;
         border-radius: 2px;
         transition: width 0.3s ease;
-        box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        
       }
       
       /* Ensure bar doesn't block content */

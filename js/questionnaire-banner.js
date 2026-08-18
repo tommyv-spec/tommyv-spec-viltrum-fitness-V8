@@ -36,7 +36,7 @@ function render(url) {
       bottom: 0;
       left: 0;
       right: 0;
-      background: linear-gradient(135deg, #FFD700, #E6B800);
+      background: #C1FF72;
       color: #000;
       padding: 16px 20px;
       display: flex;
@@ -58,7 +58,7 @@ function render(url) {
       <a id="qb-cta" href="${url}" style="
         padding: 10px 24px;
         background: #000;
-        color: #FFD700;
+        color: #C1FF72;
         border: none;
         border-radius: 8px;
         font-size: 16px;

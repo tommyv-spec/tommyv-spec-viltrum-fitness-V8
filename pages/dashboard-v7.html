@@ -56,8 +56,8 @@
     .header-center { grid-column: 2; justify-self: center; }
     .header-right { grid-column: 3; justify-self: end; }
     .header-action-btn {
-      padding: 8px 16px; background: #FFF; border: 2px solid #FFF; border-radius: 8px;
-      color: #000; font-family: 'Staatliches', sans-serif; font-size: 14px;
+      padding: 8px 16px; background: var(--accent); border: none; border-radius: 9px;
+      color: var(--accent-ink); font-family: 'Staatliches', sans-serif; font-size: 14px;
       cursor: pointer; display: flex; align-items: center; gap: 6px; text-decoration: none;
     }
     .header-action-btn svg { width: 18px; height: 18px; }
@@ -94,7 +94,7 @@
     }
     .section-card:hover { border-color: #C1FF72; transform: translateY(-2px); }
     .section-card.disabled { opacity: 0.4; cursor: not-allowed; }
-    .section-card.disabled:hover { border-color: #333; transform: none; }
+    .section-card.disabled:hover { border-color: var(--ds-border); transform: none; }
     .card-icon {
       width: 6vh; height: 6vh; background: #C1FF72; border: none; border-radius: 1.4vh;
       display: flex; align-items: center; justify-content: center;
@@ -103,8 +103,8 @@
     .card-title { font-size: 2.5vh; letter-spacing: 3px; color: #FFF; }
     .card-subtitle { font-size: 1.4vh; color: #888; text-align: center; }
     .card-badge {
-      font-size: 1.3vh; padding: 0.4vh 2vw; border: 1px solid #444;
-      border-radius: 4px; color: #AAA;
+      font-size: 1.3vh; padding: 0.4vh 2vw; border: 1px solid var(--ds-border-strong);
+      border-radius: 999px; color: var(--ds-text-label);
     }
     .card-badge.active { border-color: #C1FF72; color: #C1FF72; }
 
@@ -137,7 +137,7 @@
     .modal-title { font-size: 2.5vh; letter-spacing: 2px; text-align: center; margin-bottom: 3vh; }
     .plan-list { display: flex; flex-direction: column; gap: 1.5vh; }
     .plan-item {
-      background: #1A1A1A; border: 1px solid #2A2A2A; border-radius: 12px;
+      background: var(--ds-sunken); border: 1px solid var(--ds-border-inner); border-radius: 12px;
       padding: 2vh 3vw; cursor: pointer; transition: all 0.2s ease;
     }
     .plan-item:hover { border-color: #C1FF72; }
@@ -145,32 +145,32 @@
     .plan-item-progress { font-size: 1.4vh; color: #666; }
     .modal-close {
       margin-top: 2vh; width: 100%; padding: 1.5vh; background: none;
-      border: 2px solid #444; border-radius: 8px; color: #FFF;
+      border: 1px solid var(--ds-border-strong); border-radius: 8px; color: var(--ds-text-4);
       font-family: 'Staatliches', sans-serif; font-size: 1.8vh; cursor: pointer;
     }
-    .modal-close:hover { border-color: #FFF; }
+    .modal-close:hover { border-color: var(--accent); color: var(--ds-text); }
 
     .profile-actions { display: flex; flex-direction: column; gap: 1.5vh; }
     .profile-btn {
-      padding: 1.5vh 3vw; background: #1A1A1A; border: 1px solid #333;
+      padding: 1.5vh 3vw; background: var(--ds-sunken); border: 1px solid var(--ds-border-inner);
       border-radius: 8px; color: #FFF; font-family: 'Staatliches', sans-serif;
       font-size: 1.6vh; cursor: pointer; text-align: left;
     }
-    .profile-btn:hover { border-color: #FFF; }
-    .profile-btn.logout { border-color: #600; color: #F44; }
+    .profile-btn:hover { border-color: var(--accent); }
+    .profile-btn.logout { border-color: rgba(248,113,113,0.4); color: var(--ds-danger); }
     .profile-btn.secondary { border-color: #444; color: #888; text-align: center; }
     .subscription-info {
-      text-align: center; padding: 2vh; background: #1A1A1A;
+      text-align: center; padding: 2vh; background: var(--ds-sunken);
       border-radius: 8px; margin-bottom: 2vh;
     }
     .subscription-status { font-size: 1.6vh; margin-bottom: 0.5vh; }
     .subscription-status.active { color: #C1FF72; }
-    .subscription-status.expired { color: #F44336; }
+    .subscription-status.expired { color: var(--ds-danger); }
     .subscription-date { font-size: 1.4vh; color: #666; }
 
     .modal-content input {
       width: 100%; padding: 1.5vh 2vw; margin-bottom: 1.5vh;
-      background: #1A1A1A; border: 1px solid #333; border-radius: 8px;
+      background: var(--ds-bg); border: 1px solid var(--ds-border-field); border-radius: 8px;
       color: #FFF; font-family: 'Staatliches', sans-serif; font-size: 1.6vh;
     }
     .modal-content input:focus { outline: none; border-color: #C1FF72; }
@@ -198,7 +198,7 @@
     .max-input-row input { flex: 1; text-align: center; font-size: 1.8vh !important; }
     .max-kg { color: #666; font-size: 1.4vh; flex-shrink: 0; }
     .message.error {
-      background: rgba(244, 67, 54, 0.2); border: 1px solid #F44336; color: #F44336;
+      background: rgba(248, 113, 113, 0.12); border: 1px solid var(--ds-danger); color: var(--ds-danger);
     }
     .message.success {
       background: rgba(193, 255, 114, 0.15); border: 1px solid #C1FF72; color: #C1FF72;
@@ -223,7 +223,7 @@
     .preload-bar.active { display: block; }
     .preload-bar-text { font-size: 1.4vh; color: #888; margin-bottom: 0.5vh; text-align: center; }
     .preload-bar-track { height: 4px; background: #333; border-radius: 2px; overflow: hidden; }
-    .preload-bar-fill { height: 100%; background: #FFF; width: 0%; transition: width 0.3s ease; }
+    .preload-bar-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s ease; }
   </style>
   <!-- Real viewport height before first paint -->
   <script>

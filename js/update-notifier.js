@@ -92,7 +92,7 @@ class UpdateNotifier {
         top: 0;
         left: 0;
         right: 0;
-        background: linear-gradient(135deg, #C1FF72, #AEEB5C);
+        background: #C1FF72;
         color: #0D0D0D;
         padding: 16px 20px;
         display: flex;
@@ -131,7 +131,7 @@ class UpdateNotifier {
           padding: 8px;
           background: transparent;
           color: white;
-          border: 1px solid rgba(255,255,255,0.5);
+          border: 1px solid rgba(13,13,13,0.35);
           border-radius: 6px;
           font-size: 20px;
           cursor: pointer;
