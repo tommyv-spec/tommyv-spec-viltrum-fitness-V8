@@ -2343,6 +2343,15 @@ function claimTransientAudioSession() {
   // interrompersi durante i cue (il desiderio di Giuseppe di non fermarla non
   // e' ottenibile sul web senza perdere l'audio con switch su silenzioso).
   try {
+    // v10.6: in "modalita' musica" niente claim playback — la claim stessa
+    // porta iOS a fermare l'audio di altre app; la voce di sistema (synth)
+    // non ne ha bisogno e viene duckata sopra la musica.
+    if (localStorage.getItem("viltrum-music-mode") === "true") {
+      if ("audioSession" in navigator && navigator.audioSession.type !== "auto") {
+        navigator.audioSession.type = "auto";
+      }
+      return;
+    }
     if ("audioSession" in navigator && navigator.audioSession.type !== "playback") {
       navigator.audioSession.type = "playback";
     }
@@ -4584,13 +4593,32 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("mute-toggle"),
     document.getElementById("mute-toggle-setup"),
   ].filter(Boolean);
-  function applyMuted(muted) {
-    syncSoundModeSelectors(muted ? "none" : "eleven");
+  const musicToggles = [
+    document.getElementById("music-mode-toggle"),
+    document.getElementById("music-mode-toggle-setup"),
+  ].filter(Boolean);
+  // v10.6 "modalita' musica" (richiesta ducking di Giuseppe): SOLO la sintesi
+  // vocale di sistema viene duckata da iOS sopra Spotify (come il navigatore);
+  // le clip istruttore sono media e possono interrompere la musica. Il toggle
+  // scambia consapevolmente qualita' della voce per convivenza con la musica.
+  function isMusicMode() { return localStorage.getItem("viltrum-music-mode") === "true"; }
+  function applyAudioPrefs() {
+    const muted = localStorage.getItem("viltrum-muted") === "true";
+    const music = isMusicMode();
+    syncSoundModeSelectors(muted ? "none" : (music ? "synth" : "eleven"));
     muteToggles.forEach(t => { t.checked = muted; });
-    localStorage.setItem("viltrum-muted", muted ? "true" : "false");
+    musicToggles.forEach(t => { t.checked = music; });
   }
-  applyMuted(localStorage.getItem("viltrum-muted") === "true");
+  function applyMuted(muted) {
+    localStorage.setItem("viltrum-muted", muted ? "true" : "false");
+    applyAudioPrefs();
+  }
+  applyAudioPrefs();
   muteToggles.forEach(t => t.addEventListener("change", e => applyMuted(e.target.checked)));
+  musicToggles.forEach(t => t.addEventListener("change", e => {
+    localStorage.setItem("viltrum-music-mode", e.target.checked ? "true" : "false");
+    applyAudioPrefs();
+  }));
 
   warmUpServer();
   // Guarded: a bare reference here threw at startup on engines without the API.
