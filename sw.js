@@ -49,6 +49,7 @@ const urlsToCache = [
   './js/data-preloader.js',
   './js/preload-modal.js',
   './js/update-notifier.js',
+  './js/version.js',
   './js/global-preload-bar.js',
   './viewport.js',
 

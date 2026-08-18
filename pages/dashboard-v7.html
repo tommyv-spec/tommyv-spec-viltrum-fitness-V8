@@ -344,6 +344,7 @@
           <p class="small-card-subtitle">Seguimi</p>
         </div>
       </div>
+      <div id="app-version" style="text-align: center; font-size: 1.1vh; color: #555; padding-top: 1vh; letter-spacing: 1px;"></div>
     </main>
   </div>
 
@@ -472,6 +473,7 @@
     </div>
   </div>
 
+  <script src="../js/version.js"></script>
   <script src="../viewport.js"></script>
   <script src="../js/offline-preloader.js"></script>
   <script src="../js/global-preload-bar.js"></script>
@@ -663,6 +665,9 @@
       if (instagramCard) {
         instagramCard.style.display = window.CONTACT_INSTAGRAM_URL ? '' : 'none';
       }
+
+      const versionEl = document.getElementById('app-version');
+      if (versionEl && window.VILTRUM_VERSION) versionEl.textContent = 'Viltrum ' + window.VILTRUM_VERSION;
 
       // v9: istruzione generale del coach (se il backend la fornisce)
       const coachMsgEl = document.getElementById('coach-message');

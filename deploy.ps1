@@ -64,15 +64,15 @@ if ($swContent -match "const BUILD_HASH = '[^']*';") {
 
 Set-Content $swPath $swContent -NoNewline
 
-# ── Update welcome-modal-v2.js ──
-$modalPath = Join-Path (Join-Path $PSScriptRoot "js") "welcome-modal-v2.js"
-if (Test-Path $modalPath) {
-    Write-Host "[2/5] Updating welcome-modal-v2.js..." -ForegroundColor Green
-    $modalContent = Get-Content $modalPath -Raw
-    $modalContent = $modalContent -replace "const APP_VERSION = 'v[\d\.]+';", "const APP_VERSION = '$newVersion';"
-    Set-Content $modalPath $modalContent -NoNewline
+# ── Update js/version.js (badge versione visibile in dashboard) ──
+$versionPath = Join-Path (Join-Path $PSScriptRoot "js") "version.js"
+if (Test-Path $versionPath) {
+    Write-Host "[2/5] Updating js/version.js..." -ForegroundColor Green
+    $versionContent = Get-Content $versionPath -Raw
+    $versionContent = $versionContent -replace "window\.VILTRUM_VERSION = 'v[\d\.]+';", "window.VILTRUM_VERSION = '$newVersion';"
+    Set-Content $versionPath $versionContent -NoNewline -Encoding utf8
 } else {
-    Write-Host "[2/5] welcome-modal-v2.js not found, skipping" -ForegroundColor Yellow
+    Write-Host "[2/5] js/version.js not found, skipping" -ForegroundColor Yellow
 }
 
 # ── Git add + commit ──
