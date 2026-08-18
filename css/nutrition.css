@@ -77,10 +77,10 @@
   transition: width 0.5s ease;
 }
 
-.bar-fill.kcal { background: linear-gradient(90deg, #FF6B6B, #FF8E53); }
-.bar-fill.protein { background: linear-gradient(90deg, #C1FF72, #DFFFB0); }
-.bar-fill.carbs { background: linear-gradient(90deg, #2196F3, #03A9F4); }
-.bar-fill.fat { background: linear-gradient(90deg, #FF9800, #FFC107); }
+.bar-fill.kcal { background: var(--ds-danger); }
+.bar-fill.protein { background: var(--accent); }
+.bar-fill.carbs { background: var(--ds-rest-ring); }
+.bar-fill.fat { background: var(--ds-warn-text); }
 
 .remaining {
   display: block;
@@ -112,8 +112,8 @@
 
 .meal-nav-btn {
   padding: 12px 8px;
-  background: rgba(77,77,77,0.4);
-  border: 2px solid #5D5D5D;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
   border-radius: 12px;
   color: #FFF;
   font-family: 'Staatliches', sans-serif;
@@ -127,14 +127,14 @@
 }
 
 .meal-nav-btn:hover {
-  border-color: #FFF;
-  background: rgba(77,77,77,0.6);
+  border-color: var(--accent);
+  background: var(--ds-control);
 }
 
 .meal-nav-btn.active {
-  background: #FFF;
-  color: #000;
-  border-color: #FFF;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
 }
 
 .meal-nav-btn.complete {
@@ -154,8 +154,8 @@
 /* ===== MEAL CONTAINER ===== */
 .meal-container {
   display: none;
-  background: rgba(77,77,77,0.3);
-  border: 1px solid #5D5D5D;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
   border-radius: 20px;
   padding: 25px;
   margin-bottom: 25px;
@@ -174,8 +174,8 @@
 
 /* ===== NUTRIENT SLOT ===== */
 .nutrient-slot {
-  background: rgba(0,0,0,0.3);
-  border: 1px solid #4D4D4D;
+  background: var(--ds-sunken);
+  border: 1px solid var(--ds-border-inner);
   border-radius: 15px;
   padding: 20px;
   margin-bottom: 20px;
@@ -193,7 +193,7 @@
   align-items: flex-start;
   margin-bottom: 15px;
   padding-bottom: 15px;
-  border-bottom: 1px solid #4D4D4D;
+  border-bottom: 1px solid var(--ds-border-inner);
   gap: 15px;
   flex-wrap: wrap;
 }
@@ -216,7 +216,7 @@
   background: rgba(100,200,255,0.1);
   border: 1px solid rgba(100,200,255,0.3);
   border-radius: 8px;
-  color: #87CEEB;
+  color: var(--ds-rest-text);
   font-family: 'Staatliches', sans-serif;
   font-size: 12px;
   cursor: pointer;
@@ -237,7 +237,7 @@
 
 .food-option {
   background: rgba(0,0,0,0.4);
-  border: 2px solid #4D4D4D;
+  border: 1px solid var(--ds-border);
   border-radius: 12px;
   padding: 14px;
   cursor: pointer;
@@ -246,7 +246,7 @@
 }
 
 .food-option:hover {
-  border-color: #7D7D7D;
+  border-color: var(--accent);
   transform: translateY(-2px);
 }
 
@@ -272,7 +272,7 @@
 }
 
 .food-quantity {
-  color: #FFD700;
+  color: var(--accent);
   font-size: 18px;
   font-weight: bold;
   margin-bottom: 4px;
@@ -295,7 +295,7 @@
 .raw-badge {
   display: inline-block;
   background: rgba(255,152,0,0.2);
-  color: #FF9800;
+  color: var(--ds-warn-text);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 10px;
@@ -358,7 +358,7 @@
 
 .btn-pdf {
   padding: 10px 20px;
-  background: #2196F3;
+  background: var(--ds-rest-ring); color: #fff;
   border: none;
   border-radius: 10px;
   color: #FFF;
@@ -452,7 +452,7 @@
   background: rgba(100, 200, 255, 0.1);
   border: 1px solid rgba(100, 200, 255, 0.3);
   border-radius: 10px;
-  color: #87CEEB;
+  color: var(--ds-rest-text);
   font-size: 15px;
   font-family: 'Staatliches', sans-serif;
   cursor: pointer;
@@ -469,7 +469,7 @@
 .badge-alternative {
   display: inline-block;
   background: rgba(100, 200, 255, 0.2);
-  color: #87CEEB;
+  color: var(--ds-rest-text);
   padding: 4px 8px;
   border-radius: 5px;
   font-size: 11px;
@@ -490,7 +490,7 @@
 
 .tip {
   background: rgba(100, 200, 255, 0.1);
-  border-left: 3px solid #87CEEB;
+  border-left: 3px solid var(--ds-rest-text);
   padding: 12px;
   margin: 15px 0;
   border-radius: 5px;

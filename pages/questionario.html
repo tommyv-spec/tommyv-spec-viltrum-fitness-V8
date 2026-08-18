@@ -45,7 +45,7 @@
       margin-bottom: 30px;
       padding: 20px;
       background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid var(--ds-border);
       border-radius: 12px;
     }
     .q-section-title {
@@ -91,7 +91,7 @@
     .q-field textarea:focus,
     .q-field select:focus {
       outline: none;
-      border-color: #FFFFFF;
+      border-color: var(--accent);
       background: rgba(0, 0, 0, 0.8);
     }
     .q-field textarea {
@@ -118,13 +118,13 @@
       transition: background 0.15s, border-color 0.15s, color 0.15s;
     }
     .q-pills button:hover {
-      border-color: #FFFFFF;
-      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--accent);
+      background: var(--ds-surface);
     }
     .q-pills button.selected {
-      background: #FFFFFF;
-      color: #000000;
-      border-color: #FFFFFF;
+      background: var(--accent);
+      color: var(--accent-ink);
+      border-color: var(--accent);
     }
     .q-checkbox-row {
       display: flex;
@@ -135,7 +135,7 @@
     .q-checkbox-row input[type="checkbox"] {
       margin-top: 3px;
       transform: scale(1.2);
-      accent-color: #FFFFFF;
+      accent-color: var(--accent);
     }
     .q-checkbox-row label {
       color: #E0E0E0;
@@ -146,8 +146,8 @@
     .q-submit {
       width: 100%;
       padding: 16px;
-      background: #FFFFFF;
-      color: #000000;
+      background: var(--accent);
+      color: var(--accent-ink);
       border: none;
       border-radius: 12px;
       font-family: inherit;
@@ -190,8 +190,8 @@
       line-height: 1.5;
       margin-top: 12px;
       padding: 12px;
-      background: rgba(255, 215, 0, 0.05);
-      border: 1px solid rgba(255, 215, 0, 0.2);
+      background: rgba(240, 177, 85, 0.08);
+      border: 1px solid rgba(240, 177, 85, 0.35);
       border-radius: 8px;
     }
   </style>
