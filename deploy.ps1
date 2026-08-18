@@ -84,8 +84,10 @@ git add -A
 git commit -m "$Message ($newVersion)"
 
 # ── Git push ──
+# v9: plain push (was push -f, which silently discarded remote commits made
+# from another machine/session). On rejection: fetch + rebase, then re-run.
 Write-Host "[4/5] Git push..." -ForegroundColor Green
-git push -f origin main
+git push origin main
 
 # ── Cloudflare Worker deploy (this is what actually publishes to viltrumfitness.com) ──
 # The site is a Cloudflare Worker (wrangler.jsonc). A git push alone does NOT go live —

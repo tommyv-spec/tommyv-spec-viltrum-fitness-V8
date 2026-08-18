@@ -30,7 +30,7 @@
     .profile-header { text-align: center; margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
     .profile-avatar {
       width: 100px; height: 100px; border-radius: 50%;
-      background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+      background: linear-gradient(135deg, #C1FF72 0%, #AEEB5C 100%);
       display: flex; align-items: center; justify-content: center;
       font-size: 3rem; margin: 0 auto 1rem;
     }
@@ -38,13 +38,13 @@
     .profile-email { color: #999; font-size: 1rem; }
 
     .subscription-card {
-      background: linear-gradient(135deg, rgba(76,175,80,0.1) 0%, rgba(69,160,73,0.1) 100%);
+      background: linear-gradient(135deg, rgba(193,255,114,0.1) 0%, rgba(174,235,92,0.1) 100%);
       border-radius: 15px; padding: 1.5rem; margin-bottom: 2rem;
-      border: 1px solid rgba(76,175,80,0.3);
+      border: 1px solid rgba(193,255,114,0.3);
     }
     .subscription-card.expired { background: linear-gradient(135deg, rgba(244,67,54,0.1) 0%, rgba(211,47,47,0.1) 100%); border-color: rgba(244,67,54,0.3); }
     .subscription-card.trial { background: linear-gradient(135deg, rgba(33,150,243,0.1) 0%, rgba(25,118,210,0.1) 100%); border-color: rgba(33,150,243,0.3); }
-    .subscription-status { font-size: 1.5rem; font-weight: bold; margin-bottom: 0.5rem; color: #4CAF50; }
+    .subscription-status { font-size: 1.5rem; font-weight: bold; margin-bottom: 0.5rem; color: #C1FF72; }
     .subscription-card.expired .subscription-status { color: #f44336; }
     .subscription-card.trial .subscription-status { color: #2196F3; }
     .subscription-details { color: #ccc; font-size: 0.875rem; }
@@ -58,7 +58,7 @@
       width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.1);
       border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; font-size: 1rem;
     }
-    .form-group input:focus { outline: none; border-color: #4CAF50; }
+    .form-group input:focus { outline: none; border-color: #C1FF72; }
 
     .button-group { display: flex; gap: 1rem; margin-top: 1rem; }
     .btn {
@@ -66,7 +66,7 @@
       cursor: pointer; transition: all 0.3s ease; border: none;
       font-family: 'Staatliches', sans-serif; text-transform: uppercase; letter-spacing: 1px;
     }
-    .btn-primary { background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: #fff; }
+    .btn-primary { background: linear-gradient(135deg, #C1FF72 0%, #AEEB5C 100%); color: #0D0D0D; }
     .btn-secondary { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
     .btn-danger { background: rgba(244,67,54,0.2); color: #f44336; border: 1px solid rgba(244,67,54,0.5); }
     .btn:active { transform: scale(0.98); }
@@ -79,7 +79,7 @@
     }
 
     .success-message, .error-message { padding: 1rem; border-radius: 8px; margin-bottom: 1rem; display: none; }
-    .success-message { background: rgba(76,175,80,0.2); border: 1px solid rgba(76,175,80,0.5); color: #4CAF50; }
+    .success-message { background: rgba(193,255,114,0.2); border: 1px solid rgba(193,255,114,0.5); color: #C1FF72; }
     .error-message { background: rgba(244,67,54,0.2); border: 1px solid rgba(244,67,54,0.5); color: #f44336; }
     .success-message.show, .error-message.show { display: block; }
 
@@ -94,14 +94,14 @@
       border-radius: 8px; color: #fff; font-size: 1.1rem; text-align: center;
       font-family: 'Staatliches', sans-serif;
     }
-    .max-input-wrapper input:focus { outline: none; border-color: #4CAF50; }
+    .max-input-wrapper input:focus { outline: none; border-color: #C1FF72; }
     .max-input-wrapper input::placeholder { color: rgba(255,255,255,0.3); font-size: 0.9rem; }
     .max-unit { position: absolute; right: 0.75rem; color: #666; font-size: 0.85rem; pointer-events: none; }
     .maxes-info { color: #666; font-size: 0.8rem; margin-top: 0.5rem; text-align: center; }
   </style>
 </head>
 <body>
-  <a href="../pages/dashboard-v7.html" class="back-button">← Dashboard</a>
+  <a href="dashboard-v7.html" class="back-button">← Dashboard</a>
 
   <div class="profile-container">
     <div class="profile-header">
@@ -251,7 +251,7 @@
     <div class="profile-section">
       <h2>Azioni Account</h2>
       <div class="button-group">
-        <button class="btn btn-secondary" onclick="window.location.href='../pages/dashboard-v7.html'">Torna alla Dashboard</button>
+        <button class="btn btn-secondary" onclick="window.location.href='dashboard-v7.html'">Torna alla Dashboard</button>
         <button class="btn btn-danger" onclick="confirmLogout()">Esci</button>
       </div>
     </div>

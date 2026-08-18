@@ -92,8 +92,8 @@ class UpdateNotifier {
         top: 0;
         left: 0;
         right: 0;
-        background: linear-gradient(135deg, #4CAF50, #45a049);
-        color: white;
+        background: linear-gradient(135deg, #C1FF72, #AEEB5C);
+        color: #0D0D0D;
         padding: 16px 20px;
         display: flex;
         align-items: center;
@@ -113,8 +113,8 @@ class UpdateNotifier {
         </div>
         <button id="update-btn" style="
           padding: 10px 24px;
-          background: white;
-          color: #4CAF50;
+          background: #0D0D0D;
+          color: #C1FF72;
           border: none;
           border-radius: 8px;
           font-size: 16px;

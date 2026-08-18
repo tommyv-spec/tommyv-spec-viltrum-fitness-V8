@@ -421,10 +421,10 @@
 
     .phase-loop-badge {
       font-size: 1.2vh;
-      color: #f1c40f;
+      color: #C1FF72;
       padding: 0.4vh 1.5vw;
-      background: rgba(241,196,15,0.15);
-      border: 1px solid rgba(241,196,15,0.3);
+      background: rgba(193,255,114,0.15);
+      border: 1px solid rgba(193,255,114,0.3);
       border-radius: 4px;
     }
 
@@ -588,17 +588,14 @@
         </div>
       </div>
 
-      <!-- Workout List (Collapsible) -->
+      <!-- v9 (audio 2026-08-11 pt.4): niente lista workout — si vede SOLO il
+           prossimo allenamento da fare; finito quello si passa al successivo. -->
       <div class="list-section" id="list-section">
-        <div class="list-header" onclick="toggleList()">
+        <div class="list-header" style="cursor: default;">
           <div>
             <span class="current-workout-label">Prossimo:</span>
             <span class="current-workout-name" id="current-workout-name">-</span>
           </div>
-          <span class="toggle-icon" id="toggle-icon">▼</span>
-        </div>
-        <div class="workout-list" id="workout-list">
-          <!-- Populated by JS -->
         </div>
       </div>
 
@@ -634,7 +631,6 @@
     let planData = null;
     let planProgress = { lastWorkoutIndex: -1 };
     let selectedWorkoutIndex = 0;
-    let isListCollapsed = false;
     
     // ═══════════════════════════════════════════════════════════════════════════
     // INITIALIZATION
@@ -698,53 +694,13 @@
       document.getElementById('current-workout-name').textContent =
         nextWorkout ? `${planData.name} ${selectedWorkoutIndex + 1}` : 'Completato!';
       
-      renderWorkoutList();
       renderPreview();
       updateStartButton();
     }
-    
-    function renderWorkoutList() {
-      const container = document.getElementById('workout-list');
-      container.innerHTML = '';
-      
-      planData.workouts.forEach((workout, index) => {
-        const isCompleted = index <= planProgress.lastWorkoutIndex;
-        const isSelected = index === selectedWorkoutIndex;
-        const isNext = index === planProgress.lastWorkoutIndex + 1;
-        const isLocked = index > planProgress.lastWorkoutIndex + 1;
-        
-        const item = document.createElement('div');
-        item.className = 'workout-item';
-        if (isCompleted) item.classList.add('completed');
-        if (isSelected) item.classList.add('selected');
-        if (isLocked) item.classList.add('locked');
-        
-        item.innerHTML = `
-          <div class="workout-checkbox"></div>
-          <span class="workout-name">${planData.name} ${index + 1}</span>
-          <span class="workout-type">${workout.type === 'muscle' ? 'FORZA' : 'CORSA'}</span>
-        `;
-        
-        item.addEventListener('click', () => {
-          if (!isLocked) {
-            selectedWorkoutIndex = index;
-            renderUI();
-          }
-        });
-        
-        const checkbox = item.querySelector('.workout-checkbox');
-        checkbox.addEventListener('click', (e) => {
-          e.stopPropagation();
-          if (isCompleted) {
-            markWorkoutIncomplete(index);
-          } else if (index === planProgress.lastWorkoutIndex + 1) {
-            markWorkoutComplete(index);
-          }
-        });
-        
-        container.appendChild(item);
-      });
-    }
+
+    // v9: la lista completa dei workout (con selezione e spunte manuali) è stata
+    // rimossa su richiesta — l'atleta vede solo il prossimo allenamento; il
+    // progresso avanza automaticamente al completamento (workout-completion).
     
     function renderPreview() {
       const workout = planData.workouts[selectedWorkoutIndex];
@@ -831,8 +787,8 @@
             // Loop indicator
             if (phase.loopGroup && phase.loopGroup !== lastLoopGroup) {
               html += `
-                <div class="phase-item" style="background: rgba(241,196,15,0.05); border-left: 3px solid #f1c40f;">
-                  <div class="phase-zone" style="background: rgba(241,196,15,0.2); border-color: #f1c40f; color: #f1c40f;">🔄</div>
+                <div class="phase-item" style="background: rgba(193,255,114,0.05); border-left: 3px solid #C1FF72;">
+                  <div class="phase-zone" style="background: rgba(193,255,114,0.2); border-color: #C1FF72; color: #C1FF72;">🔄</div>
                   <div class="phase-info">
                     <div class="phase-value">Ripeti ${phase.loopCount}x</div>
                     <div class="phase-description">Le seguenti fasi in loop</div>
@@ -908,12 +864,6 @@
     // ═══════════════════════════════════════════════════════════════════════════
     // ACTIONS
     // ═══════════════════════════════════════════════════════════════════════════
-    window.toggleList = function() {
-      const section = document.getElementById('list-section');
-      isListCollapsed = !isListCollapsed;
-      section.classList.toggle('collapsed', isListCollapsed);
-    };
-    
     window.goBack = function() {
       window.location.href = 'dashboard-v7.html';
     };
@@ -936,20 +886,6 @@
         window.location.href = 'endurance.html';
       }
     };
-    
-    async function markWorkoutComplete(index) {
-      planProgress.lastWorkoutIndex = index;
-      await DataPreloader.savePlanProgress(planData.name, index, planData.totalWorkouts);
-      selectedWorkoutIndex = Math.min(index + 1, planData.workouts.length - 1);
-      renderUI();
-    }
-    
-    async function markWorkoutIncomplete(index) {
-      if (index !== planProgress.lastWorkoutIndex) return;
-      planProgress.lastWorkoutIndex = index - 1;
-      await DataPreloader.savePlanProgress(planData.name, planProgress.lastWorkoutIndex, planData.totalWorkouts);
-      renderUI();
-    }
     
     // ═══════════════════════════════════════════════════════════════════════════
     // INIT

@@ -105,7 +105,7 @@
       font-size: 1.3vh; padding: 0.4vh 2vw; border: 1px solid #444;
       border-radius: 4px; color: #AAA;
     }
-    .card-badge.active { border-color: #FFF; color: #FFF; }
+    .card-badge.active { border-color: #C1FF72; color: #C1FF72; }
 
     .small-cards-row { flex-shrink: 0; display: flex; gap: 3vw; margin-top: auto; }
     .small-card {
@@ -163,7 +163,7 @@
       border-radius: 8px; margin-bottom: 2vh;
     }
     .subscription-status { font-size: 1.6vh; margin-bottom: 0.5vh; }
-    .subscription-status.active { color: #4CAF50; }
+    .subscription-status.active { color: #C1FF72; }
     .subscription-status.expired { color: #F44336; }
     .subscription-date { font-size: 1.4vh; color: #666; }
 
@@ -172,15 +172,15 @@
       background: #1A1A1A; border: 1px solid #333; border-radius: 8px;
       color: #FFF; font-family: 'Staatliches', sans-serif; font-size: 1.6vh;
     }
-    .modal-content input:focus { outline: none; border-color: #4CAF50; }
+    .modal-content input:focus { outline: none; border-color: #C1FF72; }
     .modal-content input::placeholder { color: #666; }
     .modal-content button {
       width: 100%; padding: 1.5vh; margin-bottom: 1vh;
-      background: #4CAF50; border: none; border-radius: 8px;
-      color: #FFF; font-family: 'Staatliches', sans-serif;
+      background: #C1FF72; border: none; border-radius: 8px;
+      color: #0D0D0D; font-family: 'Staatliches', sans-serif;
       font-size: 1.6vh; cursor: pointer; transition: background 0.2s ease;
     }
-    .modal-content button:hover { background: #45a049; }
+    .modal-content button:hover { background: #AEEB5C; }
     .modal-content button.secondary {
       background: transparent; border: 1px solid #444; color: #888;
     }
@@ -200,7 +200,7 @@
       background: rgba(244, 67, 54, 0.2); border: 1px solid #F44336; color: #F44336;
     }
     .message.success {
-      background: rgba(76, 175, 80, 0.2); border: 1px solid #4CAF50; color: #4CAF50;
+      background: rgba(193, 255, 114, 0.15); border: 1px solid #C1FF72; color: #C1FF72;
     }
 
     .loading-overlay {
@@ -265,6 +265,11 @@
       <h1 id="welcome-text">BENVENUTO</h1>
     </div>
 
+    <!-- v9 (audio 2026-08-11 pt.12): istruzione generale del coach, modificabile
+         lato admin. Si mostra solo se il backend invia userData.coachMessage
+         (colonna/cella dedicata nel foglio — vedi FEATURES-2026-08-11-audio.md). -->
+    <div id="coach-message" style="display: none; margin: 0 4vw 2vh; padding: 1.5vh 3vw; background: rgba(193,255,114,0.08); border: 1px solid rgba(193,255,114,0.35); border-radius: 12px; font-size: 1.6vh; color: #DDD; line-height: 1.5;"></div>
+
     <div class="stats-section">
       <div class="stat-box">
         <div class="stat-label">WORKOUT TOTALI</div>
@@ -289,37 +294,53 @@
         <span class="card-badge" id="training-badge">CARICAMENTO...</span>
       </div>
 
-      <div class="section-card" id="nutrition-card" onclick="handleNutritionClick()">
+      <!-- v9 (msg Giuseppe 2026-08-10 + audio 2026-08-11): "Alimentazione" diventa
+           CORSA, visibile SOLO se l'utente ha una corsa assegnata (piano con
+           sessioni run). La nutrizione resta raggiungibile come card piccola per
+           chi ha un piano alimentare attivo. -->
+      <div class="section-card" id="corsa-card" style="display: none;" onclick="handleCorsaClick()">
         <div class="card-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/>
+            <path d="M13 4a2 2 0 1 0 4 0 2 2 0 0 0-4 0zM4 17l5-1 2-4-2-2 4-4 3 3 4 1"/>
+            <path d="M9 21l2-5M14 14l2 7"/>
           </svg>
         </div>
-        <h2 class="card-title">NUTRIZIONE</h2>
-        <p class="card-subtitle">Piano alimentare e tracker</p>
-        <span class="card-badge" id="nutrition-badge">CARICAMENTO...</span>
+        <h2 class="card-title">CORSA</h2>
+        <p class="card-subtitle">I tuoi allenamenti di corsa</p>
+        <span class="card-badge" id="corsa-badge">CARICAMENTO...</span>
       </div>
 
       <div class="small-cards-row">
-        <div class="small-card" onclick="window.open('https://shop.viltrumfitness.com/collections/all', '_blank')">
+        <div class="small-card" id="nutrition-small-card" style="display: none;" onclick="handleNutritionClick()">
           <div class="small-card-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/>
+              <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/>
             </svg>
           </div>
-          <h3 class="small-card-title">SHOP</h3>
-          <p class="small-card-subtitle">Acquista pacchetti</p>
+          <h3 class="small-card-title">NUTRIZIONE</h3>
+          <p class="small-card-subtitle">Piano alimentare</p>
         </div>
 
-        <div class="small-card" onclick="window.open('https://shop.viltrumfitness.com/blogs/nutrition', '_blank')">
+        <div class="small-card" onclick="window.open(CONTACT_WHATSAPP_URL, '_blank', 'noopener')">
           <div class="small-card-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 014 17V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H6.5"/>
-              <path d="M8 7h8M8 11h6"/>
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
             </svg>
           </div>
-          <h3 class="small-card-title">BLOG</h3>
-          <p class="small-card-subtitle">Articoli e consigli</p>
+          <h3 class="small-card-title">CONTATTAMI</h3>
+          <p class="small-card-subtitle">Scrivimi su WhatsApp</p>
+        </div>
+
+        <div class="small-card" id="instagram-card" style="display: none;" onclick="window.open(CONTACT_INSTAGRAM_URL, '_blank', 'noopener')">
+          <div class="small-card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="2" width="20" height="20" rx="5"/>
+              <circle cx="12" cy="12" r="4"/>
+              <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/>
+            </svg>
+          </div>
+          <h3 class="small-card-title">INSTAGRAM</h3>
+          <p class="small-card-subtitle">Seguimi</p>
         </div>
       </div>
     </main>
@@ -476,6 +497,23 @@
     let userPlans = [];
     let allProgress = {};
     let allPlansData = {};
+
+    // v9 contatti (msg Giuseppe 2026-08-10): "contattami" → WhatsApp del coach.
+    // Numero già usato dal training selector. IG: lasciare '' per nascondere la card.
+    window.CONTACT_WHATSAPP_URL = 'https://wa.me/393381590917';
+    window.CONTACT_INSTAGRAM_URL = '';
+
+    // v9: un piano è "di corsa" se OGNI sua sessione è di tipo run — quei piani
+    // stanno sotto la card CORSA; i piani misti restano sotto ALLENAMENTO.
+    function isRunPlan(planName) {
+      const plan = allPlansData[planName];
+      if (!plan || !Array.isArray(plan.workouts) || plan.workouts.length === 0) return false;
+      return plan.workouts.every(w =>
+        w.type === 'run' || (w.type !== 'muscle' && DataPreloader.getRunWorkout(w.name))
+      );
+    }
+    function musclePlans() { return userPlans.filter(p => !isRunPlan(p)); }
+    function runPlans()    { return userPlans.filter(p => isRunPlan(p)); }
     
     async function init() {
       const email = localStorage.getItem('loggedUser');
@@ -558,10 +596,13 @@
       const localTotal = parseInt(localStorage.getItem('viltrum_total_workouts')) || 0;
       document.getElementById('total-workouts').textContent = Math.max(totalWorkouts, localTotal);
       
+      const gym = musclePlans();
+      const runs = runPlans();
+
       const trainingBadge = document.getElementById('training-badge');
       const trainingCard = document.getElementById('training-card');
-      if (userPlans.length > 0) {
-        trainingBadge.textContent = `${userPlans.length} PIAN${userPlans.length > 1 ? 'I' : 'O'}`;
+      if (gym.length > 0) {
+        trainingBadge.textContent = `${gym.length} PIAN${gym.length > 1 ? 'I' : 'O'}`;
         trainingBadge.classList.add('active');
         trainingCard.classList.remove('disabled');
       } else if (DataPreloader.isReady()) {
@@ -572,18 +613,36 @@
         // Still loading — keep card clickable, show neutral badge
         trainingBadge.textContent = '...';
       }
-      
-      const nutritionBadge = document.getElementById('nutrition-badge');
-      const nutritionCard = document.getElementById('nutrition-card');
-      if (userData.nutritionPdfUrl) {
-        nutritionBadge.textContent = 'ATTIVO';
-        nutritionBadge.classList.add('active');
-        nutritionCard.classList.remove('disabled');
-      } else if (DataPreloader.isReady()) {
-        nutritionBadge.textContent = 'NON ATTIVO';
-        nutritionCard.classList.add('disabled');
+
+      // v9: card CORSA visibile SOLO con una corsa effettivamente assegnata
+      const corsaCard = document.getElementById('corsa-card');
+      const corsaBadge = document.getElementById('corsa-badge');
+      if (runs.length > 0) {
+        corsaCard.style.display = '';
+        corsaBadge.textContent = `${runs.length} PIAN${runs.length > 1 ? 'I' : 'O'}`;
+        corsaBadge.classList.add('active');
+        corsaCard.classList.remove('disabled');
       } else {
-        nutritionBadge.textContent = '...';
+        corsaCard.style.display = 'none';
+      }
+
+      // v9: nutrizione ridotta a card piccola, visibile solo se il piano esiste
+      const nutritionSmallCard = document.getElementById('nutrition-small-card');
+      if (nutritionSmallCard) {
+        nutritionSmallCard.style.display = userData.nutritionPdfUrl ? '' : 'none';
+      }
+      // v9: card Instagram visibile solo se il link è configurato
+      const instagramCard = document.getElementById('instagram-card');
+      if (instagramCard) {
+        instagramCard.style.display = window.CONTACT_INSTAGRAM_URL ? '' : 'none';
+      }
+
+      // v9: istruzione generale del coach (se il backend la fornisce)
+      const coachMsgEl = document.getElementById('coach-message');
+      if (coachMsgEl) {
+        const msg = (userData.coachMessage || '').trim();
+        coachMsgEl.textContent = msg;
+        coachMsgEl.style.display = msg ? '' : 'none';
       }
       
       const statusEl = document.getElementById('subscription-status');
@@ -608,15 +667,27 @@
     // ═══════════════════════════════════════════════════════════════════════════
     
     window.handleTrainingClick = function() {
-      if (userPlans.length === 0) { alert('Nessun piano assegnato'); return; }
-      if (userPlans.length === 1) {
-        sessionStorage.setItem('selectedPlan', userPlans[0]);
+      const gym = musclePlans();
+      if (gym.length === 0) { alert('Nessun piano assegnato'); return; }
+      if (gym.length === 1) {
+        sessionStorage.setItem('selectedPlan', gym[0]);
         window.location.href = 'plan-view.html';
       } else {
-        openPlanModal();
+        openPlanModal(gym);
       }
     };
-    
+
+    window.handleCorsaClick = function() {
+      const runs = runPlans();
+      if (runs.length === 0) { alert('Nessuna corsa assegnata'); return; }
+      if (runs.length === 1) {
+        sessionStorage.setItem('selectedPlan', runs[0]);
+        window.location.href = 'plan-view.html';
+      } else {
+        openPlanModal(runs);
+      }
+    };
+
     window.handleNutritionClick = function() {
       if (!userData.nutritionPdfUrl) { alert('Piano nutrizionale non disponibile'); return; }
       window.location.href = 'nutrition.html';
@@ -626,11 +697,11 @@
     // PLAN MODAL
     // ═══════════════════════════════════════════════════════════════════════════
     
-    window.openPlanModal = function() {
+    window.openPlanModal = function(plansToShow) {
       const list = document.getElementById('plan-list');
       list.innerHTML = '';
-      
-      userPlans.forEach(planName => {
+
+      (plansToShow || userPlans).forEach(planName => {
         const progress = allProgress[planName] || { lastWorkoutIndex: -1 };
         const planData = allPlansData[planName] || { totalWorkouts: 0 };
         const completed = progress.lastWorkoutIndex + 1;

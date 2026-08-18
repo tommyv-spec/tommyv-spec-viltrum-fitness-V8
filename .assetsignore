@@ -17,3 +17,7 @@ package-lock.json
 wrangler.jsonc
 .gitignore
 .assetsignore
+
+# Debug/test pages - not for production
+diagnostic-test.html
+audio-diagnostic.html

@@ -78,7 +78,7 @@
 }
 
 .bar-fill.kcal { background: linear-gradient(90deg, #FF6B6B, #FF8E53); }
-.bar-fill.protein { background: linear-gradient(90deg, #4CAF50, #8BC34A); }
+.bar-fill.protein { background: linear-gradient(90deg, #C1FF72, #DFFFB0); }
 .bar-fill.carbs { background: linear-gradient(90deg, #2196F3, #03A9F4); }
 .bar-fill.fat { background: linear-gradient(90deg, #FF9800, #FFC107); }
 
@@ -138,12 +138,12 @@
 }
 
 .meal-nav-btn.complete {
-  border-color: #4CAF50;
+  border-color: #C1FF72;
 }
 
 .meal-nav-btn.complete.active {
-  background: #4CAF50;
-  color: #FFF;
+  background: #C1FF72;
+  color: #0D0D0D;
 }
 
 .meal-status {
@@ -183,8 +183,8 @@
 }
 
 .nutrient-slot.has-selection {
-  border-color: #4CAF50;
-  background: rgba(76,175,80,0.05);
+  border-color: #C1FF72;
+  background: rgba(193,255,114,0.05);
 }
 
 .slot-header {
@@ -251,8 +251,8 @@
 }
 
 .food-option.selected {
-  border-color: #4CAF50;
-  background: rgba(76,175,80,0.15);
+  border-color: #C1FF72;
+  background: rgba(193,255,114,0.15);
 }
 
 .food-option.selected::after {
@@ -260,7 +260,7 @@
   position: absolute;
   top: 10px;
   right: 10px;
-  color: #4CAF50;
+  color: #C1FF72;
   font-size: 18px;
   font-weight: bold;
 }
@@ -306,8 +306,8 @@
 .selection-summary {
   margin-top: 15px;
   padding: 12px;
-  background: rgba(76,175,80,0.1);
-  border: 1px solid rgba(76,175,80,0.3);
+  background: rgba(193,255,114,0.1);
+  border: 1px solid rgba(193,255,114,0.3);
   border-radius: 10px;
   display: flex;
   justify-content: space-between;
@@ -388,10 +388,10 @@
 
 .btn-download {
   padding: 8px 16px;
-  background: #4CAF50;
+  background: #C1FF72;
   border: none;
   border-radius: 8px;
-  color: #FFF;
+  color: #0D0D0D;
   font-family: 'Staatliches', sans-serif;
   font-size: 13px;
   text-decoration: none;
@@ -399,7 +399,7 @@
 }
 
 .btn-download:hover {
-  background: #43A047;
+  background: #AEEB5C;
 }
 
 .pdf-iframe-container {

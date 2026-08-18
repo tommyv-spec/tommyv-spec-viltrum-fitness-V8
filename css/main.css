@@ -1568,10 +1568,10 @@ body:has(#exercise-container[style*="display: flex"]) {
 }
 #pause-button:active { background: #DDD; transform: scale(0.96); }
 #pause-button.paused {
-  background: #4CAF50;
-  color: #FFF;
+  background: #C1FF72;
+  color: #0D0D0D;
 }
-#pause-button.paused:active { background: #43A047; }
+#pause-button.paused:active { background: #AEEB5C; }
 
 /* +10s: subtle ghost pill */
 .add-time-btn {
@@ -2481,7 +2481,7 @@ body.preload-bar-visible #setup-screen {
 .exercise-details { display:flex; flex-direction:row; gap:clamp(6px,2vw,10px); margin-top:8px; padding-top:8px; border-top:1px solid rgba(0,0,0,0.08); justify-content:center; flex-wrap:wrap; }
 .exercise-equipment,.exercise-reps { display:none; }
 .exercise-info-item { display:inline-block; background:rgba(125,125,125,0.12); padding:5px 10px; border-radius:6px; font-size:clamp(10px,2vw,12px); color:#000000; font-weight:700; white-space:normal; word-wrap:break-word; letter-spacing:0.05em; max-width:100%; }
-.exercise-last-weight { background:rgba(76,175,80,0.15); color:#2E7D32; border:1px solid rgba(76,175,80,0.3); }
+.exercise-last-weight { background:rgba(193,255,114,0.15); color:#C1FF72; border:1px solid rgba(193,255,114,0.3); }
 
 /* Letter spacing kept */
 body, button, select, label, .exercise-name, .section-title, .section-count { letter-spacing: .15em; }

@@ -76,7 +76,6 @@
         <span>Dashboard</span>
       </a>
     </div>
-    <audio controls src="https://drive.google.com/uc?export=download&id=1L8OmsZjgrVvHR0vyfSDhaueR1rweGtH7"></audio>
   </header>
 
   <main>
@@ -153,40 +152,24 @@
       </div>
 
       <!-- SETUP SETTINGS POPUP -->
+      <!-- v9: one voice, no options (msg Giuseppe 2026-08-10). Only mute stays;
+           the soundMode select survives hidden because workout.js reads its value. -->
       <div id="setup-settings-popup" style="display: none;">
         <div class="settings-content">
           <h3>Impostazioni</h3>
-          
-          <label for="soundMode-setup">Modalità audio:</label>
-          <select id="soundMode-setup">
+
+          <select id="soundMode-setup" style="display: none;" aria-hidden="true" tabindex="-1">
             <option value="eleven">🎙️ Istruttore</option>
             <option value="voice">Voice (Cloud TTS)</option>
             <option value="synth">Synth (Device)</option>
             <option value="bip">Beep</option>
             <option value="none">Nessun suono</option>
           </select>
-          
-          <!-- NEW: Warm-up toggle -->
-          <div style="margin-top: 20px;">
-            <label style="display: flex; align-items: center; cursor: pointer;">
-              <input type="checkbox" id="warmup-toggle" checked style="margin-right: 10px; width: 20px; height: 20px; cursor: pointer;">
-              <span>Abilita Riscaldamento</span>
-            </label>
-          </div>
 
-          <!-- NEW: Countdown audio toggle -->
-          <div style="margin-top: 12px;">
+          <div style="margin-top: 10px;">
             <label style="display: flex; align-items: center; cursor: pointer;">
-              <input type="checkbox" id="countdown-audio-toggle-setup" checked style="margin-right: 10px; width: 20px; height: 20px; cursor: pointer;">
-              <span>Audio countdown (mancano X sec)</span>
-            </label>
-          </div>
-
-          <!-- NEW: Coach tips (exercise suggestions) toggle — OFF by default -->
-          <div style="margin-top: 12px;">
-            <label style="display: flex; align-items: center; cursor: pointer;">
-              <input type="checkbox" id="coach-tips-toggle-setup" style="margin-right: 10px; width: 20px; height: 20px; cursor: pointer;">
-              <span>Suggerimenti audio esercizi</span>
+              <input type="checkbox" id="mute-toggle-setup" style="margin-right: 10px; width: 20px; height: 20px; cursor: pointer;">
+              <span>Silenzia audio</span>
             </label>
           </div>
 
@@ -214,12 +197,11 @@
             </div>
           </div>
           
-          <!-- FAB BUTTON -->
-          <button id="fab-menu-toggle" class="fab-button" title="Menu controlli">☰</button>
         </div>
 
-        <!-- CONTROLLI (SECONDA RIGA - NASCOSTA DI DEFAULT) -->
-        <div id="controls-container" class="controls-hidden">
+        <!-- CONTROLLI — v9: sempre visibili a schermo, niente menu a sandwich
+             (audio 2026-08-11 pt.8; il tap sul ☰ interferiva anche con la voce) -->
+        <div id="controls-container">
           <button id="prev-exercise-button" class="nav-btn" title="Esercizio precedente">◀</button>
           <button id="pause-button">⏸ Pausa</button>
           <button id="add-10s-button" class="add-time-btn" title="Aggiungi 10 secondi">+10s</button>
@@ -227,9 +209,6 @@
           <button id="settings-button" class="settings-btn" title="Impostazioni">⚙</button>
         </div>
 
-        <!-- OVERLAY per chiudere menu -->
-        <div id="controls-overlay" class="controls-overlay-hidden"></div>
-        
         <!-- 1. TIMER -->
         <div id="timer" class="full-timer"></div>
       
@@ -244,41 +223,24 @@
       </div>
 
         <!-- Settings Popup Overlay -->
+        <!-- v9: one voice, no options. Mute + Termina Allenamento only; hidden
+             soundMode select kept because workout.js reads its value. -->
         <div id="settings-popup" style="display: none;">
           <div class="settings-content">
             <h3>Impostazioni</h3>
-            
-            <!-- Sound Mode -->
-            <label for="soundMode">Modalità audio:</label>
-            <select id="soundMode">
+
+            <select id="soundMode" style="display: none;" aria-hidden="true" tabindex="-1">
               <option value="eleven">🎙️ Istruttore</option>
               <option value="voice">Voice (Cloud TTS)</option>
               <option value="synth">Synth (Device)</option>
               <option value="bip">Beep</option>
               <option value="none">Nessun suono</option>
             </select>
-            
-            <!-- Volume Slider -->
-            <div style="margin-top: 15px; margin-bottom: 15px;">
-              <label for="volume-slider" style="display: block; margin-bottom: 12px;">
-                Volume: <span id="volume-value">100</span>%
-              </label>
-              <input type="range" id="volume-slider" min="0" max="100" value="100">
-            </div>
 
-            <!-- Countdown audio toggle -->
-            <div style="margin-bottom: 12px;">
-              <label style="display: flex; align-items: center; cursor: pointer;">
-                <input type="checkbox" id="countdown-audio-toggle" checked style="margin-right: 10px; width: 20px; height: 20px; cursor: pointer;">
-                <span>Audio countdown (mancano X sec)</span>
-              </label>
-            </div>
-
-            <!-- Coach tips (exercise suggestions) toggle — OFF by default -->
             <div style="margin-bottom: 20px;">
               <label style="display: flex; align-items: center; cursor: pointer;">
-                <input type="checkbox" id="coach-tips-toggle" style="margin-right: 10px; width: 20px; height: 20px; cursor: pointer;">
-                <span>Suggerimenti audio esercizi</span>
+                <input type="checkbox" id="mute-toggle" style="margin-right: 10px; width: 20px; height: 20px; cursor: pointer;">
+                <span>Silenzia audio</span>
               </label>
             </div>
 

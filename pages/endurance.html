@@ -135,7 +135,7 @@
     ════════════════════════════════════════ */
 
     .workout-progress-bar { flex: 0 0 4px; background: rgba(255,255,255,0.1); }
-    .workout-progress-bar .fill { height: 100%; background: #4CAF50; transition: width 0.3s; }
+    .workout-progress-bar .fill { height: 100%; background: #C1FF72; transition: width 0.3s; }
 
     .workout-header {
       flex: 0 0 44px;
@@ -154,7 +154,7 @@
     }
     .gps-stat { text-align: center; display: flex; flex-direction: column; justify-content: center; }
     .gps-stat-value { font-size: 20px; font-weight: bold; line-height: 1.2; }
-    .gps-stat-value.highlight { color: #4CAF50; }
+    .gps-stat-value.highlight { color: #C1FF72; }
     .gps-stat-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
 
     /* PHASE DISPLAY: takes all leftover space */
@@ -190,7 +190,7 @@
 
     .live-pace { font-size: 34px; font-weight: 700; margin-top: 8px; transition: color 0.3s; }
     .live-pace-unit { font-size: 16px; font-weight: 400; opacity: 0.7; }
-    .live-pace.on-target { color: #27ae60; }
+    .live-pace.on-target { color: #C1FF72; }
     .live-pace.off-target { color: #e67e22; }
 
     /* phase value: big but capped so it never overflows */
@@ -213,12 +213,12 @@
       width: 7px; height: 7px; border-radius: 50%;
       background: rgba(255,255,255,0.2); transition: all 0.3s;
     }
-    .loop-dot.active { background: var(--zone-color, #4CAF50); }
-    .loop-dot.completed { background: rgba(76,175,80,0.6); }
+    .loop-dot.active { background: var(--zone-color, #C1FF72); }
+    .loop-dot.completed { background: rgba(193,255,114,0.6); }
 
     .phase-progress { flex: 0 0 auto; width: 100%; }
     .phase-progress-track { width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
-    .phase-progress-fill { height: 100%; background: var(--zone-color, #4CAF50); border-radius: 4px; transition: width 0.3s; box-shadow: 0 0 8px var(--zone-color, #4CAF50); }
+    .phase-progress-fill { height: 100%; background: var(--zone-color, #C1FF72); border-radius: 4px; transition: width 0.3s; box-shadow: 0 0 8px var(--zone-color, #C1FF72); }
     .phase-progress-text { display: flex; justify-content: space-between; margin-top: 4px; font-size: 11px; color: #888; }
 
     /* NEXT PREVIEW: fixed 40px */
@@ -250,7 +250,7 @@
     .ctrl-btn.primary:active { background: #DDD; }
     .ctrl-btn.secondary { background: transparent; color: #FFF; border: 2px solid #555; }
     .ctrl-btn.secondary:active { background: rgba(255,255,255,0.05); }
-    .ctrl-btn.complete { background: #4CAF50; color: #FFF; }
+    .ctrl-btn.complete { background: #C1FF72; color: #0D0D0D; }
     .ctrl-btn.pause { background: #FF9800; color: #000; }
 
     /* ════════════════════════════════════════
@@ -259,10 +259,10 @@
     .completion-view { align-items: center; justify-content: center; padding: 32px 24px; text-align: center; gap: 16px; }
     .completion-icon {
       flex: 0 0 auto; width: 80px; height: 80px;
-      background: rgba(76,175,80,0.15); border: 3px solid #4CAF50; border-radius: 50%;
+      background: rgba(193,255,114,0.15); border: 3px solid #C1FF72; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
     }
-    .completion-icon svg { width: 40px; height: 40px; stroke: #4CAF50; fill: none; stroke-width: 2; }
+    .completion-icon svg { width: 40px; height: 40px; stroke: #C1FF72; fill: none; stroke-width: 2; }
     .completion-view h2 { font-size: 28px; letter-spacing: 2px; }
     .completion-view p { color: #888; font-size: 16px; }
     .completion-stats {
@@ -271,7 +271,7 @@
       border-radius: 12px; width: 80%; max-width: 280px;
     }
     .completion-stat { text-align: center; }
-    .completion-stat-value { font-size: 24px; color: #4CAF50; }
+    .completion-stat-value { font-size: 24px; color: #C1FF72; }
     .completion-stat-label { font-size: 11px; color: #666; text-transform: uppercase; }
     .completion-btn {
       padding: 14px 32px; background: #FFF; color: #000;
@@ -287,7 +287,7 @@
     .gps-status { position: absolute; top: 10px; left: 12px; display: flex; align-items: center; gap: 5px; font-size: 11px; color: #666; }
     .gps-dot { width: 7px; height: 7px; border-radius: 50%; background: #666; transition: all 0.3s; }
     .gps-dot.searching { background: #f1c40f; animation: pulse 1s infinite; }
-    .gps-dot.active { background: #4CAF50; }
+    .gps-dot.active { background: #C1FF72; }
     .gps-dot.error { background: #e74c3c; }
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
   </style>
@@ -1724,18 +1724,22 @@
     // ═══════════════════════════════════════════════════════════════════════════
     // PHASE COMPLETION CHECK
     // ═══════════════════════════════════════════════════════════════════════════
+    let phaseTransitioning = false; // v9: guard — GPS ticks kept re-firing this during the 500ms window, double-advancing phases
+
     function checkPhaseCompletion() {
       const phase = expandedPhases[currentPhaseIndex];
-      if (!phase || isPaused) return;
+      if (!phase || isPaused || phaseTransitioning) return;
 
       if (phase.unit === 'km' || phase.unit === 'm') {
         const targetMeters = phase.unit === 'km' ? phase.value * 1000 : phase.value;
-        
+
         if (phaseDistance >= targetMeters) {
+          phaseTransitioning = true;
           playTransition();
           vibrate();
-          
+
           setTimeout(() => {
+            phaseTransitioning = false;
             if (!isPaused && currentPhaseIndex < expandedPhases.length - 1) {
               nextPhase();
             } else if (currentPhaseIndex >= expandedPhases.length - 1) {

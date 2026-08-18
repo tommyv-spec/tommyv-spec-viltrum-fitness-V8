@@ -841,6 +841,36 @@ function buildRepsPhrase(item) {
   return side ? `fai ${reps} ripetizioni, ${side}` : `fai ${reps} ripetizioni`;
 }
 
+/* v9 announcement contract (audio 2026-08-11). Called by playExercise() on every
+   step change so the FIRST exercise of a session is announced too (the old
+   transition-only path skipped it). Speaks:
+   - exercise NAME (English clip when the clip bank has it, otherwise detectLang)
+   - "fai N ripetizioni[, Destra/Sinistra]" in Italian
+   - "good job" when the end-of-workout label is reached (termine allenamento) */
+function announceCurrentExercise(item) {
+  if (!item) return;
+  const mode = document.getElementById("soundMode")?.value
+            || document.getElementById("soundMode-setup")?.value
+            || "none";
+  if (mode !== "eleven" && mode !== "voice" && mode !== "synth") return;
+
+  if (item.isLabel) {
+    // End-of-workout announcement is the ONLY label that speaks.
+    if ((item.name || "").toLowerCase() === "good job") {
+      speak("good job", "it-IT").catch(() => {});
+    }
+    return;
+  }
+
+  // Side suffix comes out of the name (the reps phrase carries the side).
+  const strippedName = (item.name || "").replace(/\s*\b(destra|sinistra|dx|sx)\b\s*$/i, "").trim();
+  const nameToSay = strippedName || item.name;
+  if (nameToSay) speak(nameToSay, detectLang(nameToSay)).catch(() => {});
+
+  const repsPhrase = buildRepsPhrase(item);
+  if (repsPhrase) speak(repsPhrase, "it-IT").catch(() => {});
+}
+
 /* The same lookup _speakNow() performs, in one place. */
 function resolveElevenClip(text) {
   const n = (text || "").toLowerCase().trim();
@@ -1536,6 +1566,7 @@ let currentStep = 0;
 let interval = null;
 let isPaused = false;
 let savedTimeLeft = null;
+let pendingAdvanceTimeout = null; // 300ms transition delay — cleared by nav/exit so a tap can't double-advance
 let lastSpeakTime = 0;
 let currentSpeakId = 0;
 
@@ -2070,7 +2101,7 @@ function unlockAllAudio() {
 
   // Re-assert inside the real gesture: some iOS builds only honour the playback
   // session once the page has been interacted with.
-  claimPlaybackAudioSession();
+  claimTransientAudioSession();
   // Wake the buffer engine's context while we hold a genuine gesture — the only
   // moment iOS allows it.
   AudioEngine.unlock();
@@ -2111,6 +2142,22 @@ function unlockAllAudio() {
 
 document.addEventListener("touchstart", unlockAllAudio, { once: true, passive: true });
 document.addEventListener("click", unlockAllAudio, { once: true });
+
+// v9 fix (audio 2026-08-11 pt.7): after an OS audio interruption (call, Siri,
+// another app grabbing the session) the buffer engine's AudioContext stays
+// "suspended" — and the once-only unlock above has already been consumed. The
+// voice then only came back when the user happened to tap the ☰ menu (any
+// gesture works, that was just the one they tapped). Resume on EVERY gesture
+// and on returning to the foreground, so speech recovers by itself.
+function resumeAudioEngineIfSuspended() {
+  const ctx = AudioEngine.ctx;
+  if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+}
+document.addEventListener("touchstart", resumeAudioEngineIfSuspended, { passive: true });
+document.addEventListener("click", resumeAudioEngineIfSuspended);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) resumeAudioEngineIfSuspended();
+});
 
 /* Safe one-time unlock fallback */
 document.addEventListener("touchend", ensureAudioUnlocked, { once: true });
@@ -2292,16 +2339,21 @@ const TTS_RETRIES = 2;
 // iOS routes web audio through the "ambient" session by default, which the physical
 // ring/silent switch mutes. Users train with the phone on silent, so every cue vanished.
 // Safari 16.4+ lets us claim the playback session instead. Safe no-op elsewhere.
-function claimPlaybackAudioSession() {
+function claimTransientAudioSession() {
+  // v9 (audio 2026-08-11 pt.10): was "playback", which tells iOS "I'm a media
+  // app — PAUSE other audio". That is exactly what stopped the user's Spotify.
+  // "transient" = short cues that MIX with (and duck) background music, then
+  // give the volume back. Verify on a real device: web audio-session support
+  // is Safari 16.4+ and still evolving.
   try {
-    if ("audioSession" in navigator && navigator.audioSession.type !== "playback") {
-      navigator.audioSession.type = "playback";
+    if ("audioSession" in navigator && navigator.audioSession.type !== "transient") {
+      navigator.audioSession.type = "transient";
     }
   } catch (e) {
     console.warn("audioSession unavailable:", e);
   }
 }
-claimPlaybackAudioSession();
+claimTransientAudioSession();
 
 // Nothing plays through Web Audio any more, so this no longer builds an AudioContext.
 // The old version created a throwaway context and awaited resume() with no timeout —
@@ -2309,7 +2361,7 @@ claimPlaybackAudioSession();
 // and speakCloud() await this function.
 async function ensureAudioUnlocked() {
   if (window.__audioUnlocked) return;
-  claimPlaybackAudioSession();
+  claimTransientAudioSession();
   // Safe no-op outside a gesture (resume() just stays pending); when this runs from
   // the touchend fallback listener it carries a real gesture and wakes the engine.
   AudioEngine.unlock();
@@ -2921,6 +2973,8 @@ function updateProgressBar() {
 /* -------------------- Session Controls -------------------- */
 function exitWorkout() {
   if (interval) { clearInterval(interval); interval = null; }
+  clearTimeout(pendingAdvanceTimeout);
+  pendingAdvanceTimeout = null;
   clearCrumb();
   stopAllAudio();
   tippedBlocks.clear();
@@ -3202,6 +3256,10 @@ async function playExercise(index, exercises, resumeTime = null) {
 
   markStep(index, exercise);
 
+  // v9: announce this step (name + reps, or end-of-workout). Skipped on resume
+  // so un-pausing mid-exercise doesn't re-announce it.
+  if (resumeTime === null) announceCurrentExercise(exercise);
+
   const hasReps = exercise.reps && !exercise.name.toLowerCase().includes("istruz");
   const hasEquipment = exercise.tipoDiPeso && !exercise.name.toLowerCase().includes("istruz") && !exercise.isLabel;
   const equipDisplay = hasEquipment ? resolveEquipmentDisplay(exercise.tipoDiPeso, exercise.name) : '';
@@ -3235,7 +3293,7 @@ async function playExercise(index, exercises, resumeTime = null) {
 
   // Check for last used weight for this exercise
   const lastUsedWeight = getExerciseWeight(exercise.name, exercise.tipoDiPeso);
-  const weightDisplay = lastUsedWeight ? `<div style="font-size:13px;font-weight:700;color:#6AB04C;margin-top:3px;">ULTIMO: ${lastUsedWeight}</div>` : '';
+  const weightDisplay = lastUsedWeight ? `<div style="font-size:13px;font-weight:700;color:#C1FF72;margin-top:3px;">ULTIMO: ${lastUsedWeight}</div>` : '';
 
   const exerciseImg = document.getElementById("exercise-gif");
   const gifViewport = document.getElementById("exercise-gif-viewport");
@@ -3282,7 +3340,7 @@ async function playExercise(index, exercises, resumeTime = null) {
         if (s.eqp) parts.push(s.eqp);
         const line = parts.join('  •  ');
         const weightBadge = s.weight 
-          ? `<span style="color:#6AB04C;font-weight:700;margin-left:6px;">${s.weight}</span>` 
+          ? `<span style="color:#C1FF72;font-weight:700;margin-left:6px;">${s.weight}</span>` 
           : '';
         return `<div style="font-size:12px;color:#aaa;font-weight:600;padding:1px 0;">${line}${weightBadge}</div>`;
       }).join('');
@@ -3492,20 +3550,9 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
     if (remaining !== lastSecond) {
       lastSecond = remaining;
 
-      // Force countdown audio on for "max" rep exercises
-      const isMaxExercise = exercise && exercise.reps && exercise.reps.toString().match(/max/i);
-      const countdownActive = countdownAudioEnabled || isMaxExercise;
-
-      once(60, () => {
-        if (!countdownActive) return;
-        if (mode === "eleven" || mode === "voice" || mode === "synth") {
-          speak("mancano sessanta secondi", "it-IT").catch(() => {});
-        }
-        if (mode === "beppe") playBeppeAudio(beppeSounds.s60);
-      });
-
+      // v9 announcement contract (audio 2026-08-11): "mancano 60" is gone,
+      // "mancano 30" stays as the halfway/remaining-time cue and is always on.
       once(30, () => {
-        if (!countdownActive) return;
         if (mode === "eleven" || mode === "voice" || mode === "synth") {
           speak("mancano trenta secondi", "it-IT").catch(() => {});
         }
@@ -3542,22 +3589,19 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
           const nextExerciseImg = document.getElementById("exercise-gif");
           loadCachedImage(nextExerciseImg, nextExercise.imageUrl);
 
-          // preview voice strictly per mode
-          if (mode === "beppe") {
-            const urls = [beppeSounds.prossimo];
-            if (nextExercise.audio) urls.push(nextExercise.audio);
-            playBeppeAudioSequence(urls);
-          } else if (mode === "eleven" || mode === "voice" || mode === "synth") {
-            // Use speak() with automatic fallback
-            try {
-              await speak("prossimo esercizio:", "it-IT");
-              // Strip Destra/Sinistra from preview name, but only if the base name has its own audio
-              const strippedName = nextExercise.name.replace(/\s*(destra|sinistra|dx|sx)\s*$/i, '').trim();
-              const strippedInMap = ELEVEN_EXERCISE_MAP[strippedName.toLowerCase()];
-              const previewName = strippedInMap ? strippedName : nextExercise.name;
-              await speak(previewName, detectLang(previewName));
-            } catch (err) {
-              console.warn("⚠️ Failed to announce next exercise:", err);
+          // v9 announcement contract: at -10s say ONLY "prossimo esercizio" —
+          // the name + reps are spoken at the actual change (playExercise).
+          // Skip when the next step is a label (rest/Good Job): "prossimo
+          // esercizio" before the end screen was wrong.
+          if (!nextExercise.isLabel) {
+            if (mode === "beppe") {
+              playBeppeAudioSequence([beppeSounds.prossimo]);
+            } else if (mode === "eleven" || mode === "voice" || mode === "synth") {
+              try {
+                await speak("prossimo esercizio:", "it-IT");
+              } catch (err) {
+                console.warn("⚠️ Failed to announce next exercise:", err);
+              }
             }
           }
         }
@@ -3577,15 +3621,8 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
         timerEl.classList.add("warning-3");
       });
 
-      // 5s countdown — runs once (no more stutter)
-      // Skip on last exercise (no next exercise) to avoid countdown before "Good Job"
-      once(5, () => {
-        if (!nextExercise) return;
-        if (mode === "eleven" || mode === "voice" || mode === "synth") {
-          speak("cinque, quattro, tre, due, uno", "it-IT").catch(() => {});
-        }
-        if (mode === "beppe") playBeppeAudio(beppeSounds.countdown5);
-      });
+      // v9: the spoken "cinque, quattro, tre, due, uno" countdown was removed
+      // on request (audio 2026-08-11) — visual color warnings above remain.
     }
 
     // done → next
@@ -3612,41 +3649,14 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
       }
       if (useBip) playTransition();
 
-      // "fai X ripetizioni [lato]" at transition (timer=0)
-      if (upcoming && !upcoming.isLabel && (mode === "eleven" || mode === "voice" || mode === "synth")) {
-        // Built by the shared helper so the pre-flight audit checks the exact same
-        // strings this line speaks — an audit with its own copy of the phrasing would
-        // drift and start reporting green on cues that actually fall to synth.
-        const repsPhrase = buildRepsPhrase(upcoming);
-        if (repsPhrase) speak(repsPhrase, "it-IT").catch(() => {});
-
-        // Coach tip — once per block, 5s into the new exercise
-        clearTimeout(pendingTipTimeout);
-        pendingTipTimeout = null;
-        const tipKey = getCoachTip(upcoming, exercise);
-        const blockKey = `${upcoming.blockNumber}-${tipKey}`;
-        if (tipKey && coachTipsEnabled && !tippedBlocks.has(blockKey)) {
-          tippedBlocks.add(blockKey);
-          const TIP_TEXT = {
-            "tip-usa-massimo-peso":    "Usa il massimo peso che riesci a gestire",
-            "tip-se-fermi-riparti":    "Se ti fermi, riparti",
-            "tip-unico-set":           "Un unico set per esercizio, non fermarti a metà",
-            "tip-scendi-lento":        "Scendi lento, circa tre secondi",
-          };
-          pendingTipTimeout = setTimeout(() => {
-            pendingTipTimeout = null;
-            if (mode === "eleven") {
-              speakEleven(tipKey, "it-IT").catch(() => {
-                const text = TIP_TEXT[tipKey];
-                if (text) speak(text, "it-IT").catch(() => {});
-              });
-            } else {
-              const text = TIP_TEXT[tipKey];
-              if (text) speak(text, "it-IT").catch(() => {});
-            }
-          }, 5000);
-        }
-      }
+      // v9: name + reps for the incoming exercise are announced by
+      // playExercise() (announceCurrentExercise), so the first exercise of the
+      // session is finally announced too — the old code only spoke here, at a
+      // transition, which is why the opening exercise never got its cue.
+      // Coach tips ("unico set", "usa il massimo peso", ...) were removed on
+      // request (audio 2026-08-11: only the agreed announcements survive).
+      clearTimeout(pendingTipTimeout);
+      pendingTipTimeout = null;
 
       preloadUpcoming(currentStep, 4); // preload next 4 from here
       warmUpcomingAudio(currentStep, 3); // audio top-up: no-op on hits, repairs misses
@@ -3655,7 +3665,11 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
       const gifAhead = fullWorkoutSequence.slice(currentStep, currentStep + 4);
       warmGifCache(gifAhead.map(s => s && s.imageUrl));
       gifAhead.forEach(s => { if (s && s.imageUrl) getStaticThumb(s.imageUrl).catch(() => {}); });
-      setTimeout(() => playExercise(currentStep, fullWorkoutSequence), 300);
+      clearTimeout(pendingAdvanceTimeout);
+      pendingAdvanceTimeout = setTimeout(() => {
+        pendingAdvanceTimeout = null;
+        playExercise(currentStep, fullWorkoutSequence);
+      }, 300);
     }
   }, 200); // 5× per second → smooth and exact
 }
@@ -4486,6 +4500,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     soundModeSetup.addEventListener("change", e => syncSoundModeSelectors(e.target.value));
   }
 
+  // ===== MUTE TOGGLE (v9) =====
+  // Single voice, no mode choice: the soundMode selects are hidden and pinned to
+  // "eleven"; the only user-facing audio control is mute (plus phone volume).
+  const muteToggles = [
+    document.getElementById("mute-toggle"),
+    document.getElementById("mute-toggle-setup"),
+  ].filter(Boolean);
+  function applyMuted(muted) {
+    syncSoundModeSelectors(muted ? "none" : "eleven");
+    muteToggles.forEach(t => { t.checked = muted; });
+    localStorage.setItem("viltrum-muted", muted ? "true" : "false");
+  }
+  applyMuted(localStorage.getItem("viltrum-muted") === "true");
+  muteToggles.forEach(t => t.addEventListener("change", e => applyMuted(e.target.checked)));
+
   warmUpServer();
   // Guarded: a bare reference here threw at startup on engines without the API.
   try { speechSynthesis.getVoices(); } catch {}   // trigger voices load
@@ -4655,6 +4684,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     prevBtn.addEventListener("click", () => {
       if (currentStep > 0) {
         clearInterval(interval);
+        clearTimeout(pendingAdvanceTimeout);
+        pendingAdvanceTimeout = null;
         currentStep--;
         savedTimeLeft = null;
         isPaused = false;
@@ -4670,6 +4701,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     nextBtn.addEventListener("click", () => {
       if (currentStep < fullWorkoutSequence.length - 1) {
         clearInterval(interval);
+        clearTimeout(pendingAdvanceTimeout);
+        pendingAdvanceTimeout = null;
         currentStep++;
         savedTimeLeft = null;
         isPaused = false;
@@ -4790,7 +4823,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           const timerEl = document.getElementById("timer");
           if (timerEl) {
             timerEl.textContent = savedTimeLeft;
-            timerEl.style.color = "#4CAF50";
+            timerEl.style.color = "#C1FF72";
             setTimeout(() => {
               timerEl.style.color = "";
             }, 500);
@@ -4803,11 +4836,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (currentTimerEndTime !== null) {
           currentTimerEndTime += 10000; // Add 10 seconds in milliseconds
           console.log("[+10s] Added 10 seconds to active timer, new end time:", currentTimerEndTime);
-          
-          // Show visual feedback
+
+          // Re-arm cues the timer had already passed (e.g. was at 7s, now 17s:
+          // the 10s preview must fire again) and drop stale warning colors.
+          const newRemaining = Math.max(0, Math.ceil((currentTimerEndTime - Date.now()) / 1000));
+          [...timerFired].forEach(sec => { if (sec < newRemaining) timerFired.delete(sec); });
           const timerEl = document.getElementById("timer");
           if (timerEl) {
-            timerEl.style.color = "#4CAF50";
+            if (newRemaining > 10) timerEl.classList.remove("warning-10", "warning-6", "warning-3");
+            else if (newRemaining > 6) timerEl.classList.remove("warning-6", "warning-3");
+            else if (newRemaining > 3) timerEl.classList.remove("warning-3");
+            timerEl.style.color = "#C1FF72";
             setTimeout(() => {
               timerEl.style.color = "";
             }, 500);

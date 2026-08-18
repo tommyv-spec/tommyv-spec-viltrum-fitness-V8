@@ -26,7 +26,6 @@ const urlsToCache = [
   './audio/silence.wav',
 
   // Pages
-  './pages/dashboard.html',
   './pages/dashboard-v7.html',
   './pages/plan-view.html',
   './pages/workout.html',
@@ -37,36 +36,34 @@ const urlsToCache = [
   './pages/questionario.html',
   
   // JavaScript - Core
+  // v9 cleanup: dead modules dropped (state.js, access-control.js,
+  // welcome-modal.js, enhanced-settings.js, updated-training-data.js,
+  // nutrition-app.js v1); missing live scripts added (update-notifier.js,
+  // global-preload-bar.js, nutrition-app-v2.js) so pages work offline.
   './js/config.js',
   './js/api.js',
-  './js/state.js',
   './js/auth.js',
-  './js/access-control.js',
   './js/workout.js',
   './js/session-cache.js',
   './js/offline-preloader.js',
   './js/data-preloader.js',
   './js/preload-modal.js',
+  './js/update-notifier.js',
+  './js/global-preload-bar.js',
   './viewport.js',
-  
+
   // JavaScript - Features
   './js/workout-history.js',
   './js/profile-manager.js',
   './js/pace-zones.js',
-  './js/welcome-modal.js',
   './js/questionnaire-banner.js',
-  './js/enhanced-settings.js',
-  './js/updated-training-data.js',
-  './js/nutrition-app.js',
+  './js/nutrition-app-v2.js',
   './js/nutrition-engine.js',
   './js/training-selector.js',
-  
+
   // CSS
   './css/main.css',
-  './css/access-control.css',
   './css/nutrition.css',
-  './css/features.css',
-  './css/welcome-modal.css',
   
   // Data
   './food-database.json',

@@ -718,7 +718,7 @@ function findAlternative(meal, slotType) {
     return;
   }
 
-  const matchColor = equivalent.accuracy >= 85 ? '#4CAF50' : equivalent.accuracy >= 70 ? '#FFD700' : '#FF9800';
+  const matchColor = equivalent.accuracy >= 85 ? '#C1FF72' : equivalent.accuracy >= 70 ? '#FFD700' : '#FF9800';
 
   showModal(`
     <h3>✅ Trovato: ${equivalent.name}</h3>
