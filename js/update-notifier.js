@@ -32,6 +32,39 @@ class UpdateNotifier {
     }
   }
 
+  // v10.3 SELF-HEAL (iOS): confronta la versione IN ESECUZIONE (version.js
+  // locale, incluso in ogni pagina) con quella VERA sul server (fetch
+  // no-store). Se non coincidono: forza l'update del SW e, se dopo 8s la
+  // pagina è ancora vecchia, cancella le cache versionate e ricarica.
+  // È la via d'uscita deterministica dalle build stantie delle PWA iOS.
+  async selfHeal(registration, isInPages) {
+    try {
+      const localV = window.VILTRUM_VERSION || null;
+      if (!localV) return;
+      const url = (isInPages ? '../' : './') + 'js/version.js?heal=' + Date.now();
+      const txt = await (await fetch(url, { cache: 'no-store' })).text();
+      const m = txt.match(/v[\d.]+/);
+      if (!m || m[0] === localV) return;
+      console.warn(`[UpdateNotifier] build stantia: locale ${localV}, live ${m[0]} — self-heal`);
+      try { await registration.update(); } catch (e) {}
+      this.activate(registration);
+      setTimeout(async () => {
+        if (this.isSessionPage() || this.reloading) return;
+        const last = parseInt(sessionStorage.getItem('viltrum_selfheal_ts') || '0', 10);
+        if (Date.now() - last < 30000) return; // anti-loop
+        sessionStorage.setItem('viltrum_selfheal_ts', String(Date.now()));
+        try {
+          const names = await caches.keys();
+          await Promise.all(names
+            .filter(n => n.startsWith('viltrum-fitness-') || n.startsWith('viltrum-runtime-'))
+            .map(n => caches.delete(n)));
+        } catch (e) {}
+        this.reloading = true;
+        window.location.reload();
+      }, 8000);
+    } catch (e) {}
+  }
+
   init() {
     if (!('serviceWorker' in navigator)) return;
 
@@ -51,6 +84,17 @@ class UpdateNotifier {
         // Check subito + ogni 2 minuti (il check su navigazione lo fa già il browser)
         registration.update().catch(() => {});
         setInterval(() => { registration.update().catch(() => {}); }, 2 * 60 * 1000);
+        this.selfHeal(registration, isInPages);
+
+        // v10.3 iOS: le PWA standalone RIPRENDONO dalla memoria (niente load,
+        // timer sospesi in background) — il momento giusto per il check è il
+        // ritorno in foreground.
+        document.addEventListener('visibilitychange', () => {
+          if (!document.hidden) {
+            registration.update().catch(() => {});
+            this.selfHeal(registration, isInPages);
+          }
+        });
 
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
