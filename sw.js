@@ -64,9 +64,9 @@ const urlsToCache = [
 
   // CSS — versioned URLs must match the HTML links EXACTLY (Cache API is
   // query-sensitive). Bump ?v= here AND in every page on each CSS change.
-  './css/design-system.css?v=20260818w0',
-  './css/main.css?v=20260818w3',
-  './css/nutrition.css?v=20260818w2',
+  './css/design-system.css?v=20260818w1',
+  './css/main.css?v=20260818w4',
+  './css/nutrition.css?v=20260818w4',
   
   // Data
   './food-database.json',
@@ -83,7 +83,7 @@ const urlsToCache = [
   './icons/icon-512x512.png',
   
   // External resources (for offline)
-  'https://fonts.googleapis.com/css2?family=Staatliches&display=swap',
+  'https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
 ];
 

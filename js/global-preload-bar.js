@@ -86,14 +86,14 @@ const GlobalPreloadBar = {
       }
       
       .global-preload-bar-text {
-        font-family: 'Staatliches', sans-serif;
+        font-family: 'Archivo', system-ui, sans-serif;
         font-size: 14px;
         color: #B0B0B0;
         letter-spacing: 1px;
       }
       
       .global-preload-bar-percent {
-        font-family: 'Staatliches', sans-serif;
+        font-family: 'Archivo', system-ui, sans-serif;
         font-size: 14px;
         color: #FFFFFF;
         letter-spacing: 1px;

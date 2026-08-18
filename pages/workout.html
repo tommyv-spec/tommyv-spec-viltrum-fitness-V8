@@ -19,9 +19,9 @@
     html, body { background: #000000 !important; }
   </style>
   
-  <link href="https://fonts.googleapis.com/css2?family=Staatliches&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../css/design-system.css?v=20260818w0" />
-  <link rel="stylesheet" href="../css/main.css?v=20260818w3" />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/design-system.css?v=20260818w1" />
+  <link rel="stylesheet" href="../css/main.css?v=20260818w4" />
   
   <!-- PWA Manifest -->
   <link rel="manifest" href="../manifest.json" />
@@ -66,7 +66,12 @@
       <!-- Back button verrà aggiunto via JS se necessario -->
     </div>
     <div class="header-center">
-      <img id="header-logo" data-src="https://lh3.googleusercontent.com/d/1va6OkGp9yAHDJBfeDM3npwqlJJoLUh5C" alt="Logo" style="opacity: 0;" />
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div aria-hidden="true" style="width:34px;height:34px;border-radius:9px;background:var(--accent);display:grid;place-items:center;color:var(--accent-ink);flex-shrink:0;">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6.5 6.5h11M6.5 17.5h11M4 12h16M7 6.5v11M17 6.5v11"/></svg>
+        </div>
+        <div style="font-weight:800;font-size:15px;letter-spacing:1px;color:var(--ds-text);">VILTRUM</div>
+      </div>
     </div>
     <div class="header-right">
       <a href="dashboard-v7.html" class="header-action-btn">
@@ -204,7 +209,7 @@
              (audio 2026-08-11 pt.8; il tap sul ☰ interferiva anche con la voce) -->
         <div id="controls-container">
           <button id="prev-exercise-button" class="nav-btn" title="Esercizio precedente">◀</button>
-          <button id="pause-button">⏸ Pausa</button>
+          <button id="pause-button" aria-label="Pausa">⏸</button>
           <button id="add-10s-button" class="add-time-btn" title="Aggiungi 10 secondi">+10s</button>
           <button id="next-exercise-button" class="nav-btn" title="Esercizio successivo">▶</button>
           <button id="settings-button" class="settings-btn" title="Impostazioni">⚙</button>

@@ -217,7 +217,7 @@ body::before {
 
 
 body {
-  font-family: 'Staatliches', sans-serif;
+  font-family: 'Archivo', system-ui, sans-serif;
   background: var(--gradient-dark);
   background-color: var(--color-bg-dark) !important;
   color: var(--color-white);
@@ -309,7 +309,7 @@ header img,
 header h1,
 .header-center h1 {
   display: block !important;
-  font-family: 'Staatliches', sans-serif;
+  font-family: 'Archivo', system-ui, sans-serif;
   font-size: clamp(1rem, 2.5vh, 1.4rem);
   color: #FFF;
   letter-spacing: 2px;
@@ -334,7 +334,7 @@ header audio {
   border: 2px solid #FFF;
   border-radius: 8px;
   color: #FFF;
-  font-family: 'Staatliches', sans-serif;
+  font-family: 'Archivo', system-ui, sans-serif;
   font-size: clamp(12px, 1.6vh, 16px);
   letter-spacing: 1px;
   cursor: pointer;
@@ -357,7 +357,7 @@ header audio {
   border: 2px solid #FFF;
   border-radius: 8px;
   color: #000;
-  font-family: 'Staatliches', sans-serif;
+  font-family: 'Archivo', system-ui, sans-serif;
   font-size: clamp(12px, 1.6vh, 16px);
   font-weight: bold;
   letter-spacing: 1px;
@@ -617,7 +617,7 @@ main {
   font-size: clamp(14px, 3.5vw, 18px); /* Readable font size */
   outline: none;
   transition: all 0.2s ease;
-  font-family: 'Staatliches', sans-serif;
+  font-family: 'Archivo', system-ui, sans-serif;
   flex-shrink: 0;
   min-height: 48px; /* Touch-friendly minimum */
   box-sizing: border-box;
@@ -1500,7 +1500,7 @@ body:has(#exercise-container[style*="display: flex"]) {
   justify-content: center;
   height: 44px;
   border-radius: 22px;
-  font-family: 'Staatliches', sans-serif;
+  font-family: 'Archivo', system-ui, sans-serif;
   font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -1791,7 +1791,7 @@ audio {
   cursor: pointer;
   text-align: center;
   text-align-last: center;
-  font-family: 'Staatliches', sans-serif;
+  font-family: 'Archivo', system-ui, sans-serif;
 }
 
 
@@ -2252,7 +2252,7 @@ select option { letter-spacing: inherit; }
 /* Default (will be overridden by theme) */
 html { background: #000000; }
 body {
-  font-family: 'Staatliches', sans-serif;
+  font-family: 'Archivo', system-ui, sans-serif;
   background: #000000;
   color: #fff;
   min-height: var(--dvh-px);
@@ -2414,7 +2414,7 @@ body.preload-bar-visible #setup-screen {
 /* Letter spacing kept */
 body, button, select, label, .exercise-name, .section-title, .section-count { letter-spacing: .15em; }
 h1, h2, h3, .settings-content h3, #workout-preview-title { letter-spacing: .1em; }
-.start-button, #pause-button, #prev-exercise-button, #next-exercise-button, #settings-button, #setup-settings-button { letter-spacing: .13em; }
+.start-button, #pause-button, #prev-exercise-button, #next-exercise-button, #settings-button, #setup-settings-button { letter-spacing: .01em; }
 select option { letter-spacing: inherit; }
 
 
@@ -2449,9 +2449,8 @@ select option { letter-spacing: inherit; }
   border-radius: 12px;
   padding: clamp(14px, 3vw, 18px) clamp(20px, 4vw, 28px);
   font-size: clamp(15px, 3.2vw, 18px);
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   cursor: pointer;
   box-shadow: var(--primary-shadow);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -2498,9 +2497,8 @@ select option { letter-spacing: inherit; }
   border-radius: 10px;
   padding: clamp(10px, 2.2vw, 14px) clamp(16px, 3.2vw, 20px);
   font-size: clamp(13px, 2.8vw, 15px);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   cursor: pointer;
   box-shadow: var(--secondary-shadow);
   transition: all 0.2s ease;
@@ -2546,9 +2544,8 @@ select option { letter-spacing: inherit; }
   border-radius: 10px;
   padding: clamp(10px, 2.2vw, 13px) clamp(16px, 3.2vw, 20px);
   font-size: clamp(13px, 2.8vw, 15px);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   cursor: pointer;
   box-shadow: var(--destructive-shadow);
   transition: all 0.2s ease;
@@ -2710,10 +2707,9 @@ button:focus-visible,
 button {
   appearance: none;
   border-radius: 10px;
-  text-transform: uppercase;
   cursor: pointer;
-  font-family: 'Staatliches', sans-serif;
-  letter-spacing: 0.1em;
+  font-family: 'Archivo', system-ui, sans-serif;
+  letter-spacing: 0.01em;
 }
 
 /* Remove any gradient backgrounds */
@@ -3557,7 +3553,7 @@ body:has(#login-screen:not([style*="display: none"])) #bottom-buttons-container 
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 10px;
   color: var(--color-white);
-  font-family: 'Staatliches', sans-serif;
+  font-family: 'Archivo', system-ui, sans-serif;
   font-size: clamp(13px, 2.8vw, 15px);
   letter-spacing: 1px;
   cursor: pointer;
@@ -3619,7 +3615,7 @@ body:has(#login-screen:not([style*="display: none"])) #bottom-buttons-container 
 
 .detail-item h4 {
   color: var(--color-white);
-  font-family: 'Staatliches', sans-serif;
+  font-family: 'Archivo', system-ui, sans-serif;
   font-size: clamp(14px, 3vw, 16px);
   letter-spacing: 1px;
   margin: 0 0 clamp(6px, calc(var(--dvh-px) * 0.01), 8px) 0;
@@ -4198,14 +4194,17 @@ body.workout-active #controls-container .settings-btn {
   backdrop-filter: blur(4px);
 }
 body.workout-active #pause-button {
-  height: 60px !important;
-  padding: 0 26px !important;
-  border-radius: 999px !important;
+  width: 72px !important;
+  height: 72px !important;
+  flex: 0 0 auto;
+  padding: 0 !important;
+  border-radius: 50% !important;
   background: #C1FF72 !important;
   color: #0d0d0d !important;
   border: none !important;
-  font-size: 17px !important;
-  box-shadow: 0 8px 24px rgba(0,0,0,.45);
+  font-size: 26px !important;
+  line-height: 1 !important;
+  box-shadow: none;
 }
 body.workout-active #pause-button.paused {
   background: #fff !important;

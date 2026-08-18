@@ -4644,10 +4644,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       isPaused = !isPaused;
       const btn = document.getElementById("pause-button");
       if (isPaused) {
-        btn.textContent = "▶️ Riprendi";
+        btn.textContent = "▶";
+        btn.setAttribute("aria-label", "Riprendi");
         // the loop will capture savedTimeLeft and stop itself
       } else {
-        btn.textContent = "⏸ Pausa";
+        btn.textContent = "⏸";
+        btn.setAttribute("aria-label", "Pausa");
         resumeTimer();
       }
     });
@@ -4689,7 +4691,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         savedTimeLeft = null;
         isPaused = false;
         const pauseBtn = document.getElementById("pause-button");
-        if (pauseBtn) pauseBtn.textContent = "⏸ Pausa";
+        if (pauseBtn) { pauseBtn.textContent = "⏸"; pauseBtn.setAttribute("aria-label", "Pausa"); }
         playExercise(currentStep, fullWorkoutSequence);
       }
     });
@@ -4706,7 +4708,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         savedTimeLeft = null;
         isPaused = false;
         const pauseBtn = document.getElementById("pause-button");
-        if (pauseBtn) pauseBtn.textContent = "⏸ Pausa";
+        if (pauseBtn) { pauseBtn.textContent = "⏸"; pauseBtn.setAttribute("aria-label", "Pausa"); }
         playExercise(currentStep, fullWorkoutSequence);
       }
     });

@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    VILTRUM DESIGN SYSTEM — base estratta 1:1 dall'app MoreMuscle di Giuseppe
    (src/shared/ui.jsx), che è la fonte di verità del look. Delta Viltrum
-   deliberati: font Staatliches (scelta esplicita del proprietario), palette
+   deliberati: font Archivo (grotesque classe-Gotham, richiesta di Giuseppe), palette
    zone corsa Z1-Z5, stati hover, focus ring accent (fix a11y assente nel
    reference), spinner di caricamento.
 
@@ -94,7 +94,7 @@
   --ds-ctrl-border: rgba(255, 255, 255, 0.18);
 
   /* ── Tipografia ── */
-  --ds-font: 'Staatliches', sans-serif; /* delta Viltrum: resta Staatliches */
+  --ds-font: 'Archivo', system-ui, sans-serif; /* Gotham-class, come chiesto da Giuseppe */
 
   /* ── z-scale ── */
   --z-header: 10;

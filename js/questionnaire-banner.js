@@ -44,7 +44,7 @@ function render(url) {
       justify-content: space-between;
       box-shadow: 0 -4px 12px rgba(0,0,0,0.35);
       z-index: 99998;
-      font-family: 'Staatliches', sans-serif;
+      font-family: 'Archivo', system-ui, sans-serif;
       animation: qbSlideUp 0.3s ease;
     ">
       <div style="flex: 1;">
@@ -63,7 +63,7 @@ function render(url) {
         border-radius: 8px;
         font-size: 16px;
         font-weight: bold;
-        font-family: 'Staatliches', sans-serif;
+        font-family: 'Archivo', system-ui, sans-serif;
         cursor: pointer;
         letter-spacing: 1px;
         margin-left: 15px;

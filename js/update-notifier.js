@@ -100,7 +100,7 @@ class UpdateNotifier {
         justify-content: space-between;
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         z-index: 99999;
-        font-family: 'Staatliches', sans-serif;
+        font-family: 'Archivo', system-ui, sans-serif;
         animation: slideDown 0.3s ease;
       ">
         <div style="flex: 1;">
@@ -119,7 +119,7 @@ class UpdateNotifier {
           border-radius: 8px;
           font-size: 16px;
           font-weight: bold;
-          font-family: 'Staatliches', sans-serif;
+          font-family: 'Archivo', system-ui, sans-serif;
           cursor: pointer;
           transition: all 0.3s;
           letter-spacing: 1px;
