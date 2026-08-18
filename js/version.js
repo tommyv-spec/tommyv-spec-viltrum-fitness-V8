@@ -1,2 +1,2 @@
 ﻿// Bumped automatically by deploy.ps1 on every deploy.
-window.VILTRUM_VERSION = 'v8.2.69';
+window.VILTRUM_VERSION = 'v8.2.70';
