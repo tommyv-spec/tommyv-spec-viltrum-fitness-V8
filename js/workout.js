@@ -1029,6 +1029,9 @@ const AudioEngine = {
       src.buffer = ctx.createBuffer(1, 1, 22050);
       src.connect(ctx.destination);
       src.start(0);
+      // v10.10: sblocco ottenuto — sospendi subito, il ctx si riaccende
+      // per ogni cue e si rispegne dopo (niente focus audio tenuto a vuoto).
+      this._scheduleIdleSuspend();
     } catch (e) {}
   },
 
@@ -1057,7 +1060,31 @@ const AudioEngine = {
   /* Resolves true (played or deliberately stopped), false (failed), or the string
      "unavailable" (context not running / decode impossible) — the caller then uses
      the element path. Bounded everywhere; this must never park the speak chain. */
+  // v10.10: il ctx resta ACCESO solo mentre un cue suona. Un AudioContext
+  // running (anche muto) con sessione playback tiene il focus audio iOS e
+  // ferma la musica delle altre app — era questo a uccidere Spotify all'avvio
+  // e a ogni rientro, non i cue.
+  _idleTimer: null,
+  _scheduleIdleSuspend() {
+    clearTimeout(this._idleTimer);
+    this._idleTimer = setTimeout(() => {
+      try {
+        if (this.ctx && this.ctx.state === "running" && this.active.size === 0) {
+          this.ctx.suspend().catch(() => {});
+        }
+      } catch (e) {}
+    }, 1500);
+  },
+
   async play(audioKey, requestedAt) {
+    const ctx = this._context();
+    if (!ctx) return "unavailable";
+    clearTimeout(this._idleTimer);
+    // claim della sessione SOLO ora, a ridosso del suono vero
+    claimTransientAudioSession();
+    if (ctx.state === "suspended") {
+      try { await Promise.race([ctx.resume(), new Promise(r => setTimeout(r, 800))]); } catch (e) {}
+    }
     if (!this.usable()) return "unavailable";
     let buf;
     try {
@@ -1082,6 +1109,7 @@ const AudioEngine = {
         settled = true;
         clearTimeout(watchdog);
         this.active.delete(src);
+        if (this.active.size === 0) this._scheduleIdleSuspend(); // v10.10: rilascia il focus
         resolve(ok);
       };
       // onended fires on natural end AND on stop() — both are success semantics
@@ -1100,6 +1128,7 @@ const AudioEngine = {
       try { src.stop(); } catch (e) {}
     }
     this.active.clear();
+    this._scheduleIdleSuspend(); // v10.10
   }
 };
 
@@ -1128,6 +1157,7 @@ async function playElevenAudio(audioKey) {
     // so crossOrigin="anonymous" fails the load outright.
     // v10.1 iOS: riusa il singleton gia' sbloccato dal gesto — un elemento
     // creato ora non e' MAI stato sbloccato e play() verrebbe rifiutato.
+    claimTransientAudioSession(); // v10.10: claim solo a ridosso del suono
     const audio = ttsAudio;
     try { audio.pause(); } catch (e) {}
     audio.onplaying = audio.onpause = audio.onerror = audio.onended = null;
@@ -2105,11 +2135,9 @@ document.addEventListener('click',      primeSynth, { once: true });
 function unlockAllAudio() {
   if (window.__audioUnlocked) return;
 
-  // Re-assert inside the real gesture: some iOS builds only honour the playback
-  // session once the page has been interacted with.
-  claimTransientAudioSession();
-  // Wake the buffer engine's context while we hold a genuine gesture — the only
-  // moment iOS allows it.
+  // v10.10: NIENTE claim qui — la claim avviene solo a ridosso di un suono
+  // vero (AudioEngine.play / element path), cosi' aprire il workout non tocca
+  // la musica di altre app. Il kick del gesto serve solo per il permesso.
   AudioEngine.unlock();
 
   try {
@@ -2154,19 +2182,15 @@ document.addEventListener("click", unlockAllAudio);
 // voice then only came back when the user happened to tap the ☰ menu (any
 // gesture works, that was just the one they tapped). Resume on EVERY gesture
 // and on returning to the foreground, so speech recovers by itself.
-function resumeAudioEngineIfSuspended() {
-  const ctx = AudioEngine.ctx;
-  if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
-}
-document.addEventListener("touchstart", resumeAudioEngineIfSuspended, { passive: true });
-document.addEventListener("click", resumeAudioEngineIfSuspended);
+// v10.10: NIENTE resume su ogni gesto/foreground — riattivava il ctx (e con
+// lui il focus audio iOS) fermando Spotify a ogni tap e a ogni rientro.
+// Il resume ora avviene SOLO dentro AudioEngine.play, a ridosso del cue.
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
-    // v10.1: iOS puo' revocare l'unlock degli elementi durante un'interruzione;
+    // iOS puo' revocare l'unlock degli elementi durante un'interruzione;
     // ri-armiamo cosi' il primo gesto al ritorno rifa' l'unlock completo.
     window.__audioUnlocked = false;
   } else {
-    resumeAudioEngineIfSuspended();
     try { if ('speechSynthesis' in window) speechSynthesis.resume(); } catch (e) {}
   }
 });
@@ -2339,22 +2363,21 @@ const TTS_RETRIES = 2;
 // ring/silent switch mutes. Users train with the phone on silent, so every cue vanished.
 // Safari 16.4+ lets us claim the playback session instead. Safe no-op elsewhere.
 function claimTransientAudioSession() {
-  // v10.9 FINALE (triangolo iOS mappato SUL device, decisione del proprietario):
-  //   playback  = voce sempre udibile, scavalca la levetta; musica in pausa
-  //               SOLO durante gli annunci (lo sblocco muted ha eliminato gli
-  //               stop gratuiti all'avvio/rientro)
-  //   ambient   = musica ok ma cue MUTI con levetta su silenzioso (testato)
-  //   transient = tutto muto (testato)
-  // La voce che suona sempre vince: playback, per tutti, senza opzioni.
+  // v10.11 DECISIONE FINALE DEL PROPRIETARIO: "la musica non si deve MAI
+  // stoppare, punto." → sessione AMBIENT, sempre: i cue si MESCOLANO alla
+  // musica di altre app, che non viene mai toccata (parita' Android).
+  // Trade-off noto e accettato: con la levetta su silenzioso i cue ambient
+  // sono muti (limite iOS). playback/transient BANDITI (fermano la musica /
+  // muti del tutto — mappato su device).
   try {
-    if ("audioSession" in navigator && navigator.audioSession.type !== "playback") {
-      navigator.audioSession.type = "playback";
+    if ("audioSession" in navigator && navigator.audioSession.type !== "ambient") {
+      navigator.audioSession.type = "ambient";
     }
   } catch (e) {
     console.warn("audioSession unavailable:", e);
   }
 }
-claimTransientAudioSession();
+// v10.10: nessuna claim a load — solo a ridosso dei suoni veri.
 
 // Nothing plays through Web Audio any more, so this no longer builds an AudioContext.
 // The old version created a throwaway context and awaited resume() with no timeout —
@@ -2362,9 +2385,7 @@ claimTransientAudioSession();
 // and speakCloud() await this function.
 async function ensureAudioUnlocked() {
   // v10.1: NON setta window.__audioUnlocked — quel flag appartiene al vero
-  // unlock dentro un gesto (unlockAllAudio). Settarlo qui, fuori gesto,
-  // faceva saltare per sempre l'unlock reale degli elementi.
-  claimTransientAudioSession();
+  // unlock dentro un gesto (unlockAllAudio). v10.10: niente claim qui.
   AudioEngine.unlock();
 }
 

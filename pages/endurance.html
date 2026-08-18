@@ -598,8 +598,8 @@
     // il prezzo e' che la musica di altre app puo' interrompersi durante i cue.
     function claimPlaybackAudioSession() {
       try {
-        if ('audioSession' in navigator && navigator.audioSession.type !== 'playback') {
-          navigator.audioSession.type = 'playback';
+        if ('audioSession' in navigator && navigator.audioSession.type !== 'ambient') {
+          navigator.audioSession.type = 'ambient';
         }
       } catch (e) {
         console.warn('audioSession unavailable:', e);
@@ -615,7 +615,7 @@
     async function ensureAudioUnlocked() {
       if (audioUnlocked || audioUnlockInFlight) return;
       audioUnlockInFlight = true;      // re-entrancy guard, NON il flag di successo
-      claimPlaybackAudioSession();
+      // v10.10: niente claim qui — solo a ridosso dei suoni veri
       try {
         // v10.1 iOS: l'unlock e' PER-ELEMENTO — anche beep e transition devono
         // fare un play() dentro il gesto, altrimenti restano muti dai timer.
@@ -652,6 +652,7 @@
     async function playAudioUrl(url) {
       const el = document.getElementById('tts-audio');
       if (!el) return;
+      claimPlaybackAudioSession(); // v10.10: claim a ridosso del suono
       
       return Promise.race([
         new Promise((resolve, reject) => {
