@@ -4285,13 +4285,10 @@ body.workout-active #pause-button.paused {
    v9.2 — LINGUAGGIO VISIVO MOREMUSCLE (best-of-both: look del reference,
    feature engine di Viltrum). Token globali + override dei bottoni primari.
    ═══════════════════════════════════════════════════════════════════════════ */
-:root {
-  --accent: #C1FF72;
-  --accent-hover: #AEEB5C;
-  --accent-ink: #0D0D0D;     /* testo scuro sui fondi accent */
-  --surface: #151515;        /* card */
-  --surface-border: #232323; /* bordo card, sottile */
-}
+/* Token spostati in css/design-system.css (unico definitore — Phase 0 del
+   restyle). Le regole .start-button qui sotto restano QUI di proposito: la
+   loro posizione tarda nel file serve a battere gli !important del vecchio
+   "HIERARCHY SYSTEM" (L2493+); si sposteranno quando quel blocco morirà. */
 
 /* Bottone principale (Start Workout) → pillola fluo come il reference */
 .start-button {

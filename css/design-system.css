@@ -1,0 +1,262 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   VILTRUM DESIGN SYSTEM — base estratta 1:1 dall'app MoreMuscle di Giuseppe
+   (src/shared/ui.jsx), che è la fonte di verità del look. Delta Viltrum
+   deliberati: font Staatliches (scelta esplicita del proprietario), palette
+   zone corsa Z1-Z5, stati hover, focus ring accent (fix a11y assente nel
+   reference), spinner di caricamento.
+
+   REGOLE:
+   - Solo token e classi componente. NIENTE selettori di elemento nudi
+     (button/input/...) — le pagine self-contained non devono cambiare
+     finché non tocca alla loro wave.
+   - Bordi SEMPRE 1px. Niente box-shadow (unica eccezione: disco timer del
+     player). Niente glow bianchi. Testo su accent SEMPRE scuro, mai bianco.
+   - Questo file è l'UNICO che definisce i token --ds-* e --accent/--surface.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Superfici (scala di elevazione, dal fondo al modale) ── */
+  --ds-bg: #0d0d0d;             /* canvas app */
+  --ds-void: #000000;           /* pozzi immagine/video, player */
+  --ds-sunken: #0f0f0f;         /* righe incassate dentro le card */
+  --ds-surface-1: #141414;      /* contenitore blocco */
+  --ds-surface: #151515;        /* card di default */
+  --ds-surface-modal: #161616;  /* modale (un gradino più chiaro) */
+  --ds-control: #1a1a1a;        /* bottoni icona, superfici di controllo */
+
+  /* ── Bordi (tutti 1px; la luminosità segue l'elevazione) ── */
+  --ds-border-hair: #1f1f1f;    /* hairline header */
+  --ds-border-inner: #222222;   /* righe interne */
+  --ds-border: #232323;         /* bordo card default */
+  --ds-border-modal: #2a2a2a;   /* modale / bottone icona */
+  --ds-border-field: #2e2e2e;   /* campi input */
+  --ds-border-strong: #333333;  /* outline interattivo (ghost) */
+  --ds-border-dashed: #3a3a3a;  /* bottone "aggiungi" tratteggiato */
+
+  /* ── Testo (6 livelli) ── */
+  --ds-text-max: #ffffff;
+  --ds-text: #f2f2f2;
+  --ds-text-2: #dddddd;
+  --ds-text-3: #cccccc;
+  --ds-text-4: #bbbbbb;
+  --ds-text-label: #999999;
+  --ds-text-muted: #888888;
+  --ds-text-faint: #777777;
+
+  /* ── Accent (lime MoreMuscle) ── */
+  --accent: #C1FF72;
+  --accent-hover: #AEEB5C;
+  --accent-ink: #0d0d0d;              /* foreground SU accent, mai bianco */
+  --accent-a90: rgba(193, 255, 114, 0.9);
+  --accent-a15: rgba(193, 255, 114, 0.15);
+  --accent-a08: rgba(193, 255, 114, 0.08);
+
+  /* back-compat con le regole v9.2 già in produzione */
+  --surface: var(--ds-surface);
+  --surface-border: var(--ds-border);
+
+  /* ── Famiglia "riposo" (blu, dal player MoreMuscle) ── */
+  --ds-rest-text: #7fb0ff;
+  --ds-rest-ring: #3b82f6;
+  --ds-rest-sub: #cdddf5;
+  --ds-rest-bg: #12233b;
+  --ds-rest-border: #223344;
+
+  /* ── Semantici ── */
+  --ds-danger: #f87171;
+  --ds-success: #4ade80;
+  --ds-warn-text: #f0b155;
+  --ds-warn-bg: #3b2a12;
+  --ds-ok-text: #5fd88f;
+  --ds-ok-bg: #12331f;
+
+  /* ── Zone corsa Viltrum (semantiche, NON accent — restano 5 tinte) ── */
+  --ds-z1: #3498db;
+  --ds-z2: #27ae60;
+  --ds-z3: #f1c40f;
+  --ds-z4: #e67e22;
+  --ds-z5: #e74c3c;
+
+  /* ── Forma ── */
+  --ds-r-input: 8px;
+  --ds-r-btn: 9px;
+  --ds-r-row: 10px;
+  --ds-r-card: 13px;
+  --ds-r-modal: 16px;
+  --ds-r-pill: 20px;
+
+  /* ── Overlay / vetro (solo player) ── */
+  --ds-scrim-top: linear-gradient(to bottom, rgba(0,0,0,.7), rgba(0,0,0,0));
+  --ds-scrim-bottom: linear-gradient(to top, rgba(0,0,0,.85), rgba(0,0,0,0));
+  --ds-glass: rgba(0, 0, 0, 0.4);
+  --ds-glass-border: rgba(255, 255, 255, 0.15);
+  --ds-ctrl-fill: rgba(255, 255, 255, 0.08);
+  --ds-ctrl-border: rgba(255, 255, 255, 0.18);
+
+  /* ── Tipografia ── */
+  --ds-font: 'Staatliches', sans-serif; /* delta Viltrum: resta Staatliches */
+
+  /* ── z-scale ── */
+  --z-header: 10;
+  --z-overlay: 3;
+  --z-modal: 50;
+  --z-player: 200;
+}
+
+/* ═══ COMPONENTI (adottati progressivamente, una wave alla volta) ═══ */
+
+/* Bottone primario — pieno accent, testo scuro */
+.ds-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: none;
+  padding: 12px 22px;
+  border-radius: 11px;
+  font-family: var(--ds-font);
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+.ds-btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+.ds-btn-primary:active:not(:disabled) { transform: scale(0.98); }
+.ds-btn-primary:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* Bottone ghost — trasparente con outline */
+.ds-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: transparent;
+  color: var(--ds-text-4);
+  border: 1px solid var(--ds-border-strong);
+  padding: 7px 12px;
+  border-radius: var(--ds-r-input);
+  font-family: var(--ds-font);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.ds-btn-ghost:hover:not(:disabled) { border-color: var(--accent); color: var(--ds-text); }
+.ds-btn-ghost:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* Bottone icona */
+.ds-btn-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  background: var(--ds-control);
+  border: 1px solid var(--ds-border-modal);
+  color: var(--ds-text-3);
+  border-radius: var(--ds-r-input);
+  cursor: pointer;
+}
+
+/* Card */
+.ds-card {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-r-card);
+  padding: 16px 18px;
+}
+
+/* Modale */
+.ds-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: grid;
+  place-items: center;
+  z-index: var(--z-modal);
+  padding: 16px;
+}
+.ds-modal {
+  width: 100%;
+  max-width: 420px;
+  background: var(--ds-surface-modal);
+  border: 1px solid var(--ds-border-modal);
+  border-radius: var(--ds-r-modal);
+  padding: 20px;
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+/* Campo input/select */
+.ds-field {
+  width: 100%;
+  background: var(--ds-bg);
+  border: 1px solid var(--ds-border-field);
+  color: var(--ds-text-max);
+  padding: 9px 12px;
+  border-radius: var(--ds-r-input);
+  font-family: var(--ds-font);
+  font-size: 14px;
+}
+.ds-field-label {
+  display: block;
+  font-size: 12px;
+  color: var(--ds-text-label);
+  font-weight: 600;
+  margin: 10px 0 5px;
+}
+
+/* Focus ring accent — delta Viltrum (il reference non ha focus visibile) */
+.ds-btn-primary:focus-visible,
+.ds-btn-ghost:focus-visible,
+.ds-btn-icon:focus-visible,
+.ds-field:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.ds-field:focus { border-color: var(--accent); }
+
+/* Chip / eyebrow blocco (etichetta fluo maiuscola) */
+.ds-block-label {
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+/* Pill badge (conteggi, stati) */
+.ds-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--ds-r-pill);
+  font-size: 12.5px;
+  font-weight: 600;
+  background: var(--accent-a15);
+  border: 1px solid rgba(193, 255, 114, 0.3);
+  color: var(--accent);
+}
+.ds-pill--rest { background: var(--ds-rest-bg); border-color: var(--ds-rest-border); color: var(--ds-rest-text); }
+.ds-pill--warn { background: var(--ds-warn-bg); border-color: transparent; color: var(--ds-warn-text); }
+.ds-pill--ok   { background: var(--ds-ok-bg);   border-color: transparent; color: var(--ds-ok-text); }
+
+/* Messaggi di feedback */
+.ds-msg-error   { color: var(--ds-danger);  font-size: 13px; text-align: center; margin-top: 10px; }
+.ds-msg-success { color: var(--ds-success); font-size: 13px; text-align: center; margin-top: 10px; }
+
+/* Barra progresso */
+.ds-progress-track {
+  width: 100%;
+  height: 8px;
+  background: var(--ds-border-strong);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.ds-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
