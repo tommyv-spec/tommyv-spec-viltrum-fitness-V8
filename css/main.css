@@ -4367,9 +4367,13 @@ body.workout-active #pause-button.paused {
   border: none;
   border-radius: 0;
   margin: 0;
-  height: 120px;
+  /* GIF esercizi = verticali 9:16 — object-fit:contain così la figura non
+     viene mai tagliata (bande laterali scure invece del crop). */
+  height: auto;
+  aspect-ratio: 3 / 4;
+  object-fit: contain;
   clip-path: none;
-  background: #000;
+  background: #0B0B0B;
 }
 #exercise-grid .exercise-name {
   color: #FFF;
