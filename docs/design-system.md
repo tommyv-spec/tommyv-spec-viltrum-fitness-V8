@@ -46,7 +46,7 @@ Fonte di verità del look: l'app **MoreMuscle** di Giuseppe (github.com/bepsmarz
 - [x] Phase 0 — token + cache-busting (v8.2.58, zero visual)
 - [x] Wave 1 — dashboard polish, banner unificati, preload surfaces, residui player (v8.2.59)
 - [x] Wave 2 — plan-view, completion, settings popup, profile, questionario, nutrition (v8.2.60)
-- [ ] Wave 3 — index (login/auth/selector/sheet), workout setup, endurance, delete hierarchy L2493–2797
-- [ ] Final — gsd-ui-review audit + web-perf + pagina Artifact per Giuseppe
+- [x] Wave 3 — index (login/auth/selector/sheet), workout setup, endurance; hierarchy RI-PUNTATA sui token invece che cancellata (meno rischio, stesso risultato visivo) (v8.2.61 + fix review v8.2.62)
+- [ ] Final — gsd-ui-review audit + web-perf + pagina Artifact per Giuseppe + test su device
 
 Nota cache: nutrition.css v8.2.62 è cambiato senza bump ?v= (solo fix minori) — bumpare al prossimo deploy che tocca CSS.
