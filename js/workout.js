@@ -3153,6 +3153,45 @@ if (document.readyState === 'loading') {
   showCrumbIfCrashed();
 }
 
+/* v10 (feature approvata da Giuseppe): pesi suggeriti in % del massimale.
+   Convenzione foglio: una percentuale "NN%" dentro reps o tipoDiPeso
+   (es. peso "Bilanciere 75%"). Il massimale arriva da "I Miei Massimali"
+   (localStorage viltrum_user_maxes, chiavi profile-manager). L'ordine dei
+   pattern conta: i piu' specifici prima (sumo prima di deadlift, ecc.). */
+const MAX_LIFT_PATTERNS = [
+  { key: 'front_squat',   re: /front\s*squat/i },
+  { key: 'sumo_deadlift', re: /sumo/i },
+  { key: 'back_squat',    re: /back\s*squat|squat/i },
+  { key: 'deadlift',      re: /deadlift|stacco/i },
+  { key: 'bench_press',   re: /bench|panca/i },
+  { key: 'push_press',    re: /push\s*press/i },
+  { key: 'strict_press',  re: /strict|military|overhead|lento\s*avanti/i },
+];
+
+function computePercentWeight(exercise) {
+  const src = `${(exercise && exercise.reps) || ''} ${(exercise && exercise.tipoDiPeso) || ''}`;
+  const m = src.match(/(\d{1,3})\s*%/);
+  if (!m) return null;
+  const pct = parseInt(m[1], 10);
+  if (!pct || pct > 200) return null;
+  let maxes = {};
+  try { maxes = JSON.parse(localStorage.getItem('viltrum_user_maxes') || '{}') || {}; } catch (e) {}
+  const name = (exercise && exercise.name) || '';
+  for (const { key, re } of MAX_LIFT_PATTERNS) {
+    const val = parseFloat(maxes[key]);
+    if (re.test(name) && val > 0) {
+      return { pct, kg: Math.round((pct / 100) * val * 2) / 2 };
+    }
+  }
+  return { pct, kg: null };
+}
+
+/* Suffisso leggibile: " · ~60kg" (il "75%" e' gia' nel testo del foglio). */
+function percentWeightSuffix(exercise) {
+  const pw = computePercentWeight(exercise);
+  return (pw && pw.kg) ? ` \u00b7 ~${pw.kg}kg` : '';
+}
+
 function setStageText(nameHTML, metaHTML) {
   const n = document.getElementById("exercise-name");
   const m = document.getElementById("exercise-meta");
@@ -3270,6 +3309,17 @@ async function playExercise(index, exercises, resumeTime = null) {
   // so un-pausing mid-exercise doesn't re-announce it.
   if (resumeTime === null) announceCurrentExercise(exercise);
 
+  // v10 (riposo libero, via di mezzo approvata da Giuseppe): negli step di
+  // riposo mostra "+20s Resto ancora"; il flusso resta automatico.
+  const restExtendBtn = document.getElementById("rest-extend-btn");
+  if (restExtendBtn) {
+    const isRestStep = !!(exercise && (
+      (exercise.nextBlockPreview && exercise.nextBlockPreview.length) ||
+      /\b(rest|riposo|pausa)\b/i.test(exercise.name || "")
+    ));
+    restExtendBtn.style.display = isRestStep ? "" : "none";
+  }
+
   const hasReps = exercise.reps && !exercise.name.toLowerCase().includes("istruz");
   const hasEquipment = exercise.tipoDiPeso && !exercise.name.toLowerCase().includes("istruz") && !exercise.isLabel;
   const equipDisplay = hasEquipment ? resolveEquipmentDisplay(exercise.tipoDiPeso, exercise.name) : '';
@@ -3278,6 +3328,7 @@ async function playExercise(index, exercises, resumeTime = null) {
   if (hasReps && hasEquipment) infoText = `${exercise.reps} rep · ${equipDisplay}`;
   else if (hasReps)           infoText = `${exercise.reps} rep`;
   else if (hasEquipment)      infoText = equipDisplay;
+  infoText += percentWeightSuffix(exercise); // v10: ~kg dal massimale
 
   const currentInfo = infoText
     ? `<div style="font-size:16px;font-weight:600;margin-top:8px;color:#B0B0B0;">${infoText}</div>`
@@ -4229,6 +4280,7 @@ function updateWorkoutPreview() {
         if (s.tipoDiPeso) {
           const equipDiv = document.createElement("div");
           equipDiv.className = "exercise-info-item";
+          const kgSuffix = percentWeightSuffix({ name: group.name, reps: s.reps, tipoDiPeso: s.tipoDiPeso });
           const lastW = getExerciseWeight(group.name, s.tipoDiPeso);
           equipDiv.textContent = lastW 
             ? `${resolveEquipmentCompact(s.tipoDiPeso, group.name)} · ${lastW}` 
@@ -4872,6 +4924,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   } else {
     console.error("[+10s] Button not found in DOM!");
+  }
+
+  // ===== RESTO ANCORA (riposo libero, v10) =====
+  const restExtendBtn = document.getElementById("rest-extend-btn");
+  if (restExtendBtn) {
+    restExtendBtn.addEventListener("click", () => {
+      if (!isWorkoutActive) return;
+      if (isPaused) {
+        if (savedTimeLeft !== null) savedTimeLeft += 20;
+        const timerEl = document.getElementById("timer");
+        if (timerEl && savedTimeLeft !== null) timerEl.textContent = savedTimeLeft;
+      } else if (currentTimerEndTime !== null) {
+        currentTimerEndTime += 20000;
+        const newRemaining = Math.max(0, Math.ceil((currentTimerEndTime - Date.now()) / 1000));
+        [...timerFired].forEach(sec => { if (sec < newRemaining) timerFired.delete(sec); });
+      }
+      const timerEl = document.getElementById("timer");
+      if (timerEl) {
+        timerEl.style.color = "#7fb0ff";
+        setTimeout(() => { timerEl.style.color = ""; }, 500);
+      }
+    });
   }
 
   // ===== FAB MENU TOGGLE =====

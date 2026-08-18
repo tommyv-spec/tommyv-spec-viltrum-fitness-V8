@@ -4577,3 +4577,26 @@ body.workout-active #progress-info span:not(:last-child)::after {
   #exercise-grid .section-cards-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)) !important; }
 }
 /* card multi-serie a tutta larghezza restano tali (gridColumn inline 1/-1) */
+
+
+/* ═══ v10 — riposo libero: bottone 'Resto ancora' (famiglia rest del reference) ═══ */
+body.workout-active #rest-extend-btn {
+  order: 3;
+  position: relative; z-index: 2;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  background: var(--ds-rest-bg);
+  color: var(--ds-rest-text);
+  border: 1px solid var(--ds-rest-border);
+  border-radius: 20px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  backdrop-filter: blur(4px);
+  cursor: pointer;
+}
+body.workout-active #rest-extend-btn:active { transform: scale(0.97); }
+#rest-extend-btn { display: none; }
