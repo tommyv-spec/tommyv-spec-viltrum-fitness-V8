@@ -1,5 +1,5 @@
-const CACHE_NAME = 'viltrum-fitness-v8.2.57';
-const RUNTIME_CACHE = 'viltrum-runtime-v8.2.57';
+const CACHE_NAME = 'viltrum-fitness-v8.2.58';
+const RUNTIME_CACHE = 'viltrum-runtime-v8.2.58';
 // UNVERSIONED on purpose, and named so deploy.ps1's version-bump regex
 // (viltrum-preload-vX.Y.Z) can never touch it again. This was versioned and bumped
 // every release, and activate deletes non-current preload caches — so every deploy
@@ -13,7 +13,7 @@ const PRELOAD_CACHE = 'viltrum-preload-static-v1';
 const AUDIO_CACHE = 'viltrum-audio-v1';
 // Exercise GIF bytes, warmed by workout.js. Same rationale: immutable, unversioned.
 const GIF_CACHE = 'viltrum-gif-v1';
-const BUILD_HASH = '20260818172923';
+const BUILD_HASH = '20260818174902';
 
 const urlsToCache = [
   './',
@@ -96,11 +96,11 @@ let preloadAborted = false;
 // INSTALL EVENT
 // ═══════════════════════════════════════════════════════════════════════════
 self.addEventListener('install', (event) => {
-  console.log('[Service Worker] Installing v8.2.57...');
+  console.log('[Service Worker] Installing v8.2.58...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[Service Worker] Caching app shell v8.2.57');
+        console.log('[Service Worker] Caching app shell v8.2.58');
         return Promise.allSettled(
           urlsToCache.map(url => 
             cache.add(url).catch(err => {
@@ -408,7 +408,7 @@ async function handleBackgroundPreload(data) {
 // ACTIVATE EVENT
 // ═══════════════════════════════════════════════════════════════════════════
 self.addEventListener('activate', (event) => {
-  console.log('[Service Worker] Activating v8.2.57...');
+  console.log('[Service Worker] Activating v8.2.58...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
