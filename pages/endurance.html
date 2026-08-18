@@ -621,16 +621,21 @@
         // fare un play() dentro il gesto, altrimenti restano muti dai timer.
         const tts = document.getElementById('tts-audio');
         if (tts) {
+          tts.muted = true; // v10.9: sblocco MUTED — non ruba il focus a Spotify
           tts.src = '../audio/silence.wav';
           const ok = await Promise.race([
             tts.play().then(() => true).catch(() => false),
             new Promise(r => setTimeout(() => r(false), 500))
           ]);
+          tts.pause(); tts.muted = false;
           if (ok) audioUnlocked = true;  // v10.1: flag SOLO se play() e' riuscito
         }
         for (const id of ['beep-sound', 'transition-sound']) {
           const el = document.getElementById(id);
-          if (el) el.play().then(() => { el.pause(); el.currentTime = 0; }).catch(() => {});
+          if (el) {
+            el.muted = true; // v10.9
+            el.play().then(() => { el.pause(); el.currentTime = 0; el.muted = false; }).catch(() => { el.muted = false; });
+          }
         }
         if (audioUnlocked) console.log('🔊 Audio elements unlocked');
       } catch (e) {

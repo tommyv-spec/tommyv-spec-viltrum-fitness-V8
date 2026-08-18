@@ -2117,11 +2117,14 @@ function unlockAllAudio() {
     // no audio frames — it fails to decode in Chromium AND WebKit (verified), so these
     // play() calls always rejected and nothing was ever unlocked. Safari also refuses
     // data: URIs on media elements outright. A real, silent 50ms WAV file does work.
-    ttsAudio.src = SFX_SILENCE;
-    ttsAudio.play().catch(() => {});
-
-    beppePlayer.src = SFX_SILENCE;
-    beppePlayer.play().catch(() => {});
+    // v10.9 DEVICE-VERIFIED: un elemento NON MUTATO in play() — anche 50ms di
+    // silenzio — fa fermare a iOS la musica delle altre app. Lo sblocco muted
+    // ottiene comunque il permesso di riproduzione per la sessione.
+    for (const el of [ttsAudio, beppePlayer]) {
+      el.muted = true;
+      el.src = SFX_SILENCE;
+      el.play().then(() => { el.pause(); el.muted = false; }).catch(() => { el.muted = false; });
+    }
 
     // v10.1 iOS: l'unlock e' PER-ELEMENTO. Un play()+pause() dentro il gesto
     // sblocca anche beep e transition, che prima non venivano mai sbloccati e
@@ -2130,8 +2133,8 @@ function unlockAllAudio() {
       const el = document.getElementById(id);
       if (!el) continue;
       el.volume = 1.0;
-      el.muted = false;
-      el.play().then(() => { el.pause(); el.currentTime = 0; }).catch(() => {});
+      el.muted = true; // v10.9: sblocco muted, niente focus rubato a Spotify
+      el.play().then(() => { el.pause(); el.currentTime = 0; el.muted = false; }).catch(() => { el.muted = false; });
     }
 
     window.__audioUnlocked = true;
@@ -2336,19 +2339,16 @@ const TTS_RETRIES = 2;
 // ring/silent switch mutes. Users train with the phone on silent, so every cue vanished.
 // Safari 16.4+ lets us claim the playback session instead. Safe no-op elsewhere.
 function claimTransientAudioSession() {
-  // v10.5 REVERT a "playback" — VERIFICATO SU DEVICE: con "transient" iOS
-  // zittisce i cue quando la levetta laterale e' su silenzioso (comportamento
-  // ambient-like) → "l'audio non fa per niente". "playback" ignora la levetta
-  // e suona SEMPRE. Trade-off consapevole: su iOS la musica di altre app puo'
-  // interrompersi durante i cue (il desiderio di Giuseppe di non fermarla non
-  // e' ottenibile sul web senza perdere l'audio con switch su silenzioso).
+  // v10.9 FINALE (triangolo iOS mappato SUL device, decisione del proprietario):
+  //   playback  = voce sempre udibile, scavalca la levetta; musica in pausa
+  //               SOLO durante gli annunci (lo sblocco muted ha eliminato gli
+  //               stop gratuiti all'avvio/rientro)
+  //   ambient   = musica ok ma cue MUTI con levetta su silenzioso (testato)
+  //   transient = tutto muto (testato)
+  // La voce che suona sempre vince: playback, per tutti, senza opzioni.
   try {
-    // v10.7: in "modalita' musica" sessione AMBIENT — iOS mescola i nostri cue
-    // con la musica di altre app invece di fermarla (parita' con Android).
-    // Fuori dalla modalita' musica: playback = voce sempre udibile.
-    const wanted = (localStorage.getItem("viltrum-music-mode") === "true") ? "ambient" : "playback";
-    if ("audioSession" in navigator && navigator.audioSession.type !== wanted) {
-      navigator.audioSession.type = wanted;
+    if ("audioSession" in navigator && navigator.audioSession.type !== "playback") {
+      navigator.audioSession.type = "playback";
     }
   } catch (e) {
     console.warn("audioSession unavailable:", e);
@@ -4588,23 +4588,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("mute-toggle"),
     document.getElementById("mute-toggle-setup"),
   ].filter(Boolean);
-  const musicToggles = [
-    document.getElementById("music-mode-toggle"),
-    document.getElementById("music-mode-toggle-setup"),
-  ].filter(Boolean);
-  // v10.7 "modalita' musica": sessione AMBIENT + voce istruttore via Web Audio.
-  // In ambient iOS MESCOLA il nostro audio con Spotify (musica mai fermata,
-  // come su Android); il rovescio documentato e' che la levetta su silenzioso
-  // puo' zittire i cue. Toggle OFF (default) = sessione playback: voce SEMPRE
-  // udibile ma la musica puo' interrompersi. La scelta e' dell'utente.
-  function isMusicMode() { return localStorage.getItem("viltrum-music-mode") === "true"; }
+  // v10.9: un solo comportamento audio (playback + voce istruttore); l'unica
+  // opzione utente e' il mute.
   function applyAudioPrefs() {
     const muted = localStorage.getItem("viltrum-muted") === "true";
-    const music = isMusicMode();
-    syncSoundModeSelectors(muted ? "none" : "eleven"); // voce istruttore SEMPRE
+    syncSoundModeSelectors(muted ? "none" : "eleven");
     muteToggles.forEach(t => { t.checked = muted; });
-    musicToggles.forEach(t => { t.checked = music; });
-    claimTransientAudioSession(); // ri-applica subito la sessione giusta
+    claimTransientAudioSession();
   }
   function applyMuted(muted) {
     localStorage.setItem("viltrum-muted", muted ? "true" : "false");
@@ -4612,10 +4602,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   applyAudioPrefs();
   muteToggles.forEach(t => t.addEventListener("change", e => applyMuted(e.target.checked)));
-  musicToggles.forEach(t => t.addEventListener("change", e => {
-    localStorage.setItem("viltrum-music-mode", e.target.checked ? "true" : "false");
-    applyAudioPrefs();
-  }));
 
   warmUpServer();
   // Guarded: a bare reference here threw at startup on engines without the API.
