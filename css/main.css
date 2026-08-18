@@ -4118,7 +4118,7 @@ body.workout-active #rest-block-preview {
   position: relative;
   z-index: 2;
   margin: 0 auto;
-  padding-top: 36vh !important;
+  padding-top: 30vh !important;
   padding-bottom: 22vh !important;
   box-sizing: border-box;
 }
@@ -4149,16 +4149,31 @@ body.workout-active #exercise-name {
   border-radius: 0 !important;
   box-shadow: none !important;
   text-align: center;
-  padding: 10px 16px 0 !important;
+  padding: 6px 16px 0 !important;
   margin: 0 !important;
   text-shadow: 0 2px 16px rgba(0,0,0,.85);
 }
 
 /* Timer: cerchio con backdrop scuro sfocato, bordo fluo (rosso nei warning) */
-body.workout-active #timer.full-timer {
+body.workout-active #timer-row {
   order: 3;
   position: relative; z-index: 2;
-  width: 88px; height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 0 20px;
+  margin-top: 10px;
+}
+body.workout-active #exercise-meta {
+  text-align: left;
+  max-width: 58%;
+  text-shadow: 0 2px 10px rgba(0,0,0,.85);
+}
+body.workout-active #exercise-meta:empty { display: none; }
+body.workout-active #timer.full-timer {
+  position: relative; z-index: 2;
+  width: 84px; height: 84px;
   flex: 0 0 auto;
   border-radius: 50%;
   background: rgba(0,0,0,.45);
@@ -4167,8 +4182,8 @@ body.workout-active #timer.full-timer {
   --ring: var(--accent);
   box-shadow: 0 8px 30px rgba(0,0,0,.5);
   display: flex; align-items: center; justify-content: center;
-  margin: 12px auto 0 !important;
-  font-size: 30px !important;
+  margin: 0 !important;
+  font-size: 28px !important;
   font-weight: 700;
   line-height: 1 !important;
   color: #fff;

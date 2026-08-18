@@ -3153,6 +3153,13 @@ if (document.readyState === 'loading') {
   showCrumbIfCrashed();
 }
 
+function setStageText(nameHTML, metaHTML) {
+  const n = document.getElementById("exercise-name");
+  const m = document.getElementById("exercise-meta");
+  if (n) n.innerHTML = nameHTML;
+  if (m) m.innerHTML = metaHTML || "";
+}
+
 async function playExercise(index, exercises, resumeTime = null) {
   // reset the 10s preview trigger for this exercise
   nextPreviewShown = false;
@@ -3368,10 +3375,10 @@ async function playExercise(index, exercises, resumeTime = null) {
     }).join('');
 
     // Set header text
-    document.getElementById("exercise-name").innerHTML = `
+    setStageText(`
       <div style="font-size:13px;opacity:.6;letter-spacing:1.5px;text-transform:uppercase;">Prossimo Blocco</div>
       <div style="font-size:20px;font-weight:800;letter-spacing:.5px;margin-top:2px;">${blockLabel}</div>
-    `;
+    `, "");
 
     // Hide the GIF image AND drop its decoded frames — display:none alone keeps
     // the ~35 MB decode alive, which is memory we can't spare on the rest screen.
@@ -3414,11 +3421,10 @@ async function playExercise(index, exercises, resumeTime = null) {
     // ═══════════════════════════════════════════════════════════════
     // NORMAL EXERCISE → show name + image as usual
     // ═══════════════════════════════════════════════════════════════
-    document.getElementById("exercise-name").innerHTML = `
-      <div style="font-size:clamp(24px,6vw,34px);font-weight:800;letter-spacing:.5px;line-height:1.15;">${exercise.name}</div>
-      <div style="font-size:16px;font-weight:700;color:#C1FF72;margin-top:4px;">${infoText}</div>
-      ${weightDisplay}
-    `;
+    setStageText(
+      `<div style="font-size:clamp(24px,6vw,34px);font-weight:800;letter-spacing:.5px;line-height:1.15;">${exercise.name}</div>`,
+      `<div style="font-size:16px;font-weight:700;color:#C1FF72;">${infoText}</div>${weightDisplay}`
+    );
 
     // Labels (Riscaldamento, Are you ready?) → hide GIF, show text only
     if (exercise.isLabel && !exercise.imageUrl) {
@@ -3587,11 +3593,11 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
           const nxInfo = nxParts.join(" · ");
 
           // swap preview UI
-          document.getElementById("exercise-name").innerHTML = `
-            <div style="font-size:13px;font-weight:800;letter-spacing:1.5px;color:#0d0d0d;background:rgba(193,255,114,.9);display:inline-block;padding:4px 12px;border-radius:20px;margin-bottom:6px;">PROSSIMO ESERCIZIO</div>
-            <div style="font-size:clamp(24px,6vw,34px);font-weight:800;letter-spacing:.5px;line-height:1.15;">${nextExercise.name}</div>
-            <div style="font-size:16px;font-weight:700;color:#C1FF72;margin-top:4px;">${nxInfo}</div>
-          `;
+          setStageText(
+            `<div style="font-size:13px;font-weight:800;letter-spacing:1.5px;color:#0d0d0d;background:rgba(193,255,114,.9);display:inline-block;padding:4px 12px;border-radius:20px;margin-bottom:6px;">PROSSIMO ESERCIZIO</div>
+             <div style="font-size:clamp(24px,6vw,34px);font-weight:800;letter-spacing:.5px;line-height:1.15;">${nextExercise.name}</div>`,
+            `<div style="font-size:16px;font-weight:700;color:#C1FF72;">${nxInfo}</div>`
+          );
           // Load next exercise image from cache if available
           const nextExerciseImg = document.getElementById("exercise-gif");
           loadCachedImage(nextExerciseImg, nextExercise.imageUrl);
