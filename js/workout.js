@@ -2343,17 +2343,12 @@ function claimTransientAudioSession() {
   // interrompersi durante i cue (il desiderio di Giuseppe di non fermarla non
   // e' ottenibile sul web senza perdere l'audio con switch su silenzioso).
   try {
-    // v10.6: in "modalita' musica" niente claim playback — la claim stessa
-    // porta iOS a fermare l'audio di altre app; la voce di sistema (synth)
-    // non ne ha bisogno e viene duckata sopra la musica.
-    if (localStorage.getItem("viltrum-music-mode") === "true") {
-      if ("audioSession" in navigator && navigator.audioSession.type !== "auto") {
-        navigator.audioSession.type = "auto";
-      }
-      return;
-    }
-    if ("audioSession" in navigator && navigator.audioSession.type !== "playback") {
-      navigator.audioSession.type = "playback";
+    // v10.7: in "modalita' musica" sessione AMBIENT — iOS mescola i nostri cue
+    // con la musica di altre app invece di fermarla (parita' con Android).
+    // Fuori dalla modalita' musica: playback = voce sempre udibile.
+    const wanted = (localStorage.getItem("viltrum-music-mode") === "true") ? "ambient" : "playback";
+    if ("audioSession" in navigator && navigator.audioSession.type !== wanted) {
+      navigator.audioSession.type = wanted;
     }
   } catch (e) {
     console.warn("audioSession unavailable:", e);
@@ -4597,17 +4592,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("music-mode-toggle"),
     document.getElementById("music-mode-toggle-setup"),
   ].filter(Boolean);
-  // v10.6 "modalita' musica" (richiesta ducking di Giuseppe): SOLO la sintesi
-  // vocale di sistema viene duckata da iOS sopra Spotify (come il navigatore);
-  // le clip istruttore sono media e possono interrompere la musica. Il toggle
-  // scambia consapevolmente qualita' della voce per convivenza con la musica.
+  // v10.7 "modalita' musica": sessione AMBIENT + voce istruttore via Web Audio.
+  // In ambient iOS MESCOLA il nostro audio con Spotify (musica mai fermata,
+  // come su Android); il rovescio documentato e' che la levetta su silenzioso
+  // puo' zittire i cue. Toggle OFF (default) = sessione playback: voce SEMPRE
+  // udibile ma la musica puo' interrompersi. La scelta e' dell'utente.
   function isMusicMode() { return localStorage.getItem("viltrum-music-mode") === "true"; }
   function applyAudioPrefs() {
     const muted = localStorage.getItem("viltrum-muted") === "true";
     const music = isMusicMode();
-    syncSoundModeSelectors(muted ? "none" : (music ? "synth" : "eleven"));
+    syncSoundModeSelectors(muted ? "none" : "eleven"); // voce istruttore SEMPRE
     muteToggles.forEach(t => { t.checked = muted; });
     musicToggles.forEach(t => { t.checked = music; });
+    claimTransientAudioSession(); // ri-applica subito la sessione giusta
   }
   function applyMuted(muted) {
     localStorage.setItem("viltrum-muted", muted ? "true" : "false");
