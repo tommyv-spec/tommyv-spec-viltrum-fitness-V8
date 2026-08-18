@@ -2336,14 +2336,15 @@ const TTS_RETRIES = 2;
 // ring/silent switch mutes. Users train with the phone on silent, so every cue vanished.
 // Safari 16.4+ lets us claim the playback session instead. Safe no-op elsewhere.
 function claimTransientAudioSession() {
-  // v9 (audio 2026-08-11 pt.10): was "playback", which tells iOS "I'm a media
-  // app — PAUSE other audio". That is exactly what stopped the user's Spotify.
-  // "transient" = short cues that MIX with (and duck) background music, then
-  // give the volume back. Verify on a real device: web audio-session support
-  // is Safari 16.4+ and still evolving.
+  // v10.5 REVERT a "playback" — VERIFICATO SU DEVICE: con "transient" iOS
+  // zittisce i cue quando la levetta laterale e' su silenzioso (comportamento
+  // ambient-like) → "l'audio non fa per niente". "playback" ignora la levetta
+  // e suona SEMPRE. Trade-off consapevole: su iOS la musica di altre app puo'
+  // interrompersi durante i cue (il desiderio di Giuseppe di non fermarla non
+  // e' ottenibile sul web senza perdere l'audio con switch su silenzioso).
   try {
-    if ("audioSession" in navigator && navigator.audioSession.type !== "transient") {
-      navigator.audioSession.type = "transient";
+    if ("audioSession" in navigator && navigator.audioSession.type !== "playback") {
+      navigator.audioSession.type = "playback";
     }
   } catch (e) {
     console.warn("audioSession unavailable:", e);

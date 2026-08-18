@@ -43,6 +43,7 @@ const GlobalPreloadBar = {
     const styles = document.createElement('style');
     styles.id = 'global-preload-bar-styles';
     styles.textContent = `
+      body.workout-active .global-preload-bar { display: none !important; }
       .global-preload-bar {
         position: fixed;
         bottom: var(--footer-total, 72px);
@@ -57,7 +58,6 @@ const GlobalPreloadBar = {
         gap: 6px;
         -webkit-backdrop-filter: blur(10px);
         backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
         transform: translateY(100%);
         transition: transform 0.3s ease, opacity 0.3s ease;
         opacity: 0;
@@ -314,10 +314,11 @@ const GlobalPreloadBar = {
       return;
     }
     
+    this._lastTick = Date.now();
     this.show();
     this.updateUI(data);
   },
-  
+
   handleComplete(isError = false) {
     const textEl = document.getElementById('global-preload-text');
     const fillEl = document.getElementById('global-preload-fill');
@@ -383,6 +384,8 @@ const GlobalPreloadBar = {
   
   show() {
     if (!this.element) return;
+    // v10.5 iOS: mai sopra un workout attivo
+    if (document.body.classList.contains('workout-active')) return;
     
     // Force reflow before adding active class for animation
     this.element.offsetHeight;
@@ -390,6 +393,22 @@ const GlobalPreloadBar = {
     this.element.classList.remove('hiding');
     this.element.classList.add('active');
     document.body.classList.add('preload-bar-visible');
+    this._lastTick = Date.now();
+
+    // v10.5 iOS: watchdog anti-stallo — iOS sospende la pagina a metà preload
+    // e lo stato resta 'loading' per sempre: barra congelata su ogni pagina.
+    // Nessun progresso per 20s → nascondi e pulisci lo stato.
+    if (!this._stallWatchdog) {
+      this._stallWatchdog = setInterval(() => {
+        const visible = this.element && this.element.classList.contains('active');
+        if (!visible) return;
+        if (Date.now() - (this._lastTick || 0) > 20000) {
+          console.log('[PreloadBar] stallo rilevato — nascondo');
+          this.hide();
+          try { localStorage.removeItem(this.STORAGE_KEY); } catch (e) {}
+        }
+      }, 5000);
+    }
   },
   
   hide() {

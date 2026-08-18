@@ -593,14 +593,13 @@
     // iOS routes web audio through the "ambient" session by default, which the physical
     // ring/silent switch mutes. Runners keep the phone on silent, so every pace cue
     // vanished. Safari 16.4+ lets us claim the playback session. No-op elsewhere.
-    // v10.1: 'transient' come in workout.js — i cue si SOVRAPPONGONO alla
-    // musica del runner (ducking) invece di fermarla. Nota consapevole: con lo
-    // schermo bloccato iOS puo' comunque sospendere i timer web; per i cue
-    // affidabili lo schermo resta acceso (wake lock gia' attivo durante la corsa).
+    // v10.5 REVERT a 'playback' — con 'transient' iOS zittisce i cue quando la
+    // levetta e' su silenzioso (verificato su device). 'playback' suona sempre;
+    // il prezzo e' che la musica di altre app puo' interrompersi durante i cue.
     function claimPlaybackAudioSession() {
       try {
-        if ('audioSession' in navigator && navigator.audioSession.type !== 'transient') {
-          navigator.audioSession.type = 'transient';
+        if ('audioSession' in navigator && navigator.audioSession.type !== 'playback') {
+          navigator.audioSession.type = 'playback';
         }
       } catch (e) {
         console.warn('audioSession unavailable:', e);
