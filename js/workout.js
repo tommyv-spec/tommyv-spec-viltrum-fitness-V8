@@ -2959,13 +2959,13 @@ function updateProgressBar() {
     if (progressExercise) progressExercise.textContent = "";
   } else {
     if (progressBlock && currentExercise.blockNumber) {
-      progressBlock.textContent = `Block ${currentExercise.blockNumber}/${currentExercise.totalBlocks}`;
+      progressBlock.textContent = `Blocco ${currentExercise.blockNumber}/${currentExercise.totalBlocks}`;
     }
     if (progressRound && currentExercise.roundNumber) {
       progressRound.textContent = `Round ${currentExercise.roundNumber}/${currentExercise.totalRounds}`;
     }
     if (progressExercise && currentExercise.exerciseNumber) {
-      progressExercise.textContent = `Exercise ${currentExercise.exerciseNumber}/${currentExercise.totalExercises}`;
+      progressExercise.textContent = `Es. ${currentExercise.exerciseNumber}/${currentExercise.totalExercises}`;
     }
   }
 }
@@ -3265,8 +3265,8 @@ async function playExercise(index, exercises, resumeTime = null) {
   const equipDisplay = hasEquipment ? resolveEquipmentDisplay(exercise.tipoDiPeso, exercise.name) : '';
 
   let infoText = "";
-  if (hasReps && hasEquipment) infoText = `${exercise.reps} reps | ${equipDisplay}`;
-  else if (hasReps)           infoText = `${exercise.reps} reps`;
+  if (hasReps && hasEquipment) infoText = `${exercise.reps} rep · ${equipDisplay}`;
+  else if (hasReps)           infoText = `${exercise.reps} rep`;
   else if (hasEquipment)      infoText = equipDisplay;
 
   const currentInfo = infoText
@@ -3278,7 +3278,7 @@ async function playExercise(index, exercises, resumeTime = null) {
 
   const parts = [];
   if (hasEquipment) parts.push(equipDisplay);
-  if (hasReps) parts.push(`${exercise.reps} REPS`);
+  if (hasReps) parts.push(`${exercise.reps} rep`);
 
   // --- 10-SECOND PREVIEW DISPLAY ---
   const hasNextReps = nextExercise && nextExercise.reps && !nextExercise.name.toLowerCase().includes("istruz");
@@ -3288,8 +3288,8 @@ async function playExercise(index, exercises, resumeTime = null) {
 
   const partsNext = [];
   if (hasNextEquipment) partsNext.push(nextEquipDisplay);
-  if (hasNextReps) partsNext.push(`${nextExercise.reps} REPS`);
-  const infoNext = partsNext.join(" | ");
+  if (hasNextReps) partsNext.push(`${nextExercise.reps} rep`);
+  const infoNext = partsNext.join(" · ");
 
   // Check for last used weight for this exercise
   const lastUsedWeight = getExerciseWeight(exercise.name, exercise.tipoDiPeso);
@@ -3576,8 +3576,8 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
 
           const nxParts = [];
           if (nxHasEqp) nxParts.push(nxEquipDisplay);
-          if (nxHasReps) nxParts.push(`${nextExercise.reps} REPS`);
-          const nxInfo = nxParts.join(" | ");
+          if (nxHasReps) nxParts.push(`${nextExercise.reps} rep`);
+          const nxInfo = nxParts.join(" · ");
 
           // swap preview UI
           document.getElementById("exercise-name").innerHTML = `

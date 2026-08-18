@@ -4321,3 +4321,47 @@ body.workout-active #pause-button.paused {
   color: #AAA;
   font-weight: 600;
 }
+
+
+/* ═══ v9.5 — header player compatto (reference: chip minimale, niente pannello) ═══ */
+body.workout-active #workout-progress-container {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+body.workout-active #progress-bar {
+  height: 5px !important;
+  background: rgba(255,255,255,0.15) !important;
+  border: none !important;
+  border-radius: 3px !important;
+  backdrop-filter: none;
+  overflow: hidden;
+}
+body.workout-active #progress-fill {
+  background: var(--accent) !important;
+  border-radius: 3px !important;
+}
+body.workout-active #progress-percentage { display: none !important; }
+body.workout-active #progress-info {
+  display: inline-flex !important;
+  gap: 6px;
+  margin-top: 8px;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px);
+  border: none !important;
+  border-radius: 20px;
+  padding: 5px 12px !important;
+  width: auto !important;
+}
+body.workout-active #progress-info span {
+  font-size: 10.5px !important;
+  font-weight: 700;
+  letter-spacing: .5px;
+  color: rgba(255,255,255,0.85) !important;
+  text-shadow: none;
+}
+body.workout-active #progress-info span:not(:last-child)::after {
+  content: "·";
+  margin-left: 6px;
+  color: rgba(255,255,255,0.4);
+}

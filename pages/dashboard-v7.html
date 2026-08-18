@@ -65,13 +65,14 @@
     .header-action-btn:active { border-color: var(--accent); }
     .header-action-btn svg { width: 20px; height: 20px; }
 
-    .welcome-section { flex-shrink: 0; text-align: center; padding: 1.5vh 4vw; }
-    .welcome-section h1 { font-size: 19px; font-weight: 800; letter-spacing: .5px; }
+    .welcome-section { flex-shrink: 0; text-align: left; padding: 2vh 4vw 0.5vh; }
+    .welcome-section h1 { font-size: 20px; font-weight: 700; letter-spacing: .2px; }
 
     .stats-section {
-      flex-shrink: 0; display: flex; justify-content: center; gap: 6vw;
-      padding: 1.5vh 4vw; border-bottom: 1px solid #222;
+      flex-shrink: 0; display: flex; justify-content: flex-start; gap: 8vw;
+      padding: 1vh 4vw 1.5vh; border-bottom: 1px solid #1f1f1f;
     }
+    .stat-box { text-align: left; }
     .stat-box { text-align: center; }
     .stat-label { font-size: 11px; font-weight: 600; letter-spacing: .5px; color: #777; margin-bottom: 2px; }
     .stat-value { font-size: 20px; font-weight: 800; color: #C1FF72; }
@@ -114,7 +115,7 @@
     }
     .card-badge.active { border-color: #C1FF72; color: #C1FF72; }
 
-    .small-cards-row { flex-shrink: 0; display: flex; gap: 3vw; margin-top: auto; }
+    .small-cards-row { flex-shrink: 0; display: flex; gap: 3vw; margin-top: 4px; }
     .small-card {
       flex: 1; background: #151515; border: 1px solid #232323; border-radius: 12px;
       padding: 12px 14px; display: flex; flex-direction: row;
@@ -299,6 +300,18 @@
     </div>
 
     <main>
+      <!-- v9.5: hero come il reference — la PROSSIMA SESSIONE prima del menu -->
+      <div id="next-session-hero" style="display: none; flex-shrink: 0;">
+        <div style="font-weight: 800; font-size: 12px; letter-spacing: 1px; color: var(--accent); margin-bottom: 8px;">LA TUA PROSSIMA SESSIONE</div>
+        <div style="display: flex; align-items: center; gap: 14px; background: #151515; border: 1px solid #232323; border-radius: 13px; padding: 16px 18px;">
+          <div style="flex: 1; min-width: 0;">
+            <div id="hero-session-title" style="font-size: 16px; font-weight: 700; margin-bottom: 4px;">—</div>
+            <div id="hero-session-meta" style="font-size: 12.5px; color: #888;">—</div>
+          </div>
+          <button id="hero-start-btn" style="display: inline-flex; align-items: center; gap: 8px; background: var(--accent); color: var(--accent-ink); border: none; padding: 12px 22px; border-radius: 11px; font-family: 'Archivo', system-ui, sans-serif; font-weight: 700; font-size: 16px; cursor: pointer; flex-shrink: 0;">▶ Inizia</button>
+        </div>
+      </div>
+
       <div class="section-card" id="training-card" onclick="handleTrainingClick()">
         <div class="card-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -631,7 +644,7 @@
     function renderUI() {
       // Priority: localStorage userName (user's choice) > server fullName > fallback
       const name = localStorage.getItem('userName') || userData.fullName || 'Atleta';
-      document.getElementById('welcome-text').textContent = `BENVENUTO, ${name.toUpperCase()}`;
+      document.getElementById('welcome-text').textContent = `Ciao, ${name}`;
       
       let totalWorkouts = 0;
       for (const planName in allProgress) {
@@ -669,6 +682,29 @@
         corsaCard.classList.remove('disabled');
       } else {
         corsaCard.style.display = 'none';
+      }
+
+      // v9.5: hero prossima sessione (reference: contenuto prima del menu)
+      const hero = document.getElementById('next-session-hero');
+      if (hero) {
+        const heroPlan = gym[0] || runs[0];
+        const planData = heroPlan ? (allPlansData[heroPlan] || {}) : null;
+        const progress = heroPlan ? (allProgress[heroPlan] || { lastWorkoutIndex: -1 }) : null;
+        const total = planData && planData.totalWorkouts ? planData.totalWorkouts : 0;
+        const nextIdx = progress ? progress.lastWorkoutIndex + 1 : 0;
+        if (heroPlan && total > 0 && nextIdx < total) {
+          document.getElementById('hero-session-title').textContent = `${heroPlan} ${nextIdx + 1}`;
+          document.getElementById('hero-session-meta').textContent = `Sessione ${nextIdx + 1} di ${total}`;
+          const btn = document.getElementById('hero-start-btn');
+          btn.onclick = (e) => {
+            e.stopPropagation();
+            sessionStorage.setItem('selectedPlan', heroPlan);
+            window.location.href = 'plan-view.html';
+          };
+          hero.style.display = '';
+        } else {
+          hero.style.display = 'none';
+        }
       }
 
       // v9: nutrizione ridotta a card piccola, visibile solo se il piano esiste
