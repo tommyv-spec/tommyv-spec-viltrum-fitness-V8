@@ -328,6 +328,14 @@
 
     <!-- Selector View -->
     <div id="selector-view" class="view selector-view">
+      <!-- v10.12: avviso levetta (solo iOS — la posizione NON e' rilevabile via web) -->
+      <div id="ringer-note" style="display: none; align-items: flex-start; gap: 10px; background: var(--ds-warn-bg); border: 1px solid rgba(240,177,85,0.35); border-radius: 12px; padding: 12px 14px; margin: 14px 0 4px;">
+        <span style="font-size: 16px; flex-shrink: 0;">&#128277;</span>
+        <div style="flex: 1; font-size: 13px; line-height: 1.5; color: var(--ds-warn-text);">
+          <strong>iPhone:</strong> con l'interruttore laterale su silenzioso la voce dell'istruttore non si sente. Tienilo su suoneria: la voce si sente e la tua musica non viene mai interrotta.
+        </div>
+        <button id="ringer-note-close" aria-label="Chiudi avviso" style="flex-shrink: 0; background: transparent; border: none; color: var(--ds-warn-text); font-size: 16px; cursor: pointer; padding: 2px 6px;">&#215;</button>
+      </div>
       <div class="selector-title">
         <h2>🏃 RUNNING WORKOUTS</h2>
         <p>Seleziona il tuo allenamento</p>
@@ -1930,5 +1938,22 @@
   </script>
   <script src="../js/version.js"></script>
   <script src="../js/update-notifier.js"></script>
+  <script>
+    // v10.12: avviso levetta solo su iOS, chiudibile una volta per sempre
+    (function () {
+      var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      var note = document.getElementById('ringer-note');
+      if (!note) return;
+      if (isIOS && localStorage.getItem('viltrum-ringer-note-dismissed') !== 'true') {
+        note.style.display = 'flex';
+      }
+      var close = document.getElementById('ringer-note-close');
+      if (close) close.addEventListener('click', function () {
+        note.style.display = 'none';
+        localStorage.setItem('viltrum-ringer-note-dismissed', 'true');
+      });
+    })();
+  </script>
 </body>
 </html>
