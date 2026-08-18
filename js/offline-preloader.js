@@ -684,7 +684,13 @@ const OfflinePreloader = {
     if (!('caches' in window)) return null;
     try {
       const keys = await caches.keys();
-      // Sort desc so the highest version wins if more than one lingers.
+      // The preload cache is now the unversioned 'viltrum-preload-static-v1'
+      // (versioned names got wiped by activate on every release, deleting the whole
+      // offline pack). Prefer it outright; the prefix fallback only matters during
+      // the one-time migration while an old versioned cache still lingers.
+      if (keys.includes('viltrum-preload-static-v1')) {
+        return await caches.open('viltrum-preload-static-v1');
+      }
       const name = keys.filter(k => k.startsWith('viltrum-preload-')).sort().reverse()[0];
       return name ? await caches.open(name) : null;
     } catch (e) { return null; }

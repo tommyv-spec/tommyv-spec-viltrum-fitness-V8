@@ -927,32 +927,151 @@ try {
    service worker being active. Cache miss → one bounded fetch that both serves this
    cue AND repairs the cache (raw.githubusercontent.com sends ACAO:*, so a window-
    context CORS fetch is legal — verified). Every path degrades to the plain URL. */
+/* One bytes-getter shared by the buffer engine and the element path: Cache Storage
+   hit, else one bounded fetch that repairs the cache. Returns a Response or null. */
+async function getElevenClipResponse(audioKey) {
+  const url = `${ELEVEN_BASE_URL}/${audioKey}.mp3`;
+  if (!("caches" in window)) return null;
+  const cache = await caches.open(ELEVEN_CACHE_NAME);
+  let res = await cache.match(url);
+  if (res) {
+    AudioTrace.log("cache:hit", audioKey);
+    return res;
+  }
+  AudioTrace.log("cache:MISS", audioKey);
+  // Bounded: this await sits in front of the cue — an unbounded fetch here would
+  // recreate the very stall the watchdogs exist to kill.
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 5000);
+  res = await fetch(url, { signal: ctrl.signal });
+  clearTimeout(t);
+  if (!res.ok) return null;
+  // clone BEFORE consuming: a body can only be read once
+  try { await cache.put(url, res.clone()); AudioTrace.log("cache:repaired", audioKey); } catch (e) {}
+  return res;
+}
+
 async function getElevenClipSrc(audioKey) {
   const url = `${ELEVEN_BASE_URL}/${audioKey}.mp3`;
-  if (!("caches" in window)) return { src: url, blob: false };
   try {
-    const cache = await caches.open(ELEVEN_CACHE_NAME);
-    let res = await cache.match(url);
-    if (res) {
-      AudioTrace.log("cache:hit", audioKey);
-    } else {
-      AudioTrace.log("cache:MISS", audioKey);
-      // Bounded: this await sits in front of the cue — an unbounded fetch here would
-      // recreate the very stall the watchdogs exist to kill.
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 5000);
-      res = await fetch(url, { signal: ctrl.signal });
-      clearTimeout(t);
-      if (!res.ok) return { src: url, blob: false };
-      // clone BEFORE blob(): a body can only be consumed once
-      try { await cache.put(url, res.clone()); AudioTrace.log("cache:repaired", audioKey); } catch (e) {}
-    }
+    const res = await getElevenClipResponse(audioKey);
+    if (!res) return { src: url, blob: false, url };
     return { src: URL.createObjectURL(await res.blob()), blob: true, url };
   } catch (e) {
     // offline / abort / storage error — the <audio> element itself is the last resort
     return { src: url, blob: false, url };
   }
 }
+
+/* -------------------- Buffer playback engine --------------------
+   How cue audio is actually done in latency-sensitive web apps (games, metronomes):
+   decode the clip ONCE into an AudioBuffer and play it through the Web Audio API's
+   precise-timing path. No media element per cue means none of the element failure
+   modes this file spent a week hardening against — no canplaythrough, no play()
+   rejection, no pause-event races, no mid-play network stalls; `onended` on a buffer
+   source is reliable. The element path below stays as the fallback for engines or
+   moments (context not yet unlocked) where the graph can't run.
+
+   NOTE this is NOT the createMediaElementSource mistake removed earlier: these
+   buffers come from bytes we fetched ourselves with CORS (ACAO:* verified), so
+   there is no cross-origin taint, and the context is resumed inside real gestures. */
+const AudioEngine = {
+  ctx: null,
+  buffers: new Map(),        // audioKey → AudioBuffer (LRU, insertion-ordered Map)
+  BUFFER_MAX: 24,            // ~200KB decoded each → ~5MB ceiling, far below GIF budgets
+  active: new Set(),         // playing sources, for stopAll()
+
+  _context() {
+    if (this.ctx) return this.ctx;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    try { this.ctx = new AC(); } catch (e) { return null; }
+    return this.ctx;
+  },
+
+  // Call ONLY from inside a user gesture: resume + a one-sample kick.
+  unlock() {
+    const ctx = this._context();
+    if (!ctx) return;
+    try {
+      if (ctx.state === "suspended") ctx.resume().catch(() => {});
+      const src = ctx.createBufferSource();
+      src.buffer = ctx.createBuffer(1, 1, 22050);
+      src.connect(ctx.destination);
+      src.start(0);
+    } catch (e) {}
+  },
+
+  usable() {
+    return !!(this.ctx && this.ctx.state === "running");
+  },
+
+  async _buffer(audioKey) {
+    if (this.buffers.has(audioKey)) {
+      const b = this.buffers.get(audioKey);      // refresh recency
+      this.buffers.delete(audioKey);
+      this.buffers.set(audioKey, b);
+      return b;
+    }
+    const res = await getElevenClipResponse(audioKey);
+    if (!res) return null;
+    const bytes = await res.arrayBuffer();
+    const buf = await this.ctx.decodeAudioData(bytes);
+    this.buffers.set(audioKey, buf);
+    while (this.buffers.size > this.BUFFER_MAX) {
+      this.buffers.delete(this.buffers.keys().next().value);
+    }
+    return buf;
+  },
+
+  /* Resolves true (played or deliberately stopped), false (failed), or the string
+     "unavailable" (context not running / decode impossible) — the caller then uses
+     the element path. Bounded everywhere; this must never park the speak chain. */
+  async play(audioKey, requestedAt) {
+    if (!this.usable()) return "unavailable";
+    let buf;
+    try {
+      buf = await Promise.race([
+        this._buffer(audioKey),
+        new Promise(r => setTimeout(() => r(null), 4000))
+      ]);
+    } catch (e) { buf = null; }   // decode error (corrupt bytes) → element path
+    if (!buf) return "unavailable";
+    if (!this.usable()) return "unavailable";  // context died while decoding
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const src = this.ctx.createBufferSource();
+      const gain = this.ctx.createGain();
+      gain.gain.value = currentVolume;
+      src.buffer = buf;
+      src.connect(gain);
+      gain.connect(this.ctx.destination);
+      const finish = (ok) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(watchdog);
+        this.active.delete(src);
+        resolve(ok);
+      };
+      // onended fires on natural end AND on stop() — both are success semantics
+      // (a stop is a deliberate flush; re-speaking a cancelled cue is the old bug).
+      src.onended = () => finish(true);
+      const watchdog = setTimeout(() => finish(true), buf.duration * 1000 + 2000);
+      this.active.add(src);
+      AudioTrace.log("cue:buffer", audioKey,
+        Math.round(performance.now() - requestedAt) + "ms to start, " + buf.duration.toFixed(1) + "s");
+      try { src.start(0); } catch (e) { finish(false); }
+    });
+  },
+
+  stopAll() {
+    for (const src of [...this.active]) {
+      try { src.stop(); } catch (e) {}
+    }
+    this.active.clear();
+  }
+};
 
 /**
  * Play ElevenLabs pre-recorded audio (simple method without CORS restrictions)
@@ -964,6 +1083,15 @@ async function playElevenAudio(audioKey) {
   const endCue = AudioTrace.start("cue", audioKey);
   try {
     await ensureAudioUnlocked();
+
+    // Preferred path: decoded-buffer playback (see AudioEngine). Only "unavailable"
+    // falls through to the media-element machinery below.
+    const viaEngine = await AudioEngine.play(audioKey, audioRequestedAt);
+    if (viaEngine !== "unavailable") {
+      endCue(viaEngine ? "cue:done" : "cue:FAIL", viaEngine ? "buffer" : "buffer start failed");
+      return viaEngine;
+    }
+
     const { src, blob: isBlobSrc, url: plainUrl } = await getElevenClipSrc(audioKey);
 
     // Plain element, NO crossOrigin: the GitHub clips send no Access-Control-Allow-Origin,
@@ -1426,6 +1554,9 @@ function flushSpeakQueue() {
     try { activeAudioEl.pause(); activeAudioEl.currentTime = 0; } catch (e) {}
     activeAudioEl = null;
   }
+  // Buffer-engine cues too: stop() fires onended, which resolves their promise as a
+  // deliberate cancellation — same contract as the element path's pause handler.
+  try { AudioEngine.stopAll(); } catch (e) {}
 }
 let wakeLock = null; // Screen wake lock to keep screen on during workout
 let pendingTipTimeout = null; // Only one coach tip at a time
@@ -1940,6 +2071,9 @@ function unlockAllAudio() {
   // Re-assert inside the real gesture: some iOS builds only honour the playback
   // session once the page has been interacted with.
   claimPlaybackAudioSession();
+  // Wake the buffer engine's context while we hold a genuine gesture — the only
+  // moment iOS allows it.
+  AudioEngine.unlock();
 
   try {
     // The old unlock played a base64 "data:audio/mp3" string that is an ID3 header with
@@ -2176,6 +2310,9 @@ claimPlaybackAudioSession();
 async function ensureAudioUnlocked() {
   if (window.__audioUnlocked) return;
   claimPlaybackAudioSession();
+  // Safe no-op outside a gesture (resume() just stays pending); when this runs from
+  // the touchend fallback listener it carries a real gesture and wakes the engine.
+  AudioEngine.unlock();
   window.__audioUnlocked = true;
 }
 
