@@ -3029,7 +3029,7 @@ function startWorkout() {
     return;
   }
 
-  const warmupEnabled = document.getElementById("warmup-toggle")?.checked ?? true;
+  const warmupEnabled = false; // v9.3: riscaldamento auto rimosso su richiesta (2026-08-18)
   fullWorkoutSequence = buildFullWorkoutSequence(selectedWorkout, warmupEnabled);
   preloadUpcoming(0, 5); // preload first 5 GIFs immediately
   // Deliberately not awaited: warming runs while the user is still reading the setup
@@ -4170,7 +4170,6 @@ function updateWorkoutPreview() {
 
     const header = document.createElement('div');
     header.className = 'section-header';
-    header.style.background = `linear-gradient(135deg, ${config.color}, ${config.color}dd)`;
     header.innerHTML = `
       <span class="section-icon">${config.icon}</span>
       <span class="section-title">${config.title}</span>
@@ -4221,7 +4220,7 @@ function updateWorkoutPreview() {
           equipDiv.textContent = lastW 
             ? `${resolveEquipmentCompact(s.tipoDiPeso, group.name)} · ${lastW}` 
             : resolveEquipmentCompact(s.tipoDiPeso, group.name);
-          if (lastW) equipDiv.style.color = '#3a8a3a';
+          if (lastW) equipDiv.style.color = '#C1FF72';
           details.appendChild(equipDiv);
         }
       } else {
@@ -4233,19 +4232,19 @@ function updateWorkoutPreview() {
         
         group.sets.forEach((s, i) => {
           const row = document.createElement("div");
-          row.style.cssText = "display:flex;align-items:center;padding:5px 10px;border-radius:6px;background:rgba(125,125,125,0.08);gap:8px;";
+          row.style.cssText = "display:flex;align-items:center;padding:5px 10px;border-radius:6px;background:rgba(255,255,255,0.06);gap:8px;";
           
           const repsSpan = document.createElement("span");
-          repsSpan.style.cssText = "font-size:clamp(11px,2.2vw,13px);font-weight:800;color:#000;min-width:55px;flex-shrink:0;";
+          repsSpan.style.cssText = "font-size:clamp(11px,2.2vw,13px);font-weight:800;color:#FFF;min-width:55px;flex-shrink:0;";
           repsSpan.textContent = s.reps ? s.reps + (s.reps.toString().match(/rep/i) ? '' : ' rep') : '';
           
           const pesoSpan = document.createElement("span");
-          pesoSpan.style.cssText = "font-size:clamp(10px,2vw,12px);font-weight:600;color:#555;flex:1;text-align:right;";
+          pesoSpan.style.cssText = "font-size:clamp(10px,2vw,12px);font-weight:600;color:#999;flex:1;text-align:right;";
           const pesoText = s.tipoDiPeso ? resolveEquipmentCompact(s.tipoDiPeso, group.name) : '';
           
           const lastW = s.tipoDiPeso ? getExerciseWeight(group.name, s.tipoDiPeso) : null;
           if (lastW) {
-            pesoSpan.innerHTML = `${pesoText} <span style="color:#3a8a3a;font-weight:700;">· ${lastW}</span>`;
+            pesoSpan.innerHTML = `${pesoText} <span style="color:#C1FF72;font-weight:700;">· ${lastW}</span>`;
           } else {
             pesoSpan.textContent = pesoText;
           }
@@ -4286,7 +4285,7 @@ function buildStartPointSelector() {
   if (!selector || !phaseSelect || !selectedWorkout) return;
   selector.style.display = "block";
 
-  const warmupEnabled = document.getElementById("warmup-toggle")?.checked ?? true;
+  const warmupEnabled = false; // v9.3: riscaldamento auto rimosso su richiesta (2026-08-18)
   const tempSequence = buildFullWorkoutSequence(selectedWorkout, warmupEnabled);
   if (tempSequence.length === 0) return;
 

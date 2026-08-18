@@ -4309,3 +4309,85 @@ body.workout-active #pause-button.paused {
   background: #2A2A2A !important;
   color: #777 !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   v9.3 — ANTEPRIMA WORKOUT STILE MOREMUSCLE
+   Via il barrone grigio di intestazione blocco → etichetta fluo maiuscola;
+   card scure #151515 con GIF full-bleed in alto, nome bianco, meta grigie
+   (reference: previewBlockLabel/previewCard/previewImg in MoreMuscle ui.jsx).
+   ═══════════════════════════════════════════════════════════════════════════ */
+#exercise-grid .workout-section {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  overflow: visible;
+  margin-bottom: clamp(18px, 3.5vw, 26px);
+}
+#exercise-grid .section-header {
+  background: transparent !important;
+  border-bottom: none;
+  padding: 0 2px 10px;
+  color: var(--accent);
+  font-weight: 800;
+  letter-spacing: 1.5px;
+}
+#exercise-grid .section-title {
+  font-size: clamp(12px, 2.6vw, 14px);
+  color: var(--accent);
+}
+#exercise-grid .section-count {
+  background: rgba(193,255,114,0.12);
+  border: 1px solid rgba(193,255,114,0.3);
+  color: var(--accent);
+  font-size: clamp(10px, 2vw, 12px);
+}
+#exercise-grid .section-cards-grid {
+  background: transparent;
+  padding: 0;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+#exercise-grid .exercise-card {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  overflow: hidden;
+  padding: 0;
+  color: #FFF;
+  box-shadow: none;
+  text-align: left;
+  min-height: 0;
+}
+#exercise-grid .exercise-card:hover {
+  transform: none;
+  border-color: var(--accent);
+  box-shadow: none;
+}
+#exercise-grid .exercise-card img {
+  border: none;
+  border-radius: 0;
+  margin: 0;
+  height: 120px;
+  clip-path: none;
+  background: #000;
+}
+#exercise-grid .exercise-name {
+  color: #FFF;
+  font-weight: 600;
+  font-size: clamp(13px, 2.6vw, 14px);
+  justify-content: flex-start;
+  text-align: left;
+  min-height: 0;
+  margin: 10px 12px 0;
+}
+#exercise-grid .exercise-details {
+  border-top: none;
+  justify-content: flex-start;
+  margin: 6px 12px 12px;
+  padding-top: 0;
+}
+#exercise-grid .exercise-info-item {
+  background: rgba(255,255,255,0.06);
+  color: #AAA;
+  font-weight: 600;
+}
