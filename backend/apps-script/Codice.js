@@ -1420,7 +1420,16 @@ const SYNC_ACTIONS = {
   'updateSubscription': updateSubscription,
   // Flushes the SHARED cache, forcing a ~7s rebuild. Sync-gated, not
   // user-gated: repeated calls burn the Apps Script quota for everyone.
-  'bustCache': bustAllCache
+  'bustCache': bustAllCache,
+  // v11 operator tooling (pipeline GIF->MP4): nomi esercizio + URL GIF dalla
+  // libreria del foglio. Nessun dato utente. Serve a scripts/convert-gifs.mjs
+  // cosi' la conversione media NON richiede mai credenziali di un utente.
+  'list-exercise-media': function () {
+    const lib = loadExerciseLibrary(SpreadsheetApp.getActiveSpreadsheet());
+    const media = {};
+    for (var name in lib) media[name] = lib[name].imageUrl || "";
+    return createResponse({ status: 'success', count: Object.keys(media).length, exercises: media });
+  }
 };
 
 // Logged-in users. Gated by Supabase JWT. The verified email is forced into

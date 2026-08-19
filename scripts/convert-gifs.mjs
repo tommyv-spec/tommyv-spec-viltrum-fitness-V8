@@ -18,11 +18,13 @@
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
 import fs from "node:fs/promises";
 import path from "node:path";
 
 const run = promisify(execFile);
-const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1")), "..");
+// fileURLToPath gestisce spazi/%20 nel percorso (la cartella ne contiene uno)
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MEDIA_DIR = path.join(ROOT, "media");
 const MANIFEST = path.join(MEDIA_DIR, "manifest.json");
 const URLS_FILE = path.join(ROOT, "scripts", "gif-urls.json");
@@ -31,11 +33,31 @@ const hash = (s) => createHash("sha1").update(s).digest("hex").slice(0, 12);
 
 async function main() {
   let urls;
-  try {
-    urls = JSON.parse(await fs.readFile(URLS_FILE, "utf8"));
-  } catch (e) {
-    console.error("Manca scripts/gif-urls.json — apri la dashboard con ?dumpgifs=1 per generarlo.");
-    process.exit(1);
+  // v11.1 VIA ADMIN (preferita): con GAS_URL + SYNC_TOKEN nell'env l'elenco
+  // arriva dall'endpoint operatore 'list-exercise-media' — niente credenziali
+  // utente, mai. Fallback: scripts/gif-urls.json (dump manuale ?dumpgifs=1).
+  if (process.env.GAS_URL && process.env.SYNC_TOKEN) {
+    console.log("Elenco GIF via endpoint admin (list-exercise-media)...");
+    const res = await fetch(process.env.GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "list-exercise-media", token: process.env.SYNC_TOKEN }),
+    });
+    const body = await res.json();
+    if (body.status !== "success") {
+      console.error("Endpoint admin ha risposto:", JSON.stringify(body).slice(0, 200));
+      process.exit(1);
+    }
+    urls = [...new Set(Object.values(body.exercises || {}).filter(Boolean))];
+    await fs.writeFile(URLS_FILE, JSON.stringify(urls, null, 2)); // cache locale
+    console.log("Esercizi in libreria:", body.count, "- GIF uniche:", urls.length);
+  } else {
+    try {
+      urls = JSON.parse(await fs.readFile(URLS_FILE, "utf8"));
+    } catch (e) {
+      console.error("Manca scripts/gif-urls.json — usa GAS_URL+SYNC_TOKEN (via admin) oppure ?dumpgifs=1.");
+      process.exit(1);
+    }
   }
   if (!Array.isArray(urls) || urls.length === 0) {
     console.error("gif-urls.json vuoto o non valido.");
