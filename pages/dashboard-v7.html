@@ -73,7 +73,6 @@
       padding: 1vh 4vw 1.5vh; border-bottom: 1px solid #1f1f1f;
     }
     .stat-box { text-align: left; }
-    .stat-box { text-align: center; }
     .stat-label { font-size: 11px; font-weight: 600; letter-spacing: .5px; color: #777; margin-bottom: 2px; }
     .stat-value { font-size: 20px; font-weight: 800; color: #C1FF72; }
     .stat-sub { font-size: 1.2vh; color: #888; }
@@ -614,6 +613,26 @@
         applyAndRender();
       });
       
+      // v11 DEV: ?dumpgifs=1 scarica l'elenco di tutte le GIF esercizio
+      // (input per scripts/convert-gifs.mjs). Solo per uso sviluppatore.
+      if (new URLSearchParams(location.search).has('dumpgifs')) {
+        const dump = () => {
+          const urls = new Set();
+          const workouts = DataPreloader.getAllMuscleWorkouts() || {};
+          Object.values(workouts).forEach(w => (w.exercises || []).forEach(ex => {
+            if (ex.imageUrl) urls.add(ex.imageUrl);
+          }));
+          const blob = new Blob([JSON.stringify([...urls], null, 2)], { type: 'application/json' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'gif-urls.json';
+          a.click();
+          console.log('dumpgifs:', urls.size, 'URL');
+        };
+        if (DataPreloader.isWorkoutsReady()) dump();
+        else window.addEventListener('workoutDataReady', dump, { once: true });
+      }
+
       // Defer offline preload until workout data arrives
       const startOfflinePreload = () => {
         if (typeof OfflinePreloader !== 'undefined' && userData) {

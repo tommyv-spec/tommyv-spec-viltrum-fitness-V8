@@ -1499,6 +1499,29 @@ function preloadUpcoming(fromStep = 0, count = 5) {
  * Load image from offline cache if available, otherwise use network
  * Adds loading state and proper error handling
  */
+/* v11 GIF->MP4: mostra il media giusto per lo stage. Se il manifest ha la
+   versione video dell'URL usa <video> (muto, loop — identico a una GIF, 30-50x
+   piu' leggero, servito dallo stesso dominio e cache-ato dal SW); altrimenti
+   il percorso <img>/GIF di sempre. Il video NON passa dalla gif-cache. */
+function setStageMedia(imgEl, url) {
+  const videoEl = document.getElementById("exercise-video");
+  const media = (window.ViltrumMedia && url) ? window.ViltrumMedia.resolve(url) : { type: "gif", src: url };
+  if (media.type === "video" && videoEl) {
+    if (imgEl) { imgEl.style.display = "none"; releaseImageElement(imgEl); }
+    if (videoEl.getAttribute("src") !== media.src) videoEl.src = media.src;
+    videoEl.style.display = "";
+    videoEl.play().catch(() => {});
+    return;
+  }
+  if (videoEl) { videoEl.pause(); videoEl.style.display = "none"; }
+  if (imgEl) { imgEl.style.display = ""; loadCachedImage(imgEl, url); }
+}
+
+function hideStageVideo() {
+  const videoEl = document.getElementById("exercise-video");
+  if (videoEl) { videoEl.pause(); videoEl.removeAttribute("src"); videoEl.style.display = "none"; }
+}
+
 async function loadCachedImage(imageElement, url) {
   if (!url || !imageElement) {
     console.warn('⚠️ loadCachedImage called with invalid parameters');
@@ -3020,6 +3043,7 @@ function exitWorkout() {
   // Give the decoded GIFs back to the OS
   purgeGifCache();
   releaseImageElement(document.getElementById("exercise-gif"));
+  hideStageVideo(); // v11
   restPreviewToken++;
   const restPreviewEl = document.getElementById("rest-block-preview");
   if (restPreviewEl) restPreviewEl.innerHTML = "";
@@ -3470,6 +3494,7 @@ async function playExercise(index, exercises, resumeTime = null) {
       exerciseImg.style.display = "none";
       releaseImageElement(exerciseImg);
     }
+    hideStageVideo(); // v11
 
     // Create or reuse the rest preview container
     let restPreview = document.getElementById("rest-block-preview");
@@ -3513,9 +3538,9 @@ async function playExercise(index, exercises, resumeTime = null) {
     // Labels (Riscaldamento, Are you ready?) → hide GIF, show text only
     if (exercise.isLabel && !exercise.imageUrl) {
       if (exerciseImg) exerciseImg.style.display = "none";
+      hideStageVideo();
     } else {
-      if (exerciseImg) exerciseImg.style.display = "";
-      loadCachedImage(exerciseImg, exercise.imageUrl);
+      setStageMedia(exerciseImg, exercise.imageUrl); // v11: video se convertito
     }
     
     // Reset viewport overflow
@@ -3687,9 +3712,9 @@ async function startExerciseTimer(initialSeconds, exercise, nextExercise) {
              <div style="font-size:clamp(24px,6vw,34px);font-weight:800;letter-spacing:.5px;line-height:1.15;">${nextExercise.name}</div>`,
             `<div style="font-size:16px;font-weight:700;color:#C1FF72;">${nxInfo}</div>`
           );
-          // Load next exercise image from cache if available
+          // Load next exercise media from cache if available
           const nextExerciseImg = document.getElementById("exercise-gif");
-          loadCachedImage(nextExerciseImg, nextExercise.imageUrl);
+          setStageMedia(nextExerciseImg, nextExercise.imageUrl); // v11
 
           // v9 announcement contract: at -10s say ONLY "prossimo esercizio" —
           // the name + reps are spoken at the actual change (playExercise).
@@ -4287,10 +4312,21 @@ function updateWorkoutPreview() {
       card.className = "exercise-card";
 
       if (group.imageUrl) {
-        const img = document.createElement("img");
-        loadCachedImage(img, group.imageUrl);
-        img.alt = group.name;
-        card.appendChild(img);
+        const media = window.ViltrumMedia ? window.ViltrumMedia.resolve(group.imageUrl) : { type: "gif", src: group.imageUrl };
+        if (media.type === "video") {
+          const vid = document.createElement("video");
+          vid.src = media.src;
+          vid.muted = true; vid.loop = true; vid.playsInline = true;
+          vid.setAttribute("playsinline", ""); vid.setAttribute("webkit-playsinline", "");
+          vid.autoplay = true;
+          card.appendChild(vid);
+          vid.play().catch(() => {});
+        } else {
+          const img = document.createElement("img");
+          loadCachedImage(img, group.imageUrl);
+          img.alt = group.name;
+          card.appendChild(img);
+        }
       }
 
       const name = document.createElement("div");

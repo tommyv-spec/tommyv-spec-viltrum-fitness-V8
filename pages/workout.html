@@ -21,7 +21,7 @@
   
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/design-system.css?v=20260819a" />
-  <link rel="stylesheet" href="../css/main.css?v=20260819a" />
+  <link rel="stylesheet" href="../css/main.css?v=20260819b" />
   
   <!-- PWA Manifest -->
   <link rel="manifest" href="../manifest.json" />
@@ -247,6 +247,9 @@
         <!-- 3. GIF ATTUALE -->
         <div id="exercise-gif-viewport">
           <img id="exercise-gif" src="" alt="Esercizio corrente" />
+          <!-- v11: MP4 convertiti (30-50x piu' leggeri delle GIF); il resolver
+               sceglie quale dei due elementi usare per ogni esercizio -->
+          <video id="exercise-video" muted loop playsinline webkit-playsinline preload="auto" style="display: none;"></video>
         </div>
 
       </div>
@@ -316,6 +319,7 @@
   </script>
   <script src="../js/offline-preloader.js"></script>
   <script src="../js/global-preload-bar.js"></script>
+  <script src="../js/media-resolver.js"></script>
   <script type="module" src="../js/workout.js"></script>
   <script src="../viewport.js"></script>
   

@@ -4620,3 +4620,34 @@ body.workout-active #rest-extend-btn {
 }
 body.workout-active #rest-extend-btn:active { transform: scale(0.97); }
 #rest-extend-btn { display: none; }
+
+
+/* ═══ v11 — GIF->MP4: #exercise-video si comporta come #exercise-gif ═══ */
+#exercise-video {
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  margin: 0 auto;
+  border-radius: clamp(10px, 2vw, 12px);
+}
+body.workout-active #exercise-video {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: cover;
+  border-radius: 0 !important;
+}
+#exercise-grid .exercise-card video {
+  border: none;
+  border-radius: 0;
+  margin: 0;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 4;
+  object-fit: contain;
+  background: #0B0B0B;
+  display: block;
+}

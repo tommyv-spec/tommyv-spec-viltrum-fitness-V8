@@ -51,6 +51,7 @@ const urlsToCache = [
   './js/preload-modal.js',
   './js/update-notifier.js',
   './js/version.js',
+  './js/media-resolver.js',
   './js/global-preload-bar.js',
   './viewport.js',
 
@@ -66,7 +67,7 @@ const urlsToCache = [
   // CSS — versioned URLs must match the HTML links EXACTLY (Cache API is
   // query-sensitive). Bump ?v= here AND in every page on each CSS change.
   './css/design-system.css?v=20260819a',
-  './css/main.css?v=20260819a',
+  './css/main.css?v=20260819b',
   './css/nutrition.css?v=20260818w4',
   
   // Data
@@ -508,6 +509,23 @@ self.addEventListener('fetch', (event) => {
       url.searchParams.has('type') ||
       url.searchParams.has('token_hash') ||
       url.searchParams.has('code')) {
+    return;
+  }
+
+  // v11: MP4 esercizi — immutabili (nome = hash del contenuto sorgente),
+  // cache-first nella GIF_CACHE che sopravvive ai release (come le clip audio).
+  if (url.origin === self.location.origin && url.pathname.startsWith('/media/') && url.pathname.endsWith('.mp4') && !request.headers.has('range')) {
+    event.respondWith(
+      caches.open(GIF_CACHE).then(cache =>
+        cache.match(request).then(cached => {
+          if (cached) return cached;
+          return fetch(request).then(response => {
+            if (response && response.status === 200) cache.put(request, response.clone());
+            return response;
+          }).catch(() => new Response('Offline', { status: 503 }));
+        })
+      )
+    );
     return;
   }
 

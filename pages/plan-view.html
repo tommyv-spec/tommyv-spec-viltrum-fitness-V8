@@ -18,7 +18,7 @@
   
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/design-system.css?v=20260819a" />
-  <link rel="stylesheet" href="../css/main.css?v=20260819a" />
+  <link rel="stylesheet" href="../css/main.css?v=20260819b" />
   <link rel="manifest" href="../manifest.json" />
   <meta name="theme-color" content="#000000" />
   
@@ -209,11 +209,13 @@
       text-align: center;
     }
 
-    .exercise-card img {
+    .exercise-card img,
+    .exercise-card video {
       width: 100%;
       aspect-ratio: 3 / 4;
       object-fit: contain;
       background: #0B0B0B;
+      display: block;
     }
 
     .exercise-card-name {
@@ -516,6 +518,7 @@
   </div>
 
   <script src="../viewport.js"></script>
+  <script src="../js/media-resolver.js"></script>
   <script src="../js/offline-preloader.js"></script>
   <script src="../js/global-preload-bar.js"></script>
   
@@ -630,9 +633,14 @@
         if (workout.details.exercises && workout.details.exercises.length > 0) {
           html += '<div class="exercises-grid">';
           workout.details.exercises.forEach(ex => {
+            // v11: MP4 convertito quando esiste (30-50x piu' leggero), GIF altrimenti
+            const media = window.ViltrumMedia ? window.ViltrumMedia.resolve(ex.imageUrl || '') : { type: 'gif', src: ex.imageUrl || '' };
+            const mediaTag = media.type === 'video'
+              ? `<video src="${media.src}" muted loop playsinline autoplay></video>`
+              : `<img src="${media.src}" alt="${ex.name}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23222%22 width=%22100%22 height=%22100%22/></svg>'">`;
             html += `
               <div class="exercise-card">
-                <img src="${ex.imageUrl || ''}" alt="${ex.name}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23222%22 width=%22100%22 height=%22100%22/></svg>'">
+                ${mediaTag}
                 <p class="exercise-card-name">${ex.name}</p>
               </div>
             `;
