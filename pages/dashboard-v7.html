@@ -711,6 +711,22 @@
         const progress = heroPlan ? (allProgress[heroPlan] || { lastWorkoutIndex: -1 }) : null;
         const total = planData && planData.totalWorkouts ? planData.totalWorkouts : 0;
         const nextIdx = progress ? progress.lastWorkoutIndex + 1 : 0;
+        // renderUI() runs three or more times on a normal open: once from cache,
+        // once when loadAll() resolves, then again on dataRefreshed /
+        // workoutDataReady. In the middle render the plan details are often not
+        // in yet, so total was 0 and the else branch hid the card - the user saw
+        // the hero appear, vanish, then come back. Same trap the training badge
+        // above already guards against ("only show NESSUN PIANO if we actually
+        // loaded and confirmed zero plans").
+        //
+        // So: hide ONLY when the data is in and it really says there is no next
+        // session. While anything is still missing, leave the card exactly as it
+        // is - hidden stays hidden, shown stays shown. No flicker either way.
+        const planDetailsIn = heroPlan
+          ? Object.prototype.hasOwnProperty.call(allPlansData || {}, heroPlan)
+          : false;
+        const stillLoading = !DataPreloader.isReady() || (heroPlan && !planDetailsIn);
+
         if (heroPlan && total > 0 && nextIdx < total) {
           document.getElementById('hero-session-title').textContent = `${heroPlan} ${nextIdx + 1}`;
           document.getElementById('hero-session-meta').textContent = `Sessione ${nextIdx + 1} di ${total}`;
@@ -721,9 +737,11 @@
             window.location.href = 'plan-view.html';
           };
           hero.style.display = '';
-        } else {
+        } else if (!stillLoading) {
+          // Confirmed: no plan, or the plan is finished. Nothing to show.
           hero.style.display = 'none';
         }
+        // else: incomplete data mid-load - leave the card untouched.
       }
 
       // v9: nutrizione ridotta a card piccola, visibile solo se il piano esiste
