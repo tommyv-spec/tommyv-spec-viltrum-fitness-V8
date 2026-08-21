@@ -27,26 +27,39 @@
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="../viewport.js"></script>
   <style>
+    /* LAYOUT CONTRACT
+       The page itself never scrolls. The container is exactly one screen tall
+       and only the exercise list inside it scrolls, so the action buttons are
+       always on screen without scrolling to them.
+
+       This replaces a "sticky bottom bar" that could never work: the bar sat
+       inside .completion-container, which had overflow-y:auto but only a
+       min-height. A box like that grows with its content instead of scrolling,
+       so it became the sticky element's scroll container while never actually
+       scrolling - position:sticky had nothing to stick to and the bar just sat
+       at the natural bottom of the page, below the fold. */
     html, body {
       margin: 0;
       padding: 0;
       background: #000000;
       font-family: 'Archivo', system-ui, sans-serif;
       height: 100%;
-      /* CRITICAL: Allow scrolling when keyboard is open */
-      overflow: auto;
-      -webkit-overflow-scrolling: touch;
+      overflow: hidden;
+      overscroll-behavior: none;
     }
 
     .completion-container {
       display: flex;
       flex-direction: column;
-      min-height: 100vh;
-      min-height: 100dvh;
+      /* --app-h is the visible height in px, kept in sync with visualViewport
+         so the buttons stay above the on-screen keyboard. 100dvh is the
+         fallback for the first paint and for browsers without visualViewport. */
+      height: 100dvh;
+      height: var(--app-h, 100dvh);
       padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;
+      box-sizing: border-box;
       background: #000000;
-      /* Allow scrolling */
-      overflow-y: auto;
+      overflow: hidden;
     }
 
     .completion-header {
@@ -106,13 +119,37 @@
       letter-spacing: 1px;
     }
 
-    /* WEIGHT LOGGING SECTION */
+    /* WEIGHT LOGGING SECTION
+       This is the one part of the screen that scrolls. min-height:0 on every
+       flex ancestor is required: without it a flex item refuses to shrink below
+       its content height, the list pushes the buttons off screen and the
+       overflow never engages. */
     .weight-logging-section {
-      flex: 1;
-      padding: 0 2rem 1rem 2rem;
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      padding: 0 2rem 0.5rem 2rem;
+    }
+
+    .weight-logging {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 auto;
+      min-height: 0;
+      width: 100%;
+    }
+
+    /* The scroller. Everything else on the screen stays put. */
+    #exercise-weights {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
     }
 
     .weight-logging h3 {
+      flex-shrink: 0;
       font-family: 'Archivo', system-ui, sans-serif;
       font-size: 1rem;
       color: #FFFFFF;
@@ -202,26 +239,46 @@
       letter-spacing: 0.3px;
     }
 
-    /* ACTION BUTTONS - STICKY AT BOTTOM */
+    /* ACTION BUTTONS - LAST ROW OF THE FIXED-HEIGHT COLUMN.
+       No position:sticky. It is simply the final flex child of a container that
+       is exactly one screen tall, so it is always visible and never moves. */
     .action-buttons-container {
       flex-shrink: 0;
-      padding: 1rem 2rem calc(1rem + env(safe-area-inset-bottom));
-      background: linear-gradient(to top, #000000 80%, transparent);
-      position: sticky;
-      bottom: 0;
-      z-index: 10;
-    }
-    
-    /* When keyboard is open, don't sticky */
-    .keyboard-open .action-buttons-container {
-      position: relative;
+      padding: 0.75rem 2rem calc(0.75rem + env(safe-area-inset-bottom));
       background: #000000;
+      border-top: 1px solid var(--ds-border);
+      z-index: 10;
     }
 
     .action-buttons {
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
+    }
+
+    /* While the keyboard is up the visible area is roughly half a screen.
+       Drop the celebration header, the stats and the info note so the exercise
+       list keeps a usable height and the buttons stay reachable. */
+    body.keyboard-open .completion-header,
+    body.keyboard-open .completion-stats,
+    body.keyboard-open .weights-info {
+      display: none;
+    }
+
+    /* Short screens: everything above the list is fixed overhead, so on a small
+       phone the list was down to about two visible rows. Give it back ~90px by
+       tightening the chrome. Nothing is hidden, only compacted. */
+    @media (max-height: 720px) {
+      .completion-header { padding: 0.75rem 2rem 0.5rem 2rem; }
+      .completion-title { font-size: 1.5rem; letter-spacing: 1px; }
+      .completion-workout-name { font-size: 0.9rem; margin-bottom: 0.4rem; }
+      .completion-stats { margin-bottom: 0.6rem; gap: 0.5rem; }
+      .stat-item { padding: 0.5rem; }
+      .stat-value { font-size: 1.2rem; }
+      .weight-logging h3 { margin-bottom: 0.5rem; font-size: 0.9rem; }
+      .weights-info { display: none; }
+      .action-button { padding: 0.75rem 1.5rem; font-size: 0.9rem; }
+      .action-buttons { gap: 0.5rem; }
     }
 
     .action-button {
@@ -234,6 +291,18 @@
       font-family: 'Archivo', system-ui, sans-serif;
       text-transform: uppercase;
       letter-spacing: 1.5px;
+      /* No double-tap-zoom delay, and the browser must never reinterpret a tap
+         on these as the start of a pan gesture (that turns pointerup into
+         pointercancel and the press is silently dropped). */
+      touch-action: manipulation;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .action-button[disabled],
+    .action-button.is-busy {
+      opacity: 0.6;
+      pointer-events: none;
     }
 
     .action-button.primary {
@@ -278,6 +347,7 @@
     
     /* Where weights info */
     .weights-info {
+      flex-shrink: 0;
       margin-top: 0.5rem;
       padding: 0.5rem 0.75rem;
       background: rgba(106, 176, 76, 0.15);
@@ -344,25 +414,41 @@
     import { getExerciseWeight } from '../js/workout-history.js';
     import { apiPost } from '../js/api.js';
 
-    // ========== KEYBOARD HANDLING ==========
-    // Detect when keyboard opens/closes and adjust layout
+    // ========== VIEWPORT HEIGHT ==========
+    // Pin the container to the height that is actually visible right now.
+    // 100dvh alone is not enough: browsers disagree about whether the on-screen
+    // keyboard shrinks it, and when it does not, the button row ends up behind
+    // the keyboard. visualViewport.height is the one measurement that is always
+    // the real visible area.
     const container = document.getElementById('completion-container');
-    
-    // Method 1: visualViewport API (most reliable)
+
+    function syncAppHeight() {
+      const vv = window.visualViewport;
+      const h = Math.round(vv ? vv.height : window.innerHeight);
+      if (h > 0) document.documentElement.style.setProperty('--app-h', h + 'px');
+    }
+    syncAppHeight();
+
+    // ========== KEYBOARD HANDLING ==========
     if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', () => {
+      const onViewportChange = () => {
+        syncAppHeight();
         const keyboardOpen = window.visualViewport.height < window.innerHeight * 0.75;
         document.body.classList.toggle('keyboard-open', keyboardOpen);
-        
-        // Scroll focused input into view
+
+        // Scroll focused input into view (inside the list, which is the scroller)
         if (keyboardOpen && document.activeElement && document.activeElement.tagName === 'INPUT') {
           setTimeout(() => {
             document.activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }, 100);
         }
-      });
+      };
+      window.visualViewport.addEventListener('resize', onViewportChange);
+      window.visualViewport.addEventListener('scroll', syncAppHeight);
     }
-    
+    window.addEventListener('resize', syncAppHeight);
+    window.addEventListener('orientationchange', () => setTimeout(syncAppHeight, 200));
+
     // Method 2: Focus/blur events as backup
     document.querySelectorAll('input').forEach(input => {
       input.addEventListener('focus', () => {
@@ -381,8 +467,17 @@
       });
     });
 
-    // Get workout data from sessionStorage
-    const workoutName = sessionStorage.getItem('completedWorkout') || 'Workout';
+    // Get workout data from sessionStorage.
+    // The stored value can be the literal string "undefined" when the workout
+    // came from plan-view and the writer had no name to store. That is a
+    // non-empty string, so a plain `|| 'Workout'` let "UNDEFINED" reach the
+    // title. workout.js now writes a real name; this guard covers sessions
+    // stored by an older build.
+    const storedName = (sessionStorage.getItem('completedWorkout') || '').trim();
+    const workoutName =
+      (!storedName || storedName === 'undefined' || storedName === 'null')
+        ? 'Workout'
+        : storedName;
     const duration = parseInt(sessionStorage.getItem('workoutDuration')) || 0;
     const exerciseCount = parseInt(sessionStorage.getItem('exerciseCount')) || 0;
     
@@ -408,34 +503,52 @@
     // Create weight input fields for exercises
     const weightContainer = document.getElementById('exercise-weights');
     if (exercises.length > 0) {
-      // Filter exercises that need weight tracking and remove duplicates
-      // Dedup by name + tipoDiPeso combo (so same exercise with different weights shows separately)
-      const weightKeywords = ['press', 'curl', 'row', 'fly', 'raise', 'pull', 'squat', 'deadlift', 'lunge', 'extension', 'shrug', 'dumbbell', 'barbell', 'bilanciere', 'manubrio', 'kettlebell', 'peso', 'kg'];
-      
+      // WHICH EXERCISES GET A ROW
+      //
+      // This used to be a whitelist: an exercise only appeared if its name or
+      // its equipment text contained one of ~18 hard-coded keywords. Anything
+      // the list did not anticipate vanished with no warning, and the list was
+      // not even internally consistent - it had "manubrio" but not the plural
+      // "manubri", so "due manubri intermedi" only survived when the exercise
+      // name happened to contain another keyword. Every unlisted word -
+      // elastico, palla medica, sacco, giubbotto zavorrato, anelli - meant a
+      // silently missing row and a weight the user could not record.
+      //
+      // It is now a blacklist, which fails the safe way round: show every
+      // exercise, and only drop the ones that provably cannot carry a weight.
+      // Worst case is one extra row the user leaves blank; the old worst case
+      // was losing data.
+      const NO_WEIGHT_EQUIPMENT = /corpo\s*libero|body\s*?weight|senza\s+(attrezz|peso)|nessun|solo\s+corpo/i;
+      const NOT_AN_EXERCISE = /\b(rest|riposo|pausa|recupero)\b|istruz|blocco|^block\b|good\s*job|riscaldamento/i;
+
       const seenExercises = new Set();
       const filteredExercises = exercises.filter(exercise => {
-        // Build composite key: name + tipoDiPeso
-        const compositeKey = exercise.tipoDiPeso 
-          ? `${exercise.name.toLowerCase()}|${exercise.tipoDiPeso.toLowerCase()}`
-          : exercise.name.toLowerCase();
-        
-        // Skip if we've already seen this combo
-        if (seenExercises.has(compositeKey)) {
-          return false;
-        }
+        if (!exercise || !exercise.name) return false;
+
+        const name = exercise.name.trim();
+        const tipo = (exercise.tipoDiPeso || '').trim();
+        if (!name) return false;
+
+        // Sequence scaffolding, not something you lift.
+        if (NOT_AN_EXERCISE.test(name)) return false;
+
+        // Explicitly bodyweight -> there is no weight to write down.
+        if (tipo && NO_WEIGHT_EQUIPMENT.test(tipo)) return false;
+
+        // Dedup on name + equipment, so the same movement done with two
+        // different loads still gets two rows, but the repeated rounds of one
+        // block collapse into one.
+        const compositeKey = tipo
+          ? `${name.toLowerCase()}|${tipo.toLowerCase()}`
+          : name.toLowerCase();
+        if (seenExercises.has(compositeKey)) return false;
         seenExercises.add(compositeKey);
-        
-        // Skip "Corpo Libero" - no weight to track
-        if (exercise.tipoDiPeso && exercise.tipoDiPeso.toLowerCase().includes('corpo libero')) {
-          return false;
-        }
-        
-        // Check if exercise name or tipoDiPeso contains weight-related keywords
-        const exerciseLower = exercise.name.toLowerCase();
-        const tipoDiPesoLower = (exercise.tipoDiPeso || '').toLowerCase();
-        return weightKeywords.some(keyword => exerciseLower.includes(keyword) || tipoDiPesoLower.includes(keyword));
+
+        return true;
       });
-      
+
+      console.log(`🏋️ Weight rows: ${filteredExercises.length} of ${exercises.length} sequence entries`);
+
       if (filteredExercises.length > 0) {
         filteredExercises.forEach((exercise, index) => {
           const previousWeight = getExerciseWeight(exercise.name, exercise.tipoDiPeso);
@@ -579,113 +692,180 @@
       }
     }
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // SAVE + RETURN
+    //
+    // Why this button used to "sometimes not work":
+    //   1. It awaited two Apps Script calls back to back, and apiPost sets no
+    //      timeout. On a weak connection - roaming, gym wifi, a captive portal -
+    //      fetch just sits there. Nothing was broken and nothing was shown; the
+    //      page simply never got to the redirect, so the button looked dead.
+    //   2. There was no busy state, so a second tap re-entered the whole thing
+    //      and wrote a second history entry.
+    //
+    // Now: the local save happens first and is what actually matters, the two
+    // cloud calls run in parallel under one deadline, and the redirect happens
+    // no matter how they end. A timed-out request is not cancelled - it may
+    // still land - and the weights are in localStorage either way, so nothing
+    // is lost.
+    // ═══════════════════════════════════════════════════════════════════════
+    const CLOUD_SYNC_DEADLINE_MS = 6000;
+
+    /** Resolve either way, never hang. Returns 'timeout' if the deadline wins. */
+    function withDeadline(promise, ms, label) {
+      return Promise.race([
+        Promise.resolve(promise).catch(err => {
+          console.warn(`⚠️ ${label} failed (saved locally):`, err);
+          return 'error';
+        }),
+        new Promise(resolve => setTimeout(() => {
+          console.warn(`⏱️ ${label} still pending after ${ms}ms - continuing without it`);
+          resolve('timeout');
+        }, ms))
+      ]);
+    }
+
+    let saveInFlight = false;
+
     // Save workout and return to dashboard
     window.saveAndReturn = async function() {
-      // Collect weight data from all inputs
-      const weights = {};
-      const weightInputs = document.querySelectorAll('.exercise-weight-input input[data-exercise-name]');
-      
-      weightInputs.forEach(input => {
-        if (input.value.trim()) {
-          const exerciseName = input.getAttribute('data-exercise-name');
-          weights[exerciseName] = input.value.trim();
+      if (saveInFlight) return;          // a second tap must not re-run this
+      saveInFlight = true;
+
+      const saveBtn = document.getElementById('save-btn');
+      const originalLabel = saveBtn ? saveBtn.textContent : '';
+      if (saveBtn) {
+        saveBtn.classList.add('is-busy');
+        saveBtn.textContent = 'SALVATAGGIO…';
+      }
+
+      // Whatever happens below, leave this screen.
+      const leave = () => {
+        sessionStorage.removeItem('completedWorkout');
+        sessionStorage.removeItem('workoutDuration');
+        sessionStorage.removeItem('exerciseCount');
+        sessionStorage.removeItem('workoutExercises');
+        sessionStorage.removeItem('completedWorkoutIndex');
+        sessionStorage.removeItem('totalUserWorkouts');
+
+        // V7: Check if coming from plan-view
+        const v7PlanInfo = sessionStorage.getItem('v7PlanInfo');
+        if (v7PlanInfo) {
+          sessionStorage.removeItem('v7PlanInfo');
+          window.location.href = 'plan-view.html';
+        } else {
+          // Return to dashboard (v9 fix: was legacy dashboard.html)
+          window.location.href = 'dashboard-v7.html';
         }
-      });
+      };
 
-      // Save to history (local storage - immediate)
-      addWorkoutToHistory(workoutName, duration, weights);
+      try {
+        // Collect weight data from all inputs
+        const weights = {};
+        const weightInputs = document.querySelectorAll('.exercise-weight-input input[data-exercise-name]');
 
-      const userEmail = localStorage.getItem('loggedUser');
-      
-      // ═══════════════════════════════════════════════════════════════════════
-      // SYNC LAST WORKOUT TO CLOUD (v6.3.15)
-      // Save which workout was just completed so next time we auto-select the next one
-      // ═══════════════════════════════════════════════════════════════════════
-      const completedWorkoutIndex = sessionStorage.getItem('completedWorkoutIndex');
-      if (completedWorkoutIndex !== null && userEmail) {
-        try {
-          const workoutIndex = parseInt(completedWorkoutIndex);
-          console.log('📤 Syncing last workout to cloud:', workoutIndex, workoutName);
-          
+        weightInputs.forEach(input => {
+          if (input.value.trim()) {
+            const exerciseName = input.getAttribute('data-exercise-name');
+            weights[exerciseName] = input.value.trim();
+          }
+        });
+
+        // Save to history (local storage - immediate, and the source of truth)
+        addWorkoutToHistory(workoutName, duration, weights);
+
+        const userEmail = localStorage.getItem('loggedUser');
+        const completedWorkoutIndex = sessionStorage.getItem('completedWorkoutIndex');
+
+        // Local index write is unconditional - the cloud copy is a bonus.
+        if (completedWorkoutIndex !== null) {
+          localStorage.setItem('viltrum_last_workout_index', completedWorkoutIndex);
+        }
+
+        const pending = [];
+
+        // Which workout was just completed, so next time we auto-select the next one
+        if (completedWorkoutIndex !== null && userEmail) {
+          console.log('📤 Syncing last workout to cloud:', completedWorkoutIndex, workoutName);
           // V9: POST + session token; server writes the token owner's row.
-          await apiPost('saveLastWorkout', {
-            lastWorkoutIndex: workoutIndex,
+          pending.push(apiPost('saveLastWorkout', {
+            lastWorkoutIndex: parseInt(completedWorkoutIndex),
             lastWorkoutName: workoutName
-          });
-          console.log('✅ Last workout synced to cloud');
-          
-          // Also save locally
-          localStorage.setItem('viltrum_last_workout_index', workoutIndex.toString());
-        } catch (e) {
-          console.warn('⚠️ Last workout cloud sync error:', e);
-          // Still save locally
-          if (completedWorkoutIndex !== null) {
-            localStorage.setItem('viltrum_last_workout_index', completedWorkoutIndex);
-          }
+          }));
         }
-      } else if (completedWorkoutIndex !== null) {
-        // Not logged in, just save locally
-        localStorage.setItem('viltrum_last_workout_index', completedWorkoutIndex);
-        console.log('💾 Last workout saved locally (not logged in)');
-      }
-      // ═══════════════════════════════════════════════════════════════════════
 
-      // Ensure weights cloud sync completes before redirecting
-      if (Object.keys(weights).length > 0) {
-        try {
-          if (userEmail) {
-            // Get full weights from localStorage (merged)
-            const allWeights = JSON.parse(localStorage.getItem('viltrum_exercise_weights') || '{}');
-            console.log('📤 Syncing weights to cloud before redirect...');
-            // V9: POST + session token. Also removes the old ~2000-char GET URL
-            // ceiling, which silently truncated large weight payloads.
-            await apiPost('saveWeights', { weights: JSON.stringify(allWeights) });
-            console.log('✅ Weights synced to cloud');
-          }
-        } catch (e) {
-          console.warn('⚠️ Cloud sync error (saved locally):', e);
+        // The weights themselves
+        if (userEmail && Object.keys(weights).length > 0) {
+          // Get full weights from localStorage (merged by addWorkoutToHistory)
+          const allWeights = JSON.parse(localStorage.getItem('viltrum_exercise_weights') || '{}');
+          console.log('📤 Syncing weights to cloud before redirect...');
+          // V9: POST + session token. Also removes the old ~2000-char GET URL
+          // ceiling, which silently truncated large weight payloads.
+          pending.push(apiPost('saveWeights', { weights: JSON.stringify(allWeights) }));
         }
+
+        if (pending.length > 0) {
+          // In parallel and under one shared deadline, not one after the other.
+          await withDeadline(Promise.all(pending), CLOUD_SYNC_DEADLINE_MS, 'Cloud sync');
+        }
+      } catch (e) {
+        // Never strand the user on this screen because a save step threw.
+        console.error('❌ saveAndReturn error (leaving anyway):', e);
+        if (saveBtn) saveBtn.textContent = originalLabel;
       }
 
-      // Clear session storage
-      sessionStorage.removeItem('completedWorkout');
-      sessionStorage.removeItem('workoutDuration');
-      sessionStorage.removeItem('exerciseCount');
-      sessionStorage.removeItem('workoutExercises');
-      sessionStorage.removeItem('completedWorkoutIndex');
-      sessionStorage.removeItem('totalUserWorkouts');
-
-      // V7: Check if coming from plan-view
-      const v7PlanInfo = sessionStorage.getItem('v7PlanInfo');
-      if (v7PlanInfo) {
-        sessionStorage.removeItem('v7PlanInfo');
-        // Return to plan-view
-        window.location.href = 'plan-view.html';
-      } else {
-        // Return to dashboard (v9 fix: was legacy dashboard.html)
-        window.location.href = 'dashboard-v7.html';
-      }
+      leave();
     };
 
     // Reliable taps for the bottom action buttons.
-    // Problem: while a weight input is focused the keyboard is open and the
-    // sticky button bar switches to position:relative. A normal tap first
-    // blurs the input -> keyboard closes -> layout reflows -> the button jumps
-    // out from under the finger -> the click is lost ("sometimes works").
-    // Fix: prevent the blur on pointerdown so nothing reflows, then fire on
-    // pointerup. Keep click as a deduped desktop/no-pointer fallback.
+    //
+    // Two separate things ate presses here:
+    //
+    // 1. Layout moving mid-tap. With a weight input focused the keyboard is up.
+    //    A normal tap blurs the input first, the keyboard closes, the viewport
+    //    grows, the button slides down out from under the finger and the click
+    //    lands on nothing. preventDefault on pointerdown stops the blur, so
+    //    nothing moves while the finger is down.
+    //
+    // 2. The press being reclassified as a scroll. preventDefault on pointerdown
+    //    also suppresses the synthesized click, so the click fallback was gone -
+    //    and if the browser decided the small finger drift was a pan, it sent
+    //    pointercancel instead of pointerup and NOTHING fired at all. That is
+    //    the "sometimes it doesn't work". setPointerCapture claims the gesture
+    //    for the button, so the pointer stream cannot be stolen and pointerup is
+    //    guaranteed to arrive here. touch-action:manipulation in the CSS closes
+    //    the same hole from the other side.
     function bindTap(el, fn) {
       if (!el) return;
       let firedAt = 0;
       const run = () => {
         const now = Date.now();
-        if (now - firedAt < 600) return; // de-dupe pointerup + synthesized click
+        if (now - firedAt < 700) return; // de-dupe pointerup + synthesized click
         firedAt = now;
         fn();
       };
-      // Keep the focused input focused during the press -> no reflow mid-tap.
-      el.addEventListener('pointerdown', (e) => { if (e.cancelable) e.preventDefault(); });
-      el.addEventListener('pointerup', run);
+
+      el.addEventListener('pointerdown', (e) => {
+        // Keep the focused input focused during the press -> no reflow mid-tap.
+        if (e.cancelable) e.preventDefault();
+        try { el.setPointerCapture(e.pointerId); } catch (_) { /* older engines */ }
+      });
+
+      el.addEventListener('pointerup', (e) => {
+        try { el.releasePointerCapture(e.pointerId); } catch (_) {}
+        // With pointer capture the event arrives even if the finger drifted off
+        // the button, so honour the release point: outside = cancelled press.
+        const r = el.getBoundingClientRect();
+        const inside = e.clientX >= r.left && e.clientX <= r.right &&
+                       e.clientY >= r.top  && e.clientY <= r.bottom;
+        if (inside) run();
+      });
+
+      el.addEventListener('pointercancel', (e) => {
+        try { el.releasePointerCapture(e.pointerId); } catch (_) {}
+      });
+
+      // Desktop, keyboard activation, and engines without pointer events.
       el.addEventListener('click', run);
     }
 

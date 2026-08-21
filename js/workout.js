@@ -3277,9 +3277,20 @@ async function playExercise(index, exercises, resumeTime = null) {
     const workoutDuration = Math.floor((Date.now() - workoutStartTime) / 1000);
     console.log('Workout duration:', workoutDuration, 'seconds');
     
-    // Get the workout display name from the dropdown
+    // Get the workout display name.
+    // The dropdown is only populated in the normal flow. When the workout was
+    // started from plan-view the select stays empty, selectedIndex is -1, and
+    // options[-1]?.textContent is undefined -> sessionStorage stored the STRING
+    // "undefined" and the completion page printed "UNDEFINED" as the title.
+    // Fall back to the plan info, then to the session number.
     const workoutSelect = document.getElementById('workoutSelect');
-    const workoutDisplayName = workoutSelect ? workoutSelect.options[workoutSelect.selectedIndex]?.textContent : 'Workout';
+    const selectedOption = workoutSelect ? workoutSelect.options[workoutSelect.selectedIndex] : null;
+    const workoutDisplayName =
+      (selectedOption && selectedOption.textContent) ||
+      (window.v7PlanInfo && (window.v7PlanInfo.workoutName || window.v7PlanInfo.planName)) ||
+      (Number.isInteger(currentWorkoutIndex) && currentWorkoutIndex >= 0
+        ? `Sesh ${currentWorkoutIndex + 1}`
+        : 'Workout');
     
     // ═══════════════════════════════════════════════════════════════════════
     // SAVE LAST WORKOUT (NEW in v6.3.15)
@@ -3311,13 +3322,35 @@ async function playExercise(index, exercises, resumeTime = null) {
     sessionStorage.setItem('workoutDuration', workoutDuration);
     sessionStorage.setItem('exerciseCount', exercises.filter(e => !e.isLabel && !e.name.toLowerCase().includes('istruz')).length);
     
-    // Save exercise list (only exercises with weights/equipment)
-    const exercisesWithWeights = exercises.filter(e => 
-      !e.isLabel && 
-      !e.name.toLowerCase().includes('istruz') && 
-      e.tipoDiPeso
-    );
-    sessionStorage.setItem('workoutExercises', JSON.stringify(exercisesWithWeights));
+    // Save exercise list for the completion page.
+    // Send EVERY real exercise, not only the ones with a filled equipment
+    // column. Requiring e.tipoDiPeso here silently dropped any exercise whose
+    // sheet row left column G blank, so the user could not log the weight they
+    // actually used. The completion page decides what to show; this step must
+    // not lose data.
+    // Only sequence scaffolding is stripped: labels, block markers, the
+    // instructions row and rest slots.
+    const exercisesWithWeights = exercises
+      .filter(e => {
+        if (!e || e.isLabel) return false;
+        const n = (e.name || '').toLowerCase().trim();
+        if (!n) return false;
+        if (n.includes('istruz')) return false;
+        if (n.includes('rest') || n.includes('riposo') || n.includes('pausa')) return false;
+        return true;
+      })
+      // Keep only what the completion page reads. The raw sequence entries drag
+      // along imageUrl, audio clips and whole nextBlockPreview arrays, which can
+      // blow the sessionStorage quota on a long workout - and a throw here would
+      // stop the redirect to the completion page entirely.
+      .map(e => ({ name: e.name, tipoDiPeso: e.tipoDiPeso || '' }));
+
+    try {
+      sessionStorage.setItem('workoutExercises', JSON.stringify(exercisesWithWeights));
+    } catch (err) {
+      console.warn('⚠️ Could not store exercise list for completion page:', err);
+      sessionStorage.setItem('workoutExercises', '[]');
+    }
     
     // ═══════════════════════════════════════════════════════════════════════════
     // V7: SAVE PLAN PROGRESS IF COMING FROM PLAN-VIEW
