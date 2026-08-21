@@ -86,8 +86,22 @@ git commit -m "$Message ($newVersion)"
 # ── Git push ──
 # v9: plain push (was push -f, which silently discarded remote commits made
 # from another machine/session). On rejection: fetch + rebase, then re-run.
+# The exit code is checked. Before, a failed push was printed and then buried
+# under a green "DEPLOYED" banner, so the deploy looked completely fine while
+# GitHub never received the commit. Real case: 2026-08-21, v8.2.84 went live on
+# Cloudflare while the push died on a credential prompt and nobody noticed.
 Write-Host "[4/5] Git push..." -ForegroundColor Green
 git push origin main
+$pushOk = ($LASTEXITCODE -eq 0)
+if (-not $pushOk) {
+    Write-Host ""
+    Write-Host "  WARNING: git push FAILED - the commit is LOCAL ONLY." -ForegroundColor Red
+    Write-Host "    GitHub does not have $newVersion. The Cloudflare deploy below still" -ForegroundColor Yellow
+    Write-Host "    publishes the site, so this does not block going live." -ForegroundColor Yellow
+    Write-Host "    Fix afterwards with:  git push origin main" -ForegroundColor Yellow
+    Write-Host "    If it was rejected as non-fast-forward:  git pull --rebase origin main" -ForegroundColor Yellow
+    Write-Host ""
+}
 
 # ── Cloudflare Worker deploy (this is what actually publishes to viltrumfitness.com) ──
 # The site is a Cloudflare Worker (wrangler.jsonc). A git push alone does NOT go live —
@@ -104,9 +118,23 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host ""
-Write-Host "═══════════════════════════════════════" -ForegroundColor Green
-Write-Host "  DEPLOYED $newVersion to viltrumfitness.com" -ForegroundColor Green
-Write-Host "  build: $buildHash" -ForegroundColor DarkGray
-Write-Host "  $timestamp" -ForegroundColor DarkGray
-Write-Host "═══════════════════════════════════════" -ForegroundColor Green
-Write-Host ""
+if ($pushOk) {
+    Write-Host "=======================================" -ForegroundColor Green
+    Write-Host "  DEPLOYED $newVersion to viltrumfitness.com" -ForegroundColor Green
+    Write-Host "  build: $buildHash" -ForegroundColor DarkGray
+    Write-Host "  $timestamp" -ForegroundColor DarkGray
+    Write-Host "=======================================" -ForegroundColor Green
+    Write-Host ""
+} else {
+    # Half the job worked. Say exactly which half, and do not paint it green.
+    Write-Host "=======================================" -ForegroundColor Yellow
+    Write-Host "  PARTIAL DEPLOY $newVersion" -ForegroundColor Yellow
+    Write-Host "    LIVE on viltrumfitness.com     : YES" -ForegroundColor Green
+    Write-Host "    Pushed to GitHub               : NO" -ForegroundColor Red
+    Write-Host "  build: $buildHash" -ForegroundColor DarkGray
+    Write-Host "  $timestamp" -ForegroundColor DarkGray
+    Write-Host "  Finish with:  git push origin main" -ForegroundColor Yellow
+    Write-Host "=======================================" -ForegroundColor Yellow
+    Write-Host ""
+    exit 1
+}
